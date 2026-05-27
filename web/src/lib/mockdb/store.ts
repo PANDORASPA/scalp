@@ -25,8 +25,27 @@ export type MockDb = {
 
 const DB_PATH = path.join(process.cwd(), '.data', 'mock-db.json')
 
+function emptyDb(): MockDb {
+  return {
+    customers: [],
+    sessions: [],
+    images: [],
+    metrics: [],
+    pointSummaries: [],
+    comparisons: [],
+    aiShotAnalyses: [],
+    aiPointAnalyses: [],
+  }
+}
+
 export async function readDb(): Promise<MockDb> {
-  const raw = await readFile(DB_PATH, 'utf-8')
+  let raw: string
+  try {
+    raw = await readFile(DB_PATH, 'utf-8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return emptyDb()
+    throw error
+  }
   const parsed = JSON.parse(raw) as Partial<MockDb>
 
   return {
