@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import type {
@@ -61,12 +61,16 @@ export async function readDb(): Promise<MockDb> {
 }
 
 export async function writeDb(db: MockDb): Promise<void> {
+  await mkdir(path.dirname(DB_PATH), { recursive: true })
   await writeFile(DB_PATH, JSON.stringify(db, null, 2), 'utf-8')
 }
 
 export async function updateDb<T>(fn: (db: MockDb) => Promise<{ db: MockDb; result: T }> | { db: MockDb; result: T }) {
   const db = await readDb()
+  const before = JSON.stringify(db)
   const { db: nextDb, result } = await fn(db)
-  await writeDb(nextDb)
+  if (JSON.stringify(nextDb) !== before) {
+    await writeDb(nextDb)
+  }
   return result
 }
