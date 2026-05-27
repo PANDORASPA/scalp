@@ -441,7 +441,11 @@ export async function createSessionInSupabase(input: {
   const { data, error } = await client
     .from('scalp_sessions')
     .insert({
-      ...input,
+      customer_id: input.customer_id,
+      check_date: input.check_date,
+      staff_name: input.staff_name,
+      notes: input.notes,
+      workflow_type: 'legacy_capture',
       created_at: input.nowISO,
       updated_at: input.nowISO,
     })
