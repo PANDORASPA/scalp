@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": ".test-dist",
+    "rootDir": "src",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/lib/auth/users.ts",
+    "src/lib/auth/core.ts",
+    "src/lib/auth/session.test.ts",
+    "src/lib/customers/workspace.ts",
+    "src/lib/customers/workspace.test.ts",
+    "src/lib/scalp/ai.ts",
+    "src/lib/scalp/ai.test.ts",
+    "src/lib/scalp/logic.ts",
+    "src/lib/scalp/pipeline.ts",
+    "src/lib/scalp/pipeline.test.ts",
+    "src/lib/scalp-analysis/constants.ts",
+    "src/lib/scalp-analysis/types.ts",
+    "src/lib/scalp-analysis/logic.ts",
+    "src/lib/scalp-analysis/logic.test.ts",
+    "src/lib/scalp/types.ts",
+    "src/lib/scalp/constants.ts",
+    "src/lib/mockdb/store.ts"
+  ]
+}

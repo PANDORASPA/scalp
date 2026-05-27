@@ -1,0 +1,432 @@
+import 'server-only'
+
+import { SCALP_ANALYSIS_AREA_KEYS, SCALP_ANALYSIS_AREA_LABELS, type ScalpAnalysisAreaKey } from '@/lib/scalp-analysis/constants'
+import type { Customer, ScalpSession } from '@/lib/scalp/types'
+import { getSupabaseAdminClient } from '@/lib/supabase/client'
+
+import { normalizeAnnotations } from './logic'
+import type { ScalpAnalysisImage, ScalpAreaSummary, ScalpAnalysisSessionState, ScalpSessionComparison } from './types'
+
+type CapturePointRow = {
+  id: string
+  code: string
+  display_name: string | null
+  sort_order: number
+}
+
+type ScalpImageTrackingRow = {
+  id: string
+  customer_id: string
+  session_id: string
+  capture_point_id: string
+  shot_index: number
+  image_url: string
+  drive_file_id: string | null
+  storage_provider: string
+  storage_object_key: string | null
+  analysis_status: ScalpAnalysisImage['analysis_status']
+  ai_result_json: unknown
+  confirmed_annotations_json: unknown
+  coarse_hair_count: number | null
+  baby_hair_count: number | null
+  empty_follicle_count: number | null
+  blockage_count: number | null
+  scalp_empty_ratio: number | null
+  redness_score: number | null
+  oiliness_score: number | null
+  density_score: number | null
+  created_at: string
+  updated_at: string
+}
+
+type ScalpAreaSummaryRow = {
+  id: string
+  customer_id: string
+  session_id: string
+  capture_point_id: string
+  average_coarse_hair_count: number | null
+  average_baby_hair_count: number | null
+  average_empty_follicle_count: number | null
+  average_blockage_count: number | null
+  average_scalp_empty_ratio: number | null
+  average_redness_score: number | null
+  average_oiliness_score: number | null
+  average_density_score: number | null
+  compared_to_previous_json: ScalpSessionComparison | null
+  compared_to_baseline_json: ScalpSessionComparison | null
+  report_summary: string | null
+  created_at: string
+  updated_at: string
+}
+
+async function getCapturePointMaps() {
+  const client = getSupabaseAdminClient()
+  const { data, error } = await client
+    .from('scalp_capture_points')
+    .select('id, code, display_name, sort_order')
+    .in('code', [...SCALP_ANALYSIS_AREA_KEYS])
+  if (error) throw new Error(`scalp_capture_points: ${error.message}`)
+  const rows = (data ?? []) as CapturePointRow[]
+  const byCode = new Map(rows.map((row) => [row.code, row.id]))
+  const byId = new Map(rows.map((row) => [row.id, row.code]))
+  return { byCode, byId }
+}
+
+function toAreaKey(code: string): ScalpAnalysisAreaKey {
+  return code as ScalpAnalysisAreaKey
+}
+
+function mapImage(row: ScalpImageTrackingRow, byId: Map<string, string>): ScalpAnalysisImage {
+  const code = byId.get(row.capture_point_id)
+  if (!code) throw new Error(`Unknown capture point id: ${row.capture_point_id}`)
+  return {
+    id: row.id,
+    customer_id: row.customer_id,
+    session_id: row.session_id,
+    area_key: toAreaKey(code),
+    image_index: row.shot_index as 1 | 2 | 3,
+    image_url: row.image_url,
+    drive_file_id: row.drive_file_id,
+    storage_provider: row.storage_provider,
+    storage_object_key: row.storage_object_key,
+    analysis_status: row.analysis_status,
+    ai_result_json: row.ai_result_json ? normalizeAnnotations(row.ai_result_json) : null,
+    confirmed_annotations_json: row.confirmed_annotations_json ? normalizeAnnotations(row.confirmed_annotations_json) : null,
+    stats: {
+      coarse_hair_count: row.coarse_hair_count,
+      baby_hair_count: row.baby_hair_count,
+      empty_follicle_count: row.empty_follicle_count,
+      blockage_count: row.blockage_count,
+      scalp_empty_ratio: row.scalp_empty_ratio,
+      redness_score: row.redness_score,
+      oiliness_score: row.oiliness_score,
+      density_score: row.density_score,
+    },
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
+}
+
+function mapSummary(row: ScalpAreaSummaryRow, byId: Map<string, string>): ScalpAreaSummary {
+  const code = byId.get(row.capture_point_id)
+  if (!code) throw new Error(`Unknown capture point id: ${row.capture_point_id}`)
+  return {
+    id: row.id,
+    customer_id: row.customer_id,
+    session_id: row.session_id,
+    area_key: toAreaKey(code),
+    average_coarse_hair_count: row.average_coarse_hair_count,
+    average_baby_hair_count: row.average_baby_hair_count,
+    average_empty_follicle_count: row.average_empty_follicle_count,
+    average_blockage_count: row.average_blockage_count,
+    average_scalp_empty_ratio: row.average_scalp_empty_ratio,
+    average_redness_score: row.average_redness_score,
+    average_oiliness_score: row.average_oiliness_score,
+    average_density_score: row.average_density_score,
+    compared_to_previous_json: row.compared_to_previous_json,
+    compared_to_baseline_json: row.compared_to_baseline_json,
+    report_summary: row.report_summary,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
+}
+
+export async function ensureScalpAnalysisCapturePoints() {
+  const client = getSupabaseAdminClient()
+  const { error } = await client.from('scalp_capture_points').upsert(
+    SCALP_ANALYSIS_AREA_KEYS.map((code, index) => ({
+      code,
+      display_name: SCALP_ANALYSIS_AREA_LABELS[code],
+      sort_order: 101 + index,
+    })),
+    { onConflict: 'code' },
+  )
+  if (error) throw new Error(`seed scalp analysis capture points: ${error.message}`)
+}
+
+export async function createTrackingSessionRecord(input: {
+  customerId: string
+  checkDate: string
+  notes: string | null
+  nowISO: string
+}) {
+  const client = getSupabaseAdminClient()
+  const { data, error } = await client
+    .from('scalp_sessions')
+    .insert({
+      customer_id: input.customerId,
+      check_date: input.checkDate,
+      notes: input.notes,
+      workflow_type: 'scalp_analysis_tracking',
+      created_at: input.nowISO,
+      updated_at: input.nowISO,
+    })
+    .select('*')
+    .single()
+  if (error) throw new Error(`create scalp analysis session: ${error.message}`)
+  return data as ScalpSession
+}
+
+export async function listTrackingSessions(customerId: string) {
+  const client = getSupabaseAdminClient()
+  const { data, error } = await client
+    .from('scalp_sessions')
+    .select('*')
+    .eq('customer_id', customerId)
+    .eq('workflow_type', 'scalp_analysis_tracking')
+    .order('check_date', { ascending: false })
+  if (error) throw new Error(`list scalp analysis sessions: ${error.message}`)
+  return (data ?? []) as ScalpSession[]
+}
+
+export async function getTrackingSession(sessionId: string) {
+  const client = getSupabaseAdminClient()
+  const { data, error } = await client
+    .from('scalp_sessions')
+    .select('*')
+    .eq('id', sessionId)
+    .eq('workflow_type', 'scalp_analysis_tracking')
+    .maybeSingle()
+  if (error) throw new Error(`get scalp analysis session: ${error.message}`)
+  return (data as ScalpSession | null) ?? null
+}
+
+export async function getCustomerRecord(customerId: string) {
+  const client = getSupabaseAdminClient()
+  const { data, error } = await client.from('customers').select('*').eq('id', customerId).maybeSingle()
+  if (error) throw new Error(`get customer: ${error.message}`)
+  return (data as Customer | null) ?? null
+}
+
+export async function upsertTrackingImageRecord(input: {
+  customerId: string
+  sessionId: string
+  areaKey: ScalpAnalysisAreaKey
+  imageIndex: 1 | 2 | 3
+  imageUrl: string
+  driveFileId: string | null
+  storageProvider: string
+  storageObjectKey: string | null
+  analysisStatus: ScalpAnalysisImage['analysis_status']
+  aiResultJson?: unknown
+  confirmedAnnotationsJson?: unknown
+  nowISO: string
+}) {
+  const { byCode, byId } = await getCapturePointMaps()
+  const capturePointId = byCode.get(input.areaKey)
+  if (!capturePointId) throw new Error(`Unknown area key: ${input.areaKey}`)
+  const client = getSupabaseAdminClient()
+  const { data, error } = await client
+    .from('scalp_images')
+    .upsert(
+      {
+        customer_id: input.customerId,
+        session_id: input.sessionId,
+        capture_point_id: capturePointId,
+        shot_index: input.imageIndex,
+        image_type: 'micro',
+        image_url: input.imageUrl,
+        drive_file_id: input.driveFileId,
+        storage_provider: input.storageProvider,
+        storage_object_key: input.storageObjectKey,
+        analysis_status: input.analysisStatus,
+        ai_result_json: input.aiResultJson ?? null,
+        confirmed_annotations_json: input.confirmedAnnotationsJson ?? null,
+        updated_at: input.nowISO,
+      },
+      { onConflict: 'session_id,capture_point_id,shot_index' },
+    )
+    .select('*')
+    .single()
+  if (error) throw new Error(`upsert scalp analysis image: ${error.message}`)
+  return mapImage(data as ScalpImageTrackingRow, byId)
+}
+
+export async function updateTrackingImageRecord(
+  imageId: string,
+  patch: Partial<{
+    image_url: string
+    drive_file_id: string | null
+    storage_provider: string
+    storage_object_key: string | null
+    analysis_status: ScalpAnalysisImage['analysis_status']
+    ai_result_json: unknown
+    confirmed_annotations_json: unknown
+    coarse_hair_count: number | null
+    baby_hair_count: number | null
+    empty_follicle_count: number | null
+    blockage_count: number | null
+    scalp_empty_ratio: number | null
+    redness_score: number | null
+    oiliness_score: number | null
+    density_score: number | null
+    analysis_notes: string | null
+    updated_at: string
+  }>,
+) {
+  const { byId } = await getCapturePointMaps()
+  const client = getSupabaseAdminClient()
+  const { data, error } = await client.from('scalp_images').update(patch).eq('id', imageId).select('*').single()
+  if (error) throw new Error(`update scalp analysis image: ${error.message}`)
+  return mapImage(data as ScalpImageTrackingRow, byId)
+}
+
+export async function getTrackingImageById(imageId: string) {
+  const { byId } = await getCapturePointMaps()
+  const client = getSupabaseAdminClient()
+  const { data, error } = await client.from('scalp_images').select('*').eq('id', imageId).maybeSingle()
+  if (error) throw new Error(`get scalp analysis image: ${error.message}`)
+  return data ? mapImage(data as ScalpImageTrackingRow, byId) : null
+}
+
+export async function getTrackingImageBySlot(sessionId: string, areaKey: ScalpAnalysisAreaKey, imageIndex: 1 | 2 | 3) {
+  const { byCode, byId } = await getCapturePointMaps()
+  const capturePointId = byCode.get(areaKey)
+  if (!capturePointId) throw new Error(`Unknown area key: ${areaKey}`)
+  const client = getSupabaseAdminClient()
+  const { data, error } = await client
+    .from('scalp_images')
+    .select('*')
+    .eq('session_id', sessionId)
+    .eq('capture_point_id', capturePointId)
+    .eq('shot_index', imageIndex)
+    .maybeSingle()
+  if (error) throw new Error(`get scalp analysis image slot: ${error.message}`)
+  return data ? mapImage(data as ScalpImageTrackingRow, byId) : null
+}
+
+export async function deleteTrackingImageRecord(imageId: string) {
+  const { byId } = await getCapturePointMaps()
+  const client = getSupabaseAdminClient()
+  const { data, error } = await client.from('scalp_images').delete().eq('id', imageId).select('*').single()
+  if (error) throw new Error(`delete scalp analysis image: ${error.message}`)
+  return mapImage(data as ScalpImageTrackingRow, byId)
+}
+
+export async function listTrackingImagesForSession(sessionId: string) {
+  const { byId } = await getCapturePointMaps()
+  const client = getSupabaseAdminClient()
+  const { data, error } = await client.from('scalp_images').select('*').eq('session_id', sessionId)
+  if (error) throw new Error(`list scalp analysis images: ${error.message}`)
+  return ((data ?? []) as ScalpImageTrackingRow[])
+    .map((row) => mapImage(row, byId))
+    .filter((image) => SCALP_ANALYSIS_AREA_KEYS.includes(image.area_key))
+    .sort((a, b) => a.area_key.localeCompare(b.area_key) || a.image_index - b.image_index)
+}
+
+export async function listTrackingAreaSummariesForCustomer(customerId: string) {
+  const { byId } = await getCapturePointMaps()
+  const client = getSupabaseAdminClient()
+  const { data, error } = await client.from('scalp_area_summaries').select('*').eq('customer_id', customerId)
+  if (error) throw new Error(`list scalp area summaries: ${error.message}`)
+  return ((data ?? []) as ScalpAreaSummaryRow[]).map((row) => mapSummary(row, byId))
+}
+
+export async function upsertTrackingAreaSummary(input: Omit<ScalpAreaSummary, 'id' | 'created_at' | 'updated_at'> & { id?: string }) {
+  const { byCode, byId } = await getCapturePointMaps()
+  const capturePointId = byCode.get(input.area_key)
+  if (!capturePointId) throw new Error(`Unknown area key: ${input.area_key}`)
+  const client = getSupabaseAdminClient()
+  const { data, error } = await client
+    .from('scalp_area_summaries')
+    .upsert(
+      {
+        id: input.id,
+        customer_id: input.customer_id,
+        session_id: input.session_id,
+        capture_point_id: capturePointId,
+        average_coarse_hair_count: input.average_coarse_hair_count,
+        average_baby_hair_count: input.average_baby_hair_count,
+        average_empty_follicle_count: input.average_empty_follicle_count,
+        average_blockage_count: input.average_blockage_count,
+        average_scalp_empty_ratio: input.average_scalp_empty_ratio,
+        average_redness_score: input.average_redness_score,
+        average_oiliness_score: input.average_oiliness_score,
+        average_density_score: input.average_density_score,
+        compared_to_previous_json: input.compared_to_previous_json,
+        compared_to_baseline_json: input.compared_to_baseline_json,
+        report_summary: input.report_summary,
+      },
+      { onConflict: 'session_id,capture_point_id' },
+    )
+    .select('*')
+    .single()
+  if (error) throw new Error(`upsert scalp area summary: ${error.message}`)
+  return mapSummary(data as ScalpAreaSummaryRow, byId)
+}
+
+export async function deleteTrackingAreaSummary(sessionId: string, areaKey: ScalpAnalysisAreaKey) {
+  const { byCode } = await getCapturePointMaps()
+  const capturePointId = byCode.get(areaKey)
+  if (!capturePointId) throw new Error(`Unknown area key: ${areaKey}`)
+  const client = getSupabaseAdminClient()
+  const { error } = await client
+    .from('scalp_area_summaries')
+    .delete()
+    .eq('session_id', sessionId)
+    .eq('capture_point_id', capturePointId)
+  if (error) throw new Error(`delete scalp area summary: ${error.message}`)
+}
+
+export async function getTrackingAreaSummary(sessionId: string, areaKey: ScalpAnalysisAreaKey) {
+  const { byCode, byId } = await getCapturePointMaps()
+  const capturePointId = byCode.get(areaKey)
+  if (!capturePointId) throw new Error(`Unknown area key: ${areaKey}`)
+  const client = getSupabaseAdminClient()
+  const { data, error } = await client
+    .from('scalp_area_summaries')
+    .select('*')
+    .eq('session_id', sessionId)
+    .eq('capture_point_id', capturePointId)
+    .maybeSingle()
+  if (error) throw new Error(`get scalp area summary: ${error.message}`)
+  return data ? mapSummary(data as ScalpAreaSummaryRow, byId) : null
+}
+
+export async function getTrackingSessionStateRecord(sessionId: string): Promise<ScalpAnalysisSessionState | null> {
+  const [session, { byId }, images, customerMaybe] = await Promise.all([
+    getTrackingSession(sessionId),
+    getCapturePointMaps(),
+    listTrackingImagesForSession(sessionId),
+    (async () => {
+      const rawSession = await getTrackingSession(sessionId)
+      if (!rawSession) return null
+      return getCustomerRecord(rawSession.customer_id)
+    })(),
+  ])
+
+  if (!session) return null
+  const client = getSupabaseAdminClient()
+  const { data, error } = await client.from('scalp_area_summaries').select('*').eq('session_id', sessionId)
+  if (error) throw new Error(`session area summaries: ${error.message}`)
+  const summaries = ((data ?? []) as ScalpAreaSummaryRow[]).map((row) => mapSummary(row, byId))
+
+  const areas = SCALP_ANALYSIS_AREA_KEYS.map((areaKey) => {
+    const areaImages = images.filter((image) => image.area_key === areaKey)
+    const summary = summaries.find((item) => item.area_key === areaKey) ?? null
+    return {
+      area_key: areaKey,
+      label: SCALP_ANALYSIS_AREA_LABELS[areaKey],
+      images: areaImages,
+      summary,
+      missing_images: Math.max(0, 3 - areaImages.length),
+      ready_for_average: areaImages.length === 3 && areaImages.every((image) => image.analysis_status === 'confirmed'),
+    }
+  })
+
+  return {
+    session,
+    customer: customerMaybe
+      ? {
+          id: customerMaybe.id,
+          name: customerMaybe.name,
+          phone: customerMaybe.phone,
+        }
+      : null,
+    areas,
+    report_lines: summaries
+      .sort((a, b) => a.area_key.localeCompare(b.area_key))
+      .map((summary) => summary.report_summary)
+      .filter((value): value is string => typeof value === 'string' && value.length > 0),
+  }
+}
