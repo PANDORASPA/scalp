@@ -22,6 +22,18 @@ type CustomerRow = {
   latest_check_date: string | null
 }
 
+type IntegrationStatus = {
+  key: string
+  label: string
+  ready: boolean
+  requiredFor: string
+  details: string
+}
+
+type SettingsStatusResponse = {
+  integrations: IntegrationStatus[]
+}
+
 async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)
   if (!res.ok) {
@@ -91,14 +103,17 @@ export default function ScalpAnalysisClient() {
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [createNotes, setCreateNotes] = useState('')
+  const [integrations, setIntegrations] = useState<IntegrationStatus[]>([])
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
         const data = await fetchJSON<CustomerRow[]>('/api/customers/overview')
+        const status = await fetchJSON<SettingsStatusResponse>('/api/settings/status')
         if (!cancelled) {
           setCustomers(data)
+          setIntegrations(status.integrations)
           setCustomerId((prev) => prev || data[0]?.id || '')
         }
       } catch (e) {
@@ -154,6 +169,8 @@ export default function ScalpAnalysisClient() {
     () => customers.find((item) => item.id === customerId) ?? null,
     [customerId, customers],
   )
+  const googleDriveReady = integrations.find((item) => item.key === 'google-drive')?.ready ?? false
+  const googleDriveDetails = integrations.find((item) => item.key === 'google-drive')?.details
 
   async function refreshCurrentSession() {
     if (!sessionId) return
@@ -290,6 +307,18 @@ export default function ScalpAnalysisClient() {
             <Card className="border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</Card>
           ) : null}
 
+          {!googleDriveReady ? (
+            <Card className="border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              <div className="font-semibold">圖片上傳尚未啟用</div>
+              <div className="mt-1">
+                {googleDriveDetails ?? '請先到系統設定完成 Google Drive API credential。'}
+              </div>
+              <a className="mt-2 inline-block font-medium underline" href="/settings">
+                前往系統設定
+              </a>
+            </Card>
+          ) : null}
+
           {!sessionState ? (
             <Card className="p-6 text-sm text-slate-500">請先選擇或建立一個頭皮分析 session。</Card>
           ) : (
@@ -356,7 +385,7 @@ export default function ScalpAnalysisClient() {
                             {pendingFile ? <div className="text-xs text-slate-500">{pendingFile.name}</div> : null}
                             <div className="flex gap-2">
                               <Button
-                                disabled={!pendingFile || busyKey === `upload:${fileKey}`}
+                                disabled={!googleDriveReady || !pendingFile || busyKey === `upload:${fileKey}`}
                                 onClick={async () => {
                                   const file = files[fileKey]
                                   if (!file) return
