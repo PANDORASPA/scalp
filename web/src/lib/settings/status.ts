@@ -1,5 +1,6 @@
 import { hasGoogleDriveEnv } from '@/lib/config/google-drive'
 import { hasSupabaseServerEnv } from '@/lib/config/supabase'
+import { getAppSettings, hasCompleteGoogleDriveSettings, hasOpenAiApiKey } from '@/lib/settings/repository'
 
 export type IntegrationStatus = {
   key: string
@@ -9,9 +10,11 @@ export type IntegrationStatus = {
   details: string
 }
 
-export function getSystemStatus(): IntegrationStatus[] {
-  const aiProvider = process.env.SCALP_ANALYSIS_AI_PROVIDER?.trim().toLowerCase() || 'mock'
-  const openAiReady = aiProvider === 'mock' || Boolean(process.env.OPENAI_API_KEY?.trim())
+export async function getSystemStatus(): Promise<IntegrationStatus[]> {
+  const settings = await getAppSettings()
+  const aiProvider = settings.openAi.provider ?? process.env.SCALP_ANALYSIS_AI_PROVIDER?.trim().toLowerCase() ?? 'mock'
+  const googleDriveReady = hasCompleteGoogleDriveSettings(settings.googleDrive) || hasGoogleDriveEnv()
+  const openAiReady = aiProvider === 'mock' || hasOpenAiApiKey(settings.openAi) || Boolean(process.env.OPENAI_API_KEY?.trim())
 
   return [
     {
@@ -26,9 +29,9 @@ export function getSystemStatus(): IntegrationStatus[] {
     {
       key: 'google-drive',
       label: 'Google Drive 圖片儲存',
-      ready: hasGoogleDriveEnv(),
+      ready: googleDriveReady,
       requiredFor: '頭皮放大圖上傳與圖片長期保存',
-      details: hasGoogleDriveEnv()
+      details: googleDriveReady
         ? '已設定 Google Drive service account。'
         : '尚未設定 GOOGLE_DRIVE_CLIENT_EMAIL / GOOGLE_DRIVE_PRIVATE_KEY / GOOGLE_DRIVE_FOLDER_ID。',
     },

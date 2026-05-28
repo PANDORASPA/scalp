@@ -2,7 +2,8 @@ import 'server-only'
 
 import { createSign } from 'node:crypto'
 
-import { getGoogleDriveEnv } from '@/lib/config/google-drive'
+import { getGoogleDriveEnv, getGoogleDriveEnvFromSettings, type GoogleDriveEnv } from '@/lib/config/google-drive'
+import { getAppSettings, hasCompleteGoogleDriveSettings } from '@/lib/settings/repository'
 
 import type { ScalpStorageAdapter, ScalpStorageUploadInput, ScalpStorageUploadResult } from './types'
 
@@ -14,8 +15,15 @@ function base64UrlEncode(value: string | Buffer) {
     .replace(/=+$/g, '')
 }
 
-async function getAccessToken() {
-  const env = getGoogleDriveEnv()
+async function getConfiguredGoogleDriveEnv(): Promise<GoogleDriveEnv> {
+  const settings = await getAppSettings()
+  if (hasCompleteGoogleDriveSettings(settings.googleDrive)) {
+    return getGoogleDriveEnvFromSettings(settings.googleDrive)
+  }
+  return getGoogleDriveEnv()
+}
+
+async function getAccessToken(env: GoogleDriveEnv) {
   const issuedAt = Math.floor(Date.now() / 1000)
   const header = { alg: 'RS256', typ: 'JWT' }
   const payload = {
@@ -71,8 +79,8 @@ function buildMultipartBody(metadata: Record<string, unknown>, bytes: Buffer, co
 export const googleDriveStorageAdapter: ScalpStorageAdapter = {
   provider: 'google-drive',
   async upload(input: ScalpStorageUploadInput): Promise<ScalpStorageUploadResult> {
-    const env = getGoogleDriveEnv()
-    const accessToken = await getAccessToken()
+    const env = await getConfiguredGoogleDriveEnv()
+    const accessToken = await getAccessToken(env)
     const metadata = {
       name: input.fileName,
       parents: [env.folderId],
@@ -133,7 +141,8 @@ export const googleDriveStorageAdapter: ScalpStorageAdapter = {
   },
   async delete(fileId: string | null) {
     if (!fileId) return
-    const accessToken = await getAccessToken()
+    const env = await getConfiguredGoogleDriveEnv()
+    const accessToken = await getAccessToken(env)
     const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`, {
       method: 'DELETE',
       headers: {

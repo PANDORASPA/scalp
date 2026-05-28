@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { hasSupabaseServerEnv } from '@/lib/config/supabase'
+import { getAppSettings } from '@/lib/settings/repository'
 import { touchCustomerInSupabase } from '@/lib/supabase/repository'
 
 import { SCALP_ANALYSIS_AREA_LABELS, SCALP_ANALYSIS_WORKFLOW_TYPE, type ScalpAnalysisAreaKey } from './constants'
@@ -43,7 +44,9 @@ type UploadInput = {
   file: File
 }
 
-function getAnalysisProvider() {
+async function getAnalysisProvider() {
+  const settings = await getAppSettings()
+  if (settings.openAi.provider) return settings.openAi.provider
   const provider = process.env.SCALP_ANALYSIS_AI_PROVIDER?.trim().toLowerCase() || 'mock'
   return provider === 'openai-5.5' ? 'openai-5.5' : 'mock'
 }
@@ -66,7 +69,7 @@ export async function createScalpSession(customerId: string, input?: { sessionDa
 }
 
 export async function analyzeScalpImage(imageUrl: string): Promise<ScalpAnalysisAnnotations> {
-  const provider = getAnalysisProvider()
+  const provider = await getAnalysisProvider()
   if (provider === 'mock') return runMockAnalyzer(imageUrl)
   try {
     return await analyzeScalpImageWithOpenAi(imageUrl)

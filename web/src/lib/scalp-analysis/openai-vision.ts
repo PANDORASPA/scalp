@@ -1,6 +1,7 @@
 import 'server-only'
 
-import { getOpenAiVisionEnv } from '@/lib/config/openai'
+import { getOpenAiVisionEnv, getOpenAiVisionEnvFromSettings } from '@/lib/config/openai'
+import { getAppSettings, hasOpenAiApiKey } from '@/lib/settings/repository'
 
 import { normalizeAnnotations } from './logic'
 import type { ScalpAnalysisAnnotations } from './types'
@@ -92,7 +93,10 @@ function extractOutputText(payload: unknown) {
 }
 
 export async function analyzeScalpImageWithOpenAi(imageUrl: string): Promise<ScalpAnalysisAnnotations> {
-  const env = getOpenAiVisionEnv()
+  const settings = await getAppSettings()
+  const env = hasOpenAiApiKey(settings.openAi)
+    ? getOpenAiVisionEnvFromSettings(settings.openAi)
+    : getOpenAiVisionEnv()
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), env.timeoutMs)
 
