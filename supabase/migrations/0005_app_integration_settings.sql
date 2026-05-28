@@ -5,6 +5,8 @@ create table if not exists public.app_settings (
   updated_at timestamptz not null default now()
 );
 
+alter table public.app_settings enable row level security;
+
 drop trigger if exists trg_app_settings_updated_at on public.app_settings;
 create trigger trg_app_settings_updated_at
 before update on public.app_settings
