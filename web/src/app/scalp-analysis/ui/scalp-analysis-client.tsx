@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { SCALP_ANALYSIS_AREA_KEYS, SCALP_ANALYSIS_AREA_LABELS } from '@/lib/scalp-analysis/constants'
 import type { ScalpAnalysisAnnotations, ScalpAnalysisImage, ScalpAnalysisSessionState, ScalpAreaSummary } from '@/lib/scalp-analysis/types'
 import type { ScalpSession } from '@/lib/scalp/types'
+import { getHumanErrorMessage } from '@/lib/ui/errors'
 import { formatDate } from '@/lib/ui/format'
 
 import { AnnotationEditor } from './annotation-editor'
@@ -25,7 +26,7 @@ async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null
-    throw new Error(body?.error ?? 'Request failed')
+    throw new Error(getHumanErrorMessage(body?.error ?? 'Request failed'))
   }
   return (await res.json()) as T
 }
@@ -37,13 +38,13 @@ function formatMetric(value: number | null, suffix = '') {
 
 function SummaryPanel({ summary }: { summary: ScalpAreaSummary | null }) {
   if (!summary) {
-    return <div className="text-sm text-slate-500">Need 3 confirmed images before the average and comparison can be generated.</div>
+    return <div className="text-sm text-slate-500">需要 3 張已確認圖片，才會生成平均值與比較結果。</div>
   }
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
       <Card className="p-3">
-        <div className="text-xs font-medium uppercase tracking-wide text-slate-500">3-image average</div>
+        <div className="text-xs font-medium uppercase tracking-wide text-slate-500">3 張平均</div>
         <div className="mt-2 grid gap-1 text-sm text-slate-700">
           <div>粗髮：{formatMetric(summary.average_coarse_hair_count, ' 條')}</div>
           <div>幼毛：{formatMetric(summary.average_baby_hair_count, ' 條')}</div>
@@ -61,17 +62,17 @@ function SummaryPanel({ summary }: { summary: ScalpAreaSummary | null }) {
           {summary.compared_to_previous_json?.summary_lines?.length ? (
             summary.compared_to_previous_json.summary_lines.map((line) => <div key={line}>{line}</div>)
           ) : (
-            <div className="text-slate-500">No completed previous session for this area yet.</div>
+            <div className="text-slate-500">這個部位暫時未有已完成的上一次記錄。</div>
           )}
         </div>
       </Card>
       <Card className="p-3">
-        <div className="text-xs font-medium uppercase tracking-wide text-slate-500">今次 vs Baseline</div>
+        <div className="text-xs font-medium uppercase tracking-wide text-slate-500">今次 vs 第一次 baseline</div>
         <div className="mt-2 space-y-1 text-sm text-slate-700">
           {summary.compared_to_baseline_json?.summary_lines?.length ? (
             summary.compared_to_baseline_json.summary_lines.map((line) => <div key={line}>{line}</div>)
           ) : (
-            <div className="text-slate-500">Baseline comparison will appear after the earliest tracking session is complete.</div>
+            <div className="text-slate-500">完成第一次 baseline 後，這裡會顯示長期變化。</div>
           )}
         </div>
       </Card>
@@ -101,7 +102,7 @@ export default function ScalpAnalysisClient() {
           setCustomerId((prev) => prev || data[0]?.id || '')
         }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load customers')
+        if (!cancelled) setError(e instanceof Error ? e.message : '載入客戶失敗')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -124,7 +125,7 @@ export default function ScalpAnalysisClient() {
 
   useEffect(() => {
     if (!customerId) return
-    void loadSessions(customerId).catch((e) => setError(e instanceof Error ? e.message : 'Failed to load sessions'))
+    void loadSessions(customerId).catch((e) => setError(e instanceof Error ? e.message : '載入檢查記錄失敗'))
   }, [customerId])
 
   useEffect(() => {
@@ -139,7 +140,7 @@ export default function ScalpAnalysisClient() {
         const data = await fetchJSON<ScalpAnalysisSessionState>(`/api/scalp-analysis/sessions/${sessionId}`)
         if (!cancelled) setSessionState(data)
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load session state')
+        if (!cancelled) setError(e instanceof Error ? e.message : '載入 session 狀態失敗')
       } finally {
         if (!cancelled) setBusyKey(null)
       }
@@ -161,7 +162,7 @@ export default function ScalpAnalysisClient() {
   }
 
   if (loading) {
-    return <div className="mx-auto max-w-7xl p-6 text-sm text-slate-600">Loading scalp analysis workspace...</div>
+    return <div className="mx-auto max-w-7xl p-6 text-sm text-slate-600">正在載入頭皮分析工作台...</div>
   }
 
   return (
@@ -169,15 +170,15 @@ export default function ScalpAnalysisClient() {
       <Card className="p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-2">
-            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Longitudinal tracking</div>
+            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">長期追蹤</div>
             <h1 className="text-2xl font-semibold text-slate-900">頭皮放大圖追蹤分析系統</h1>
             <p className="max-w-3xl text-sm text-slate-600">
-              每次 session 以 6 個固定部位、每部位 3 張放大圖作追蹤。AI 先做初步標記，最後統計以 confirmed annotations 為準，再和上次及 baseline 比較。
+              每次檢查以 6 個固定部位、每部位 3 張放大圖作追蹤。AI 先做初步標記，最後統計以已確認標記為準，再和上次及第一次 baseline 比較。
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => void refreshCurrentSession()} disabled={!sessionId || busyKey === 'load-session'}>
-              Refresh
+              重新整理
             </Button>
           </div>
         </div>
@@ -187,7 +188,7 @@ export default function ScalpAnalysisClient() {
         <div className="space-y-4">
           <Card className="p-4">
             <div className="grid gap-2">
-              <Label>Select customer</Label>
+              <Label>選擇客人</Label>
               <select
                 className="rounded-md border border-slate-300 px-3 py-2 text-sm"
                 value={customerId}
@@ -196,7 +197,7 @@ export default function ScalpAnalysisClient() {
                   setError(null)
                 }}
               >
-                <option value="">Choose customer</option>
+                <option value="">請選擇客人</option>
                 {customers.map((customer) => (
                   <option key={customer.id} value={customer.id}>
                     {customer.name}
@@ -208,16 +209,16 @@ export default function ScalpAnalysisClient() {
             {selectedCustomer ? (
               <div className="mt-3 text-sm text-slate-600">
                 <div>{selectedCustomer.name}</div>
-                <div>{selectedCustomer.phone || 'No phone'}</div>
+                <div>{selectedCustomer.phone || '未填電話'}</div>
               </div>
             ) : null}
 
             <div className="mt-4 grid gap-2">
-              <Label>Create new tracking session</Label>
+              <Label>建立新的頭皮檢查</Label>
               <Input
                 value={createNotes}
                 onChange={(e) => setCreateNotes(e.target.value)}
-                placeholder="Optional notes for this scalp check"
+                placeholder="可輸入今次檢查備註"
               />
               <Button
                 disabled={!customerId || busyKey === 'create-session'}
@@ -239,22 +240,22 @@ export default function ScalpAnalysisClient() {
                     setSessionId(created.id)
                     setCreateNotes('')
                   } catch (e) {
-                    setError(e instanceof Error ? e.message : 'Failed to create session')
+                    setError(e instanceof Error ? e.message : '建立 session 失敗')
                   } finally {
                     setBusyKey(null)
                   }
                 }}
               >
-                {busyKey === 'create-session' ? 'Creating...' : 'Create session'}
+                {busyKey === 'create-session' ? '建立中...' : '建立 session'}
               </Button>
             </div>
           </Card>
 
           <Card className="p-4">
-            <div className="text-sm font-semibold">Tracking sessions</div>
+            <div className="text-sm font-semibold">檢查記錄</div>
             <div className="mt-3 space-y-2">
               {sessions.length === 0 ? (
-                <div className="text-sm text-slate-500">No scalp-analysis session yet.</div>
+                <div className="text-sm text-slate-500">未有頭皮分析 session。</div>
               ) : (
                 sessions.map((session) => (
                   <button
@@ -267,7 +268,7 @@ export default function ScalpAnalysisClient() {
                     onClick={() => setSessionId(session.id)}
                   >
                     <div className="font-medium">{formatDate(session.check_date)}</div>
-                    <div className="mt-1 text-xs text-slate-500">{session.notes || 'No notes'}</div>
+                    <div className="mt-1 text-xs text-slate-500">{session.notes || '沒有備註'}</div>
                   </button>
                 ))
               )}
@@ -275,7 +276,7 @@ export default function ScalpAnalysisClient() {
           </Card>
 
           <Card className="p-4">
-            <div className="text-sm font-semibold">Fixed areas</div>
+            <div className="text-sm font-semibold">固定拍攝部位</div>
             <div className="mt-3 space-y-2 text-sm text-slate-600">
               {SCALP_ANALYSIS_AREA_KEYS.map((key) => (
                 <div key={key}>{SCALP_ANALYSIS_AREA_LABELS[key]}</div>
@@ -290,26 +291,26 @@ export default function ScalpAnalysisClient() {
           ) : null}
 
           {!sessionState ? (
-            <Card className="p-6 text-sm text-slate-500">Select or create a scalp-analysis session to begin.</Card>
+            <Card className="p-6 text-sm text-slate-500">請先選擇或建立一個頭皮分析 session。</Card>
           ) : (
             <>
               <Card className="p-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <div className="text-sm font-semibold text-slate-900">
-                      {sessionState.customer?.name ?? 'Unknown customer'} | {formatDate(sessionState.session.check_date)}
+                      {sessionState.customer?.name ?? '未知客人'} | {formatDate(sessionState.session.check_date)}
                     </div>
-                    <div className="mt-1 text-sm text-slate-600">{sessionState.session.notes || 'No session notes yet.'}</div>
+                    <div className="mt-1 text-sm text-slate-600">{sessionState.session.notes || '未有 session 備註。'}</div>
                   </div>
                   <div className="text-xs text-slate-500">
-                    {sessionState.areas.filter((area) => area.ready_for_average).length}/{sessionState.areas.length} areas ready
+                    {sessionState.areas.filter((area) => area.ready_for_average).length}/{sessionState.areas.length} 個部位已可出平均
                   </div>
                 </div>
               </Card>
 
               {sessionState.report_lines.length > 0 ? (
                 <Card className="p-5">
-                  <div className="text-sm font-semibold text-slate-900">Report view</div>
+                  <div className="text-sm font-semibold text-slate-900">報告預覽</div>
                   <div className="mt-3 space-y-2 text-sm text-slate-700">
                     {sessionState.report_lines.map((line) => (
                       <div key={line}>{line}</div>
@@ -324,7 +325,7 @@ export default function ScalpAnalysisClient() {
                     <div>
                       <div className="text-lg font-semibold text-slate-900">{area.label}</div>
                       <div className="mt-1 text-sm text-slate-600">
-                        {area.images.length}/3 images uploaded {area.ready_for_average ? '| summary ready' : '| waiting for 3 confirmed images'}
+                        已上傳 {area.images.length}/3 張 {area.ready_for_average ? '| 已生成平均' : '| 等待 3 張已確認圖片'}
                       </div>
                     </div>
                   </div>
@@ -337,8 +338,8 @@ export default function ScalpAnalysisClient() {
                       return (
                         <Card key={fileKey} className="p-3">
                           <div className="flex items-center justify-between">
-                            <div className="text-sm font-medium">Image {imageIndex}</div>
-                            <div className="text-xs text-slate-500">{image?.analysis_status ?? 'missing'}</div>
+                            <div className="text-sm font-medium">圖片 {imageIndex}</div>
+                            <div className="text-xs text-slate-500">{image?.analysis_status ?? '未上傳'}</div>
                           </div>
 
                           <div className="mt-3 grid gap-2">
@@ -375,13 +376,13 @@ export default function ScalpAnalysisClient() {
                                     setFiles((prev) => ({ ...prev, [fileKey]: null }))
                                     await refreshCurrentSession()
                                   } catch (e) {
-                                    setError(e instanceof Error ? e.message : 'Upload failed')
+                                    setError(e instanceof Error ? e.message : '圖片上傳失敗')
                                   } finally {
                                     setBusyKey(null)
                                   }
                                 }}
                               >
-                                {busyKey === `upload:${fileKey}` ? 'Uploading...' : image ? 'Replace image' : 'Upload image'}
+                                {busyKey === `upload:${fileKey}` ? '上傳中...' : image ? '更換圖片' : '上傳圖片'}
                               </Button>
                               {image ? (
                                 <Button
@@ -394,13 +395,13 @@ export default function ScalpAnalysisClient() {
                                       await fetchJSON(`/api/scalp-analysis/images/${image.id}`, { method: 'DELETE' })
                                       await refreshCurrentSession()
                                     } catch (e) {
-                                      setError(e instanceof Error ? e.message : 'Delete failed')
+                                      setError(e instanceof Error ? e.message : '刪除圖片失敗')
                                     } finally {
                                       setBusyKey(null)
                                     }
                                   }}
                                 >
-                                  Delete
+                                  刪除
                                 </Button>
                               ) : null}
                             </div>
@@ -409,8 +410,8 @@ export default function ScalpAnalysisClient() {
                           {image ? (
                             <div className="mt-4 space-y-4">
                               <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                                <div>Storage: {image.storage_provider}</div>
-                                <div>Drive file id: {image.drive_file_id || '-'}</div>
+                                <div>儲存方式：{image.storage_provider}</div>
+                                <div>Google Drive file id：{image.drive_file_id || '-'}</div>
                               </div>
 
                               <AnnotationEditor
@@ -427,7 +428,7 @@ export default function ScalpAnalysisClient() {
                                     })
                                     await refreshCurrentSession()
                                   } catch (e) {
-                                    throw (e instanceof Error ? e : new Error('Failed to save confirmed annotations'))
+                                    throw (e instanceof Error ? e : new Error('儲存確認標記失敗'))
                                   } finally {
                                     setBusyKey(null)
                                   }
@@ -435,7 +436,7 @@ export default function ScalpAnalysisClient() {
                               />
 
                               <Card className="p-3">
-                                <div className="text-sm font-medium text-slate-900">Image stats</div>
+                                <div className="text-sm font-medium text-slate-900">單張圖片統計</div>
                                 <div className="mt-2 grid gap-1 text-sm text-slate-700">
                                   <div>粗髮：{formatMetric(image.stats.coarse_hair_count, ' 條')}</div>
                                   <div>幼毛：{formatMetric(image.stats.baby_hair_count, ' 條')}</div>
@@ -450,7 +451,7 @@ export default function ScalpAnalysisClient() {
                             </div>
                           ) : (
                             <div className="mt-4 rounded-md border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
-                              Missing image
+                              尚未上傳圖片
                             </div>
                           )}
                         </Card>

@@ -96,7 +96,7 @@ export function AnnotationEditor({
       })
       await onConfirm(next)
     } catch (error) {
-      setLocalError(error instanceof Error ? error.message : 'Failed to save annotations')
+      setLocalError(error instanceof Error ? error.message : '儲存標記失敗')
     }
   }
 
@@ -118,16 +118,16 @@ export function AnnotationEditor({
               ))}
             </select>
             <Button variant="secondary" type="button" onClick={() => setMarkers(flattenMarkers(baseAnnotations))}>
-              Reset to AI
+              還原 AI 標記
             </Button>
             <Button type="button" disabled={busy} onClick={() => void handleConfirm()}>
-              {busy ? 'Saving...' : 'Confirm annotations'}
+              {busy ? '儲存中...' : '確認標記'}
             </Button>
           </div>
         </div>
 
         <div className="text-xs text-slate-500">
-          Click to add a marker. Drag markers to adjust position. Use the list below to change type or delete.
+          點擊圖片可新增標記；拖動標記可調整位置；下方清單可更改類型或刪除。
         </div>
 
         <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
@@ -191,18 +191,18 @@ export function AnnotationEditor({
         </div>
 
         <div className="grid gap-2">
-          <label className="text-sm font-medium text-slate-700">Notes</label>
+          <label className="text-sm font-medium text-slate-700">備註</label>
           <textarea
             className="min-h-20 rounded-md border border-slate-300 px-3 py-2 text-sm"
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-            placeholder="Add confirmation notes for this image..."
+            placeholder="輸入這張圖片的人工確認備註..."
           />
         </div>
 
         <div className="grid gap-2">
           {markers.length === 0 ? (
-            <div className="text-xs text-slate-500">No markers yet.</div>
+            <div className="text-xs text-slate-500">暫時未有標記。</div>
           ) : (
             markers.map((marker) => (
               <div key={marker.id} className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-2 md:grid-cols-[1fr_auto_auto] md:items-center">
@@ -231,7 +231,7 @@ export function AnnotationEditor({
                   type="button"
                   onClick={() => setMarkers((prev) => prev.filter((item) => item.id !== marker.id))}
                 >
-                  Delete
+                  刪除
                 </Button>
               </div>
             ))

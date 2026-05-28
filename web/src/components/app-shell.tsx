@@ -12,19 +12,23 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
           <div className="flex items-center gap-3">
             <Link className="text-sm font-semibold" href="/">
-              Scalp Check Tool V1
+              頭皮追蹤系統
             </Link>
             <nav className="flex items-center gap-2 text-sm text-slate-600">
               <Link className="hover:text-slate-900" href="/customers">
-                Customers
+                客戶
               </Link>
               <span className="text-slate-300">/</span>
               <Link className="hover:text-slate-900" href="/scalp-analysis">
-                Scalp Analysis
+                頭皮分析
               </Link>
               <span className="text-slate-300">/</span>
               <Link className="hover:text-slate-900" href="/comparisons">
-                Comparison
+                前後比較
+              </Link>
+              <span className="text-slate-300">/</span>
+              <Link className="hover:text-slate-900" href="/settings">
+                設定
               </Link>
             </nav>
           </div>

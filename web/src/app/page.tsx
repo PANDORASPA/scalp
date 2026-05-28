@@ -26,9 +26,9 @@ export default async function HomePage() {
         <Card className="p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div className="space-y-2">
-              <h1 className="text-2xl font-semibold">Salon workflow dashboard</h1>
+              <h1 className="text-2xl font-semibold">頭皮檢查工作台</h1>
               <p className="text-sm text-slate-600">
-                Signed in as {session?.name ?? 'Unknown user'}. Use the workspace below to move customers through the daily queue.
+                目前登入：{session?.name ?? '未知使用者'}。請用下方工作台安排客人、建立檢查、上傳圖片與查看比較。
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -36,13 +36,13 @@ export default async function HomePage() {
                 className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                 href="/customers"
               >
-                Open workspace
+                開啟客戶工作台
               </Link>
               <Link
                 className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-50"
                 href="/scalp-analysis"
               >
-                Open scalp analysis
+                開啟頭皮分析
               </Link>
               <DemoSeedButton />
             </div>
@@ -51,44 +51,44 @@ export default async function HomePage() {
 
         <div className="grid gap-4 md:grid-cols-4">
           <Card className="p-5">
-            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Needs session</div>
+            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">未建立檢查</div>
             <div className="mt-2 text-2xl font-semibold text-slate-900">{summary.needs_session}</div>
-            <div className="mt-1 text-sm text-slate-600">Customers without a first visit yet.</div>
+            <div className="mt-1 text-sm text-slate-600">已建檔但未有第一次檢查的客人。</div>
           </Card>
           <Card className="p-5">
-            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Needs capture</div>
+            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">待上傳圖片</div>
             <div className="mt-2 text-2xl font-semibold text-slate-900">{summary.needs_capture}</div>
-            <div className="mt-1 text-sm text-slate-600">Latest session still missing full point coverage.</div>
+            <div className="mt-1 text-sm text-slate-600">最新 session 仍未完成所有部位拍攝。</div>
           </Card>
           <Card className="p-5">
-            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Ready compare</div>
+            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">可作比較</div>
             <div className="mt-2 text-2xl font-semibold text-slate-900">{summary.ready_compare}</div>
-            <div className="mt-1 text-sm text-slate-600">Latest session complete and ready for review.</div>
+            <div className="mt-1 text-sm text-slate-600">最新 session 已完成，可和歷史記錄比較。</div>
           </Card>
           <Card className="p-5">
-            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Follow-up due</div>
+            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">需要跟進</div>
             <div className="mt-2 text-2xl font-semibold text-slate-900">{summary.stale_follow_up}</div>
-            <div className="mt-1 text-sm text-slate-600">No recent visit in the last 30 days.</div>
+            <div className="mt-1 text-sm text-slate-600">超過 30 日未有新檢查。</div>
           </Card>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
           <Card className="p-5">
-            <div className="text-sm font-semibold">1. Front desk</div>
+            <div className="text-sm font-semibold">1. 前台建檔</div>
             <p className="mt-2 text-sm text-slate-600">
-              Use customer filters to find who needs a new visit, who still needs capture work, and who is overdue.
+              用客戶篩選快速找出未建立 session、未完成拍攝、或需要跟進的客人。
             </p>
           </Card>
           <Card className="p-5">
-            <div className="text-sm font-semibold">2. Capture station</div>
+            <div className="text-sm font-semibold">2. 拍攝工作站</div>
             <p className="mt-2 text-sm text-slate-600">
-              Batch upload point images, then refine per-shot scoring and metadata without re-uploading.
+              每個固定部位上傳 3 張圖，之後可補充評分與資料，不需要重建 session。
             </p>
           </Card>
           <Card className="p-5">
-            <div className="text-sm font-semibold">3. Review</div>
+            <div className="text-sm font-semibold">3. 報告與比較</div>
             <p className="mt-2 text-sm text-slate-600">
-              Once all five points are complete, open comparison to discuss changes with the customer.
+              完成拍攝及確認後，開啟比較頁向客人展示變化。
             </p>
           </Card>
         </div>
