@@ -1,5 +1,6 @@
 import { hasGoogleDriveEnv } from '@/lib/config/google-drive'
 import { hasSupabaseServerEnv } from '@/lib/config/supabase'
+import { getScalpStorageProviderName } from '@/lib/scalp-analysis/storage'
 import { getAppSettings, hasCompleteGoogleDriveSettings, hasOpenAiApiKey } from '@/lib/settings/repository'
 
 export type IntegrationStatus = {
@@ -13,7 +14,9 @@ export type IntegrationStatus = {
 export async function getSystemStatus(): Promise<IntegrationStatus[]> {
   const settings = await getAppSettings()
   const aiProvider = settings.openAi.provider ?? process.env.SCALP_ANALYSIS_AI_PROVIDER?.trim().toLowerCase() ?? 'mock'
-  const googleDriveReady = hasCompleteGoogleDriveSettings(settings.googleDrive) || hasGoogleDriveEnv()
+  const storageProvider = getScalpStorageProviderName()
+  const demoStorageReady = storageProvider === 'demo'
+  const googleDriveReady = demoStorageReady || hasCompleteGoogleDriveSettings(settings.googleDrive) || hasGoogleDriveEnv()
   const openAiReady = aiProvider === 'mock' || hasOpenAiApiKey(settings.openAi) || Boolean(process.env.OPENAI_API_KEY?.trim())
 
   return [
@@ -31,9 +34,11 @@ export async function getSystemStatus(): Promise<IntegrationStatus[]> {
       label: 'Google Drive 圖片儲存',
       ready: googleDriveReady,
       requiredFor: '頭皮放大圖上傳與圖片長期保存',
-      details: googleDriveReady
-        ? '已設定 Google Drive service account。'
-        : '尚未設定 GOOGLE_DRIVE_CLIENT_EMAIL / GOOGLE_DRIVE_PRIVATE_KEY / GOOGLE_DRIVE_FOLDER_ID。',
+      details: demoStorageReady
+        ? '目前使用 demo storage，可測試完整流程；正式客人圖片仍需設定 Google Drive。'
+        : googleDriveReady
+          ? '已設定 Google Drive service account。'
+          : '尚未設定 GOOGLE_DRIVE_CLIENT_EMAIL / GOOGLE_DRIVE_PRIVATE_KEY / GOOGLE_DRIVE_FOLDER_ID。',
     },
     {
       key: 'scalp-ai',

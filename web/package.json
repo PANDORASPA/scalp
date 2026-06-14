@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "node ./scripts/run-tests.mjs",
-    "smoke:supabase": "node ./scripts/smoke-supabase.mjs"
+    "smoke:supabase": "node ./scripts/smoke-supabase.mjs",
+    "smoke:scalp-analysis": "node ./scripts/smoke-scalp-analysis.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.2",

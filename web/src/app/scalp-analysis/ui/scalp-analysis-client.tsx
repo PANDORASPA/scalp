@@ -176,6 +176,7 @@ export default function ScalpAnalysisClient() {
   )
   const googleDriveReady = integrations.find((item) => item.key === 'google-drive')?.ready ?? false
   const googleDriveDetails = integrations.find((item) => item.key === 'google-drive')?.details
+  const demoStorageActive = Boolean(googleDriveDetails?.includes('demo storage'))
 
   async function refreshCurrentSession() {
     if (!sessionId) return
@@ -321,6 +322,15 @@ export default function ScalpAnalysisClient() {
               <a className="mt-2 inline-block font-medium underline" href="/settings">
                 前往系統設定
               </a>
+            </Card>
+          ) : null}
+
+          {demoStorageActive ? (
+            <Card className="border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+              <div className="font-semibold">目前使用 Demo 圖片儲存</div>
+              <div className="mt-1">
+                你可以先測完整上傳、AI 初步標記、人工確認、3 張平均與報告流程；正式客人圖片長期保存請改用 Google Drive。
+              </div>
             </Card>
           ) : null}
 
