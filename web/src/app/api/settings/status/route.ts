@@ -19,6 +19,7 @@ export async function POST(req: Request) {
 
   const body = (await req.json()) as {
     googleDrive?: {
+      storageProvider?: 'google-drive' | 'demo'
       clientEmail?: string
       privateKey?: string
       folderId?: string

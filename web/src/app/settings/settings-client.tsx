@@ -26,6 +26,7 @@ async function saveSettings(body: unknown) {
 
 export function SettingsClient({ initialIntegrations }: Props) {
   const [integrations, setIntegrations] = useState(initialIntegrations)
+  const [storageProvider, setStorageProvider] = useState<'google-drive' | 'demo'>('google-drive')
   const [clientEmail, setClientEmail] = useState('')
   const [privateKey, setPrivateKey] = useState('')
   const [folderId, setFolderId] = useState('')
@@ -43,6 +44,7 @@ export function SettingsClient({ initialIntegrations }: Props) {
     try {
       const next = await saveSettings({
         googleDrive: {
+          storageProvider,
           clientEmail,
           privateKey,
           folderId,
@@ -108,9 +110,20 @@ export function SettingsClient({ initialIntegrations }: Props) {
       <Card className="p-5">
         <div className="text-sm font-semibold text-slate-900">在工具內設定 Google Drive</div>
         <p className="mt-2 text-sm text-slate-600">
-          請貼上 Google Cloud service account 的資料。Private key 只會送到後端保存，不會再次顯示。
+          正式客人圖片請使用 Google Drive。未有 credential 時可暫時選 Demo 測試完整流程，但 Demo 不適合作長期保存。
         </p>
         <div className="mt-4 grid gap-3">
+          <div className="grid gap-1">
+            <Label>圖片儲存模式</Label>
+            <select
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+              value={storageProvider}
+              onChange={(event) => setStorageProvider(event.target.value as 'google-drive' | 'demo')}
+            >
+              <option value="google-drive">Google Drive 正式儲存</option>
+              <option value="demo">Demo 測試儲存</option>
+            </select>
+          </div>
           <div className="grid gap-1">
             <Label>Service account email</Label>
             <Input value={clientEmail} onChange={(event) => setClientEmail(event.target.value)} placeholder="name@project.iam.gserviceaccount.com" />

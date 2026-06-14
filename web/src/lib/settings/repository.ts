@@ -4,6 +4,7 @@ import { hasSupabaseServerEnv } from '@/lib/config/supabase'
 import { getSupabaseAdminClient } from '@/lib/supabase/client'
 
 export type GoogleDriveSettings = {
+  storageProvider?: 'google-drive' | 'demo'
   clientEmail?: string
   privateKey?: string
   folderId?: string
@@ -32,7 +33,14 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function normalizeGoogleDriveSettings(value: unknown): GoogleDriveSettings {
   if (!isObject(value)) return {}
+  const storageProvider =
+    value.storageProvider === 'demo'
+      ? 'demo'
+      : value.storageProvider === 'google-drive'
+        ? 'google-drive'
+        : undefined
   return {
+    storageProvider,
     clientEmail: typeof value.clientEmail === 'string' ? value.clientEmail.trim() : undefined,
     privateKey: typeof value.privateKey === 'string' ? value.privateKey.trim() : undefined,
     folderId: typeof value.folderId === 'string' ? value.folderId.trim() : undefined,
@@ -80,6 +88,7 @@ export async function getAppSettings(): Promise<AppSettings> {
 export async function saveGoogleDriveSettings(input: GoogleDriveSettings) {
   const current = await getAppSettings()
   const next = normalizeGoogleDriveSettings({
+    storageProvider: input.storageProvider ?? current.googleDrive.storageProvider ?? 'google-drive',
     clientEmail: input.clientEmail?.trim() ? input.clientEmail : current.googleDrive.clientEmail,
     privateKey: input.privateKey || current.googleDrive.privateKey,
     folderId: input.folderId?.trim() ? input.folderId : current.googleDrive.folderId,

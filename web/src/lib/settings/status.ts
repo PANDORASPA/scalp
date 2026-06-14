@@ -14,7 +14,7 @@ export type IntegrationStatus = {
 export async function getSystemStatus(): Promise<IntegrationStatus[]> {
   const settings = await getAppSettings()
   const aiProvider = settings.openAi.provider ?? process.env.SCALP_ANALYSIS_AI_PROVIDER?.trim().toLowerCase() ?? 'mock'
-  const storageProvider = getScalpStorageProviderName()
+  const storageProvider = await getScalpStorageProviderName()
   const demoStorageReady = storageProvider === 'demo'
   const googleDriveReady = demoStorageReady || hasCompleteGoogleDriveSettings(settings.googleDrive) || hasGoogleDriveEnv()
   const openAiReady = aiProvider === 'mock' || hasOpenAiApiKey(settings.openAi) || Boolean(process.env.OPENAI_API_KEY?.trim())

@@ -103,7 +103,7 @@ export async function uploadScalpImage(input: UploadInput) {
   }
 
   const existing = await getTrackingImageBySlot(input.sessionId, input.areaKey, input.imageIndex)
-  const adapter = getScalpStorageAdapter()
+  const adapter = await getScalpStorageAdapter()
   const objectKey = buildObjectKey({
     customerId: input.customerId,
     sessionId: input.sessionId,
@@ -300,7 +300,7 @@ export async function calculateAreaSummary(sessionId: string, areaKey: ScalpAnal
 export async function removeScalpImage(imageId: string) {
   const image = await getTrackingImageById(imageId)
   if (!image) throw new Error('missing_image: Scalp analysis image not found.')
-  const adapter = getScalpStorageAdapter()
+  const adapter = await getScalpStorageAdapter()
   await adapter.delete(image.drive_file_id, image.storage_object_key)
   const deleted = await deleteTrackingImageRecord(imageId)
   await calculateAreaSummary(deleted.session_id, deleted.area_key).catch(async () => {
