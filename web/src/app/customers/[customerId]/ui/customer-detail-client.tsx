@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CAPTURE_POINT_CODES } from '@/lib/scalp/constants'
 import { getCapturePointLabel } from '@/lib/scalp/display'
+import type { ScalpAnalysisSessionState } from '@/lib/scalp-analysis/types'
 import type { ScalpPointSummary, ScalpSession } from '@/lib/scalp/types'
 import { formatDate } from '@/lib/ui/format'
 
@@ -373,17 +374,40 @@ export default function CustomerDetailClient({
   const [error, setError] = useState<string | null>(null)
   const [customerModalOpen, setCustomerModalOpen] = useState(false)
   const [activeSession, setActiveSession] = useState<ScalpSession | null>(null)
+  const [trackingSessions, setTrackingSessions] = useState<ScalpSession[]>([])
+  const [latestTrackingState, setLatestTrackingState] = useState<ScalpAnalysisSessionState | null>(null)
+  const [trackingError, setTrackingError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setTrackingError(null)
     try {
       const res = await fetch(`/api/customers/${customerId}/overview`)
       if (!res.ok) throw new Error('Customer not found')
       const json = (await res.json()) as OverviewResponse
       setData(json)
+
+      const trackingRes = await fetch(`/api/scalp-analysis/sessions?customerId=${customerId}`)
+      if (!trackingRes.ok) throw new Error('Failed to load scalp tracking sessions')
+      const trackingList = (await trackingRes.json()) as ScalpSession[]
+      setTrackingSessions(trackingList)
+
+      const latestTracking = trackingList[0] ?? null
+      if (latestTracking) {
+        const stateRes = await fetch(`/api/scalp-analysis/sessions/${latestTracking.id}`)
+        if (!stateRes.ok) throw new Error('Failed to load latest scalp tracking state')
+        setLatestTrackingState((await stateRes.json()) as ScalpAnalysisSessionState)
+      } else {
+        setLatestTrackingState(null)
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load customer')
+      const message = e instanceof Error ? e.message : 'Failed to load customer'
+      if (message.includes('scalp tracking')) {
+        setTrackingError(message)
+      } else {
+        setError(message)
+      }
     } finally {
       setLoading(false)
     }
@@ -394,6 +418,7 @@ export default function CustomerDetailClient({
   }, [refresh])
 
   const latestCompletedCount = data?.latestSummaries.filter((item) => item.completed).length ?? 0
+  const latestTrackingCompleteCount = latestTrackingState?.areas.filter((area) => area.ready_for_average).length ?? 0
 
   if (loading) {
     return <div className="mx-auto max-w-6xl p-6 text-sm text-slate-600">Loading...</div>
@@ -440,10 +465,13 @@ export default function CustomerDetailClient({
             <Button onClick={() => router.push(`/sessions/new?customerId=${data.customer.id}`)}>
               Create session
             </Button>
+            <Button onClick={() => router.push(`/scalp-analysis?customerId=${data.customer.id}`)}>
+              頭皮追蹤
+            </Button>
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-5">
           <Card className="p-4">
             <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Sessions</div>
             <div className="mt-2 text-2xl font-semibold text-slate-900">{data.sessions.length}</div>
@@ -465,6 +493,13 @@ export default function CustomerDetailClient({
             <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Workflow</div>
             <div className="mt-2 text-sm text-slate-900">Create session / capture 3 shots / score / compare</div>
             <div className="mt-1 text-sm text-slate-600">Use this page as the daily control center.</div>
+          </Card>
+          <Card className="p-4">
+            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">頭皮追蹤</div>
+            <div className="mt-2 text-2xl font-semibold text-slate-900">{trackingSessions.length}</div>
+            <div className="mt-1 text-sm text-slate-600">
+              最新完成 {latestTrackingCompleteCount}/6 個部位平均
+            </div>
           </Card>
         </div>
 
@@ -530,6 +565,45 @@ export default function CustomerDetailClient({
           </div>
 
           <div className="space-y-4">
+            <Card className="p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium">頭皮放大圖追蹤</div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    6 個固定部位，每部位 3 張相；已確認標記才會進入平均與比較。
+                  </div>
+                </div>
+                <Link
+                  className="text-sm text-blue-700 hover:underline"
+                  href={`/scalp-analysis?customerId=${data.customer.id}`}
+                >
+                  打開
+                </Link>
+              </div>
+              {trackingError ? <div className="mt-3 text-sm text-red-700">{trackingError}</div> : null}
+              <div className="mt-3 space-y-2 text-sm text-slate-700">
+                {trackingSessions.length === 0 ? (
+                  <div className="text-slate-500">未有頭皮放大圖追蹤 session。</div>
+                ) : (
+                  <>
+                    <div>追蹤 session：{trackingSessions.length} 次</div>
+                    <div>
+                      最新記錄：
+                      {latestTrackingState ? formatDate(latestTrackingState.session.check_date) : '-'}
+                    </div>
+                    <div>可出平均部位：{latestTrackingCompleteCount}/6</div>
+                  </>
+                )}
+              </div>
+              {latestTrackingState?.report_lines.length ? (
+                <div className="mt-3 rounded-md bg-slate-50 p-3 text-sm text-slate-700">
+                  {latestTrackingState.report_lines.slice(0, 3).map((line) => (
+                    <div key={line}>{line}</div>
+                  ))}
+                </div>
+              ) : null}
+            </Card>
+
             <Card className="p-4">
               <div className="text-sm font-medium">Front desk checklist</div>
               <div className="mt-3 space-y-2 text-sm text-slate-600">

@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { calculateStatsFromAnnotations, compareAreaSummaries, createEmptyAnnotations } from './logic'
+import { calculateAreaAverages, calculateStatsFromAnnotations, compareAreaSummaries, createEmptyAnnotations } from './logic'
+import type { ScalpAnalysisImage } from './types'
 
 test('calculateStatsFromAnnotations derives counts and keeps score overrides', () => {
   const annotations = createEmptyAnnotations()
@@ -59,4 +60,56 @@ test('compareAreaSummaries produces deltas and readable summary lines', () => {
   assert.equal(comparison.scalp_empty_ratio.delta, -11)
   assert.equal(comparison.scalp_empty_ratio.direction, 'improved')
   assert.ok(comparison.summary_lines.some((line) => line.includes('幼毛')))
+})
+
+test('calculateAreaAverages uses the three confirmed image stats for a tracking area', () => {
+  const images = [
+    {
+      stats: {
+        coarse_hair_count: 18,
+        baby_hair_count: 2,
+        empty_follicle_count: 4,
+        blockage_count: 3,
+        scalp_empty_ratio: 42,
+        redness_score: 4,
+        oiliness_score: 5,
+        density_score: 48,
+      },
+    },
+    {
+      stats: {
+        coarse_hair_count: 21,
+        baby_hair_count: 7,
+        empty_follicle_count: 2,
+        blockage_count: 1,
+        scalp_empty_ratio: 31,
+        redness_score: 2,
+        oiliness_score: 3,
+        density_score: 63,
+      },
+    },
+    {
+      stats: {
+        coarse_hair_count: 24,
+        baby_hair_count: 6,
+        empty_follicle_count: 3,
+        blockage_count: 2,
+        scalp_empty_ratio: 35,
+        redness_score: 3,
+        oiliness_score: 4,
+        density_score: 60,
+      },
+    },
+  ] as ScalpAnalysisImage[]
+
+  const averages = calculateAreaAverages(images)
+
+  assert.equal(averages.average_coarse_hair_count, 21)
+  assert.equal(averages.average_baby_hair_count, 5)
+  assert.equal(averages.average_empty_follicle_count, 3)
+  assert.equal(averages.average_blockage_count, 2)
+  assert.equal(averages.average_scalp_empty_ratio, 36)
+  assert.equal(averages.average_redness_score, 3)
+  assert.equal(averages.average_oiliness_score, 4)
+  assert.equal(averages.average_density_score, 57)
 })

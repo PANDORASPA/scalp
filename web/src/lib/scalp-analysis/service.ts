@@ -153,6 +153,7 @@ export async function uploadScalpImage(input: UploadInput) {
     })
   }
 
+  await calculateAreaSummary(input.sessionId, input.areaKey)
   await touchCustomerInSupabase(input.customerId, now)
   return image
 }

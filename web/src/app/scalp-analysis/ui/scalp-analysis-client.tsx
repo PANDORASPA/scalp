@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -93,6 +94,7 @@ function SummaryPanel({ summary }: { summary: ScalpAreaSummary | null }) {
 }
 
 export default function ScalpAnalysisClient() {
+  const searchParams = useSearchParams()
   const [customers, setCustomers] = useState<CustomerRow[]>([])
   const [customerId, setCustomerId] = useState('')
   const [sessions, setSessions] = useState<ScalpSession[]>([])
@@ -111,10 +113,13 @@ export default function ScalpAnalysisClient() {
       try {
         const data = await fetchJSON<CustomerRow[]>('/api/customers/overview')
         const status = await fetchJSON<SettingsStatusResponse>('/api/settings/status')
+        const requestedCustomerId = searchParams.get('customerId')
         if (!cancelled) {
           setCustomers(data)
           setIntegrations(status.integrations)
-          setCustomerId((prev) => prev || data[0]?.id || '')
+          setCustomerId((prev) =>
+            prev || data.find((customer) => customer.id === requestedCustomerId)?.id || data[0]?.id || '',
+          )
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : '載入客戶失敗')
@@ -125,7 +130,7 @@ export default function ScalpAnalysisClient() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [searchParams])
 
   async function loadSessions(nextCustomerId: string) {
     if (!nextCustomerId) {
