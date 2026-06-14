@@ -1,6 +1,7 @@
 import { hasGoogleDriveEnv } from '@/lib/config/google-drive'
 import { hasSupabaseServerEnv } from '@/lib/config/supabase'
 import { getScalpStorageProviderName } from '@/lib/scalp-analysis/storage'
+import { getSupabaseAdminClient } from '@/lib/supabase/client'
 import { getAppSettings, hasCompleteGoogleDriveSettings, hasOpenAiApiKey } from '@/lib/settings/repository'
 
 export type IntegrationStatus = {
@@ -11,8 +12,50 @@ export type IntegrationStatus = {
   details: string
 }
 
+function getErrorMessage(error: unknown) {
+  if (!(error instanceof Error)) return 'unknown connection error'
+  const cause = error.cause
+  if (cause instanceof Error && cause.message) return `${error.message}: ${cause.message}`
+  if (cause && typeof cause === 'object' && 'message' in cause && typeof cause.message === 'string') {
+    return `${error.message}: ${cause.message}`
+  }
+  return error.message
+}
+
+async function getSupabaseConnectionStatus() {
+  if (!hasSupabaseServerEnv()) {
+    return {
+      ready: false,
+      details: '尚未設定 SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY。',
+    }
+  }
+
+  try {
+    const client = getSupabaseAdminClient()
+    const { error } = await client.from('scalp_capture_points').select('id', { head: true, count: 'exact' }).limit(1)
+    if (error) {
+      return {
+        ready: false,
+        details: `已設定 Supabase env，但資料庫連線失敗：${error.message}`,
+      }
+    }
+    return {
+      ready: true,
+      details: '已連接正式資料庫。',
+    }
+  } catch (error) {
+    const message = getErrorMessage(error)
+    console.error('Supabase connection status check failed', error)
+    return {
+      ready: false,
+      details: `已設定 Supabase env，但資料庫連線失敗：${message}`,
+    }
+  }
+}
+
 export async function getSystemStatus(): Promise<IntegrationStatus[]> {
   const settings = await getAppSettings()
+  const supabase = await getSupabaseConnectionStatus()
   const aiProvider = settings.openAi.provider ?? process.env.SCALP_ANALYSIS_AI_PROVIDER?.trim().toLowerCase() ?? 'mock'
   const storageProvider = await getScalpStorageProviderName()
   const demoStorageReady = storageProvider === 'demo'
@@ -23,11 +66,9 @@ export async function getSystemStatus(): Promise<IntegrationStatus[]> {
     {
       key: 'supabase',
       label: 'Supabase 資料庫',
-      ready: hasSupabaseServerEnv(),
+      ready: supabase.ready,
       requiredFor: '客戶、session、分析結果與報告儲存',
-      details: hasSupabaseServerEnv()
-        ? '已連接正式資料庫。'
-        : '尚未設定 SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY。',
+      details: supabase.details,
     },
     {
       key: 'google-drive',
