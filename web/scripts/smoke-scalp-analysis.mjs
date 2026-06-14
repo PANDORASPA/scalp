@@ -31,16 +31,18 @@ function buildTinyPngBuffer() {
   )
 }
 
-function fallbackAnnotations(areaKey, imageIndex) {
+function fallbackAnnotations(areaKey, imageIndex, sessionNumber) {
   const base = areaKeys.indexOf(areaKey) + imageIndex
+  const improvement = sessionNumber === 2 ? 4 : 0
+  const stressReduction = sessionNumber === 2 ? 1 : 0
   return {
-    coarse_hairs: Array.from({ length: 10 + base }, (_, index) => ({
+    coarse_hairs: Array.from({ length: 10 + base + improvement }, (_, index) => ({
       id: `coarse-${areaKey}-${imageIndex}-${index + 1}`,
       x: 40 + index * 8,
       y: 60 + index * 3,
       confidence: 0.8,
     })),
-    baby_hairs: Array.from({ length: 2 + imageIndex }, (_, index) => ({
+    baby_hairs: Array.from({ length: 2 + imageIndex + improvement }, (_, index) => ({
       id: `baby-${areaKey}-${imageIndex}-${index + 1}`,
       x: 80 + index * 12,
       y: 90 + index * 5,
@@ -50,16 +52,92 @@ function fallbackAnnotations(areaKey, imageIndex) {
     blockages: [{ id: `blockage-${areaKey}-${imageIndex}`, x: 140, y: 130, radius: 12, confidence: 0.7, severity: null }],
     redness_regions: [{ id: `redness-${areaKey}-${imageIndex}`, x: 220, y: 160, radius: 20, confidence: 0.68, severity: 2 }],
     scores: {
-      scalp_empty_ratio: 35,
-      redness_score: 2,
-      oiliness_score: 3,
-      blockage_score: 2,
-      density_score: 65,
+      scalp_empty_ratio: 35 - improvement,
+      redness_score: 2 - stressReduction,
+      oiliness_score: 3 - stressReduction,
+      blockage_score: 2 - stressReduction,
+      density_score: 65 + improvement * 2,
     },
     notes: 'Smoke-test confirmed annotations.',
     image_width: 720,
     image_height: 480,
   }
+}
+
+async function createAndCompleteSession({ customerId, headers, sessionNumber }) {
+  const createdSession = await fetchJson(`${baseUrl}/api/scalp-analysis/sessions`, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      customerId,
+      sessionDate: new Date(Date.UTC(2026, 0, sessionNumber)).toISOString(),
+      notes: `Full 6-area smoke test session ${sessionNumber}`,
+    }),
+  })
+  const sessionId = createdSession.json?.id
+  if (!sessionId) fail('scalp-analysis session creation did not return an id')
+
+  for (const areaKey of areaKeys) {
+    for (const imageIndex of [1, 2, 3]) {
+      const form = new FormData()
+      form.set('sessionId', sessionId)
+      form.set('customerId', customerId)
+      form.set('areaKey', areaKey)
+      form.set('imageIndex', String(imageIndex))
+      form.set('file', new File([buildTinyPngBuffer()], `${areaKey}-${imageIndex}.png`, { type: 'image/png' }))
+
+      const uploaded = await fetchJson(`${baseUrl}/api/scalp-analysis/images`, {
+        method: 'POST',
+        headers,
+        body: form,
+      })
+      const image = uploaded.json
+      if (!image?.id) fail(`upload did not return image id for ${areaKey}/${imageIndex}`)
+
+      const annotations = fallbackAnnotations(areaKey, imageIndex, sessionNumber)
+      await fetchJson(`${baseUrl}/api/scalp-analysis/images/${image.id}/confirm`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ annotations }),
+      })
+    }
+  }
+
+  const state = await fetchJson(`${baseUrl}/api/scalp-analysis/sessions/${sessionId}`, { headers })
+  const areas = state.json?.areas ?? []
+  if (areas.length !== 6) fail(`expected 6 areas, got ${areas.length}`)
+
+  for (const area of areas) {
+    if (area.images.length !== 3) fail(`${area.area_key} expected 3 images, got ${area.images.length}`)
+    if (!area.ready_for_average) fail(`${area.area_key} is not ready_for_average after three confirmations`)
+    if (!area.summary) fail(`${area.area_key} did not generate an area summary`)
+    if (typeof area.summary.average_coarse_hair_count !== 'number') {
+      fail(`${area.area_key} summary is missing average_coarse_hair_count`)
+    }
+    if (typeof area.summary.average_baby_hair_count !== 'number') {
+      fail(`${area.area_key} summary is missing average_baby_hair_count`)
+    }
+    if (sessionNumber === 1) {
+      if (area.summary.compared_to_previous_json) fail(`${area.area_key} baseline session should not have previous comparison`)
+      if (area.summary.compared_to_baseline_json) fail(`${area.area_key} baseline session should not compare to itself`)
+    }
+    if (sessionNumber === 2) {
+      if (!area.summary.compared_to_previous_json) fail(`${area.area_key} second session is missing previous comparison`)
+      if (!area.summary.compared_to_baseline_json) fail(`${area.area_key} second session is missing baseline comparison`)
+      if (area.summary.compared_to_previous_json.baby_hair_count.direction !== 'improved') {
+        fail(`${area.area_key} second session baby hair trend should be improved`)
+      }
+      if (area.summary.compared_to_baseline_json.density_score.direction !== 'improved') {
+        fail(`${area.area_key} second session density baseline trend should be improved`)
+      }
+    }
+  }
+
+  if (!Array.isArray(state.json?.report_lines) || state.json.report_lines.length !== 6) {
+    fail(`expected 6 report lines, got ${state.json?.report_lines?.length ?? 0}`)
+  }
+
+  return { sessionId, state: state.json }
 }
 
 async function main() {
@@ -87,68 +165,15 @@ async function main() {
   const customerId = createdCustomer.json?.customer?.id || createdCustomer.json?.id
   if (!customerId) fail('customer creation did not return an id')
 
-  const createdSession = await fetchJson(`${baseUrl}/api/scalp-analysis/sessions`, {
-    method: 'POST',
-    headers: { ...headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      customerId,
-      sessionDate: new Date().toISOString(),
-      notes: 'Full 6-area smoke test',
-    }),
-  })
-  const sessionId = createdSession.json?.id
-  if (!sessionId) fail('scalp-analysis session creation did not return an id')
-
-  for (const areaKey of areaKeys) {
-    for (const imageIndex of [1, 2, 3]) {
-      const form = new FormData()
-      form.set('sessionId', sessionId)
-      form.set('customerId', customerId)
-      form.set('areaKey', areaKey)
-      form.set('imageIndex', String(imageIndex))
-      form.set('file', new File([buildTinyPngBuffer()], `${areaKey}-${imageIndex}.png`, { type: 'image/png' }))
-
-      const uploaded = await fetchJson(`${baseUrl}/api/scalp-analysis/images`, {
-        method: 'POST',
-        headers,
-        body: form,
-      })
-      const image = uploaded.json
-      if (!image?.id) fail(`upload did not return image id for ${areaKey}/${imageIndex}`)
-
-      const annotations = image.ai_result_json || fallbackAnnotations(areaKey, imageIndex)
-      await fetchJson(`${baseUrl}/api/scalp-analysis/images/${image.id}/confirm`, {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ annotations }),
-      })
-    }
-  }
-
-  const state = await fetchJson(`${baseUrl}/api/scalp-analysis/sessions/${sessionId}`, { headers })
-  const areas = state.json?.areas ?? []
-  if (areas.length !== 6) fail(`expected 6 areas, got ${areas.length}`)
-
-  for (const area of areas) {
-    if (area.images.length !== 3) fail(`${area.area_key} expected 3 images, got ${area.images.length}`)
-    if (!area.ready_for_average) fail(`${area.area_key} is not ready_for_average after three confirmations`)
-    if (!area.summary) fail(`${area.area_key} did not generate an area summary`)
-    if (typeof area.summary.average_coarse_hair_count !== 'number') {
-      fail(`${area.area_key} summary is missing average_coarse_hair_count`)
-    }
-    if (typeof area.summary.average_baby_hair_count !== 'number') {
-      fail(`${area.area_key} summary is missing average_baby_hair_count`)
-    }
-  }
-
-  if (!Array.isArray(state.json?.report_lines) || state.json.report_lines.length !== 6) {
-    fail(`expected 6 report lines, got ${state.json?.report_lines?.length ?? 0}`)
-  }
+  const baseline = await createAndCompleteSession({ customerId, headers, sessionNumber: 1 })
+  const followUp = await createAndCompleteSession({ customerId, headers, sessionNumber: 2 })
 
   const overview = await fetchJson(`${baseUrl}/api/customers/${customerId}/overview`, { headers })
   if (overview.json?.customer?.id !== customerId) fail('customer overview did not return the smoke customer')
 
-  console.log(`Scalp-analysis smoke flow passed for customer ${customerId}, session ${sessionId}.`)
+  console.log(
+    `Scalp-analysis smoke flow passed for customer ${customerId}, baseline ${baseline.sessionId}, follow-up ${followUp.sessionId}.`,
+  )
   console.log('If this ran with SCALP_ANALYSIS_STORAGE_PROVIDER=demo, repeat once with Google Drive credentials before using real customer images.')
 }
 
