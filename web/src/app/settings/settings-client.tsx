@@ -37,19 +37,41 @@ async function testIntegration(target: TestTarget) {
   return json.message ?? '測試成功'
 }
 
+function getModeLabel(item: IntegrationStatus) {
+  if (item.mode === 'official') return '正式可用'
+  if (item.mode === 'demo') return 'Demo 可測'
+  if (item.mode === 'mock') return 'Mock 可測'
+  return '未完成'
+}
+
+function getModeClass(item: IntegrationStatus) {
+  if (item.mode === 'official') return 'bg-emerald-50 text-emerald-700'
+  if (item.mode === 'demo' || item.mode === 'mock') return 'bg-amber-50 text-amber-700'
+  return 'bg-red-50 text-red-700'
+}
+
 export function SettingsClient({ initialIntegrations }: Props) {
   const [integrations, setIntegrations] = useState(initialIntegrations)
-  const [storageProvider, setStorageProvider] = useState<'google-drive' | 'demo'>('google-drive')
+  const initialStorageMode = initialIntegrations.find((item) => item.key === 'google-drive')?.mode
+  const initialAiMode = initialIntegrations.find((item) => item.key === 'scalp-ai')?.mode
+  const [storageProvider, setStorageProvider] = useState<'google-drive' | 'demo'>(
+    initialStorageMode === 'demo' ? 'demo' : 'google-drive',
+  )
   const [clientEmail, setClientEmail] = useState('')
   const [privateKey, setPrivateKey] = useState('')
   const [folderId, setFolderId] = useState('')
-  const [provider, setProvider] = useState<'mock' | 'openai-5.5'>('mock')
+  const [provider, setProvider] = useState<'mock' | 'openai-5.5'>(
+    initialAiMode === 'official' || initialAiMode === 'missing' ? 'openai-5.5' : 'mock',
+  )
   const [apiKey, setApiKey] = useState('')
   const [model, setModel] = useState('gpt-5.5')
   const [saving, setSaving] = useState<string | null>(null)
   const [testing, setTesting] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const officialReadyCount = integrations.filter((item) => item.officialReady).length
+  const allOfficialReady = officialReadyCount === integrations.length
 
   async function handleTest(target: TestTarget) {
     setTesting(target)
@@ -80,7 +102,7 @@ export function SettingsClient({ initialIntegrations }: Props) {
       })
       setIntegrations(next)
       setPrivateKey('')
-      setMessage('Google Drive 設定已保存。')
+      setMessage('Google Drive 設定已保存。請按「測試連線」確認 folder 權限。')
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存 Google Drive 設定失敗')
     } finally {
@@ -103,7 +125,7 @@ export function SettingsClient({ initialIntegrations }: Props) {
       })
       setIntegrations(next)
       setApiKey('')
-      setMessage('AI 設定已保存。')
+      setMessage('AI 設定已保存。請按「測試連線」確認 API key 和 model。')
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存 AI 設定失敗')
     } finally {
@@ -116,21 +138,51 @@ export function SettingsClient({ initialIntegrations }: Props) {
       {message ? <Card className="border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</Card> : null}
       {error ? <Card className="border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</Card> : null}
 
+      <Card className={`p-5 ${allOfficialReady ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="text-sm font-semibold text-slate-900">正式上線 readiness</div>
+            <p className="mt-1 text-sm text-slate-700">
+              {allOfficialReady
+                ? 'Supabase、Google Drive、AI provider 都已達到正式模式。'
+                : `目前 ${officialReadyCount}/${integrations.length} 項達到正式模式；Demo/Mock 可測流程，但未等於正式上線。`}
+            </p>
+          </div>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              allOfficialReady ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+            }`}
+          >
+            {allOfficialReady ? '可跑正式 release gate' : '仍有正式設定未完成'}
+          </span>
+        </div>
+        <div className="mt-4 grid gap-2 text-sm text-slate-700">
+          {integrations.map((item) => (
+            <div key={item.key} className="flex items-start gap-2">
+              <span className={item.officialReady ? 'text-emerald-700' : 'text-amber-700'}>
+                {item.officialReady ? '✓' : '•'}
+              </span>
+              <span>
+                <span className="font-medium">{item.label}：</span>
+                {item.officialReady ? '正式模式已完成。' : item.nextAction ?? '仍需完成設定。'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
       <div className="grid gap-4 md:grid-cols-3">
         {integrations.map((item) => (
           <Card key={item.key} className="p-5">
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm font-semibold text-slate-900">{item.label}</div>
-              <span
-                className={`rounded-full px-2 py-1 text-xs font-medium ${
-                  item.ready ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                }`}
-              >
-                {item.ready ? '已設定' : '未完成'}
+              <span className={`rounded-full px-2 py-1 text-xs font-medium ${getModeClass(item)}`}>
+                {getModeLabel(item)}
               </span>
             </div>
             <div className="mt-3 text-sm text-slate-600">{item.requiredFor}</div>
             <div className="mt-3 rounded-md bg-slate-50 p-3 text-xs text-slate-600">{item.details}</div>
+            {item.nextAction ? <div className="mt-3 text-xs text-amber-700">{item.nextAction}</div> : null}
             <Button
               className="mt-4"
               variant="secondary"
@@ -144,10 +196,20 @@ export function SettingsClient({ initialIntegrations }: Props) {
       </div>
 
       <Card className="p-5">
-        <div className="text-sm font-semibold text-slate-900">在工具內設定 Google Drive</div>
+        <div className="text-sm font-semibold text-slate-900">設定 Google Drive 圖片儲存</div>
         <p className="mt-2 text-sm text-slate-600">
-          正式客人圖片請使用 Google Drive。未有 credential 時可暫時選 Demo 測試完整流程，但 Demo 不適合作長期保存。
+          正式客人圖片應使用 Google Drive。Demo storage 只適合測試流程，不適合作長期保存。
         </p>
+        <div className="mt-4 rounded-md bg-slate-50 p-4 text-sm text-slate-700">
+          <div className="font-medium text-slate-900">Google Drive API 設定步驟</div>
+          <ol className="mt-2 list-decimal space-y-1 pl-5">
+            <li>在 Google Cloud 建立 project，啟用 Google Drive API。</li>
+            <li>建立 service account，下載 JSON key。</li>
+            <li>在 Google Drive 建立專用 folder，把 folder 分享給 service account email。</li>
+            <li>把 JSON 內的 client_email、private_key 和 Drive folder id 填到下方。</li>
+            <li>保存後按「測試連線」，確認 folder 權限正確。</li>
+          </ol>
+        </div>
         <div className="mt-4 grid gap-3">
           <div className="grid gap-1">
             <Label>圖片儲存模式</Label>
@@ -172,6 +234,7 @@ export function SettingsClient({ initialIntegrations }: Props) {
               onChange={(event) => setPrivateKey(event.target.value)}
               placeholder="-----BEGIN PRIVATE KEY-----..."
             />
+            <div className="text-xs text-slate-500">保存後不會回填顯示 private key；如要更換，重新貼上新 key 即可。</div>
           </div>
           <div className="grid gap-1">
             <Label>Google Drive folder id</Label>
@@ -184,8 +247,16 @@ export function SettingsClient({ initialIntegrations }: Props) {
       </Card>
 
       <Card className="p-5">
-        <div className="text-sm font-semibold text-slate-900">在工具內設定 AI</div>
-        <p className="mt-2 text-sm text-slate-600">未有 OpenAI key 時保持 mock，即可先完成流程測試。</p>
+        <div className="text-sm font-semibold text-slate-900">設定 AI 分析</div>
+        <p className="mt-2 text-sm text-slate-600">
+          未有 OpenAI key 時可以保留 Mock AI，先測完整操作流程；正式計數請切換 OpenAI Vision。
+        </p>
+        <div className="mt-4 rounded-md bg-slate-50 p-4 text-sm text-slate-700">
+          <div className="font-medium text-slate-900">AI 接入策略</div>
+          <div className="mt-2">
+            第一版已保留 structured JSON adapter。之後只要填入 OpenAI API key 和可用 vision model，就可以把 mock 初步標記換成真 AI 分析；人手確認後的 annotations 仍然是正式統計依據。
+          </div>
+        </div>
         <div className="mt-4 grid gap-3">
           <div className="grid gap-1">
             <Label>AI provider</Label>

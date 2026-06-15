@@ -81,7 +81,7 @@ export async function POST(req: Request) {
     }
 
     const aiStatus = (await getSystemStatus()).find((item) => item.key === 'scalp-ai')
-    if (aiStatus?.details.includes('mock AI')) {
+    if (aiStatus?.mode === 'mock') {
       return NextResponse.json({
         ok: true,
         message: 'Mock AI is active. The flow can be tested; switch to OpenAI Vision to verify the real API.',
