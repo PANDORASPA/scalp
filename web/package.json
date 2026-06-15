@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "node ./scripts/run-tests.mjs",
+    "release:gate": "node ./scripts/release-gate.mjs",
     "smoke:supabase": "node ./scripts/smoke-supabase.mjs",
     "smoke:scalp-analysis": "node ./scripts/smoke-scalp-analysis.mjs"
   },

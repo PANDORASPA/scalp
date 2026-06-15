@@ -10,8 +10,21 @@ function fail(message) {
 }
 
 async function fetchJson(url, init = {}) {
-  const res = await fetch(url, init)
-  const text = await res.text()
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 45000)
+  let res
+  let text
+  try {
+    res = await fetch(url, { ...init, signal: controller.signal })
+    text = await res.text()
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`${init.method || 'GET'} ${url} timed out after 45000ms`)
+    }
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
   let json = null
   try {
     json = text ? JSON.parse(text) : null
@@ -78,6 +91,7 @@ async function createAndCompleteSession({ customerId, headers, sessionNumber }) 
   if (!sessionId) fail('scalp-analysis session creation did not return an id')
 
   for (const areaKey of areaKeys) {
+    console.log(`Session ${sessionNumber}: uploading and confirming ${areaKey}`)
     for (const imageIndex of [1, 2, 3]) {
       const form = new FormData()
       form.set('sessionId', sessionId)

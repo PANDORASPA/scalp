@@ -62,7 +62,7 @@ export async function POST(req: Request) {
   try {
     if (target === 'supabase') {
       await testSupabaseConnection()
-      return NextResponse.json({ ok: true, message: 'Supabase 資料庫連線正常。' })
+      return NextResponse.json({ ok: true, message: 'Supabase database connection is healthy.' })
     }
 
     if (target === 'google-drive') {
@@ -70,13 +70,13 @@ export async function POST(req: Request) {
       if (storageProvider === 'demo') {
         return NextResponse.json({
           ok: true,
-          message: '目前使用 Demo storage，完整流程可測試；正式圖片請切回 Google Drive 後再測。',
+          message: 'Demo storage is active. The flow can be tested, but real images should use Google Drive.',
         })
       }
       const result = await testGoogleDriveConnection()
       return NextResponse.json({
         ok: true,
-        message: `Google Drive 連線正常，folder: ${result.folderName}`,
+        message: `Google Drive connection is healthy. Folder: ${result.folderName}`,
       })
     }
 
@@ -84,13 +84,13 @@ export async function POST(req: Request) {
     if (aiStatus?.details.includes('mock AI')) {
       return NextResponse.json({
         ok: true,
-        message: '目前使用 Mock AI，流程可測試；切換 OpenAI Vision 後可再測真 API。',
+        message: 'Mock AI is active. The flow can be tested; switch to OpenAI Vision to verify the real API.',
       })
     }
     const result = await testOpenAiVisionConnection()
     return NextResponse.json({
       ok: true,
-      message: `OpenAI 連線正常，model: ${result.model}`,
+      message: `OpenAI connection is healthy. Model: ${result.model}`,
     })
   } catch (error) {
     return toFailure(error)
