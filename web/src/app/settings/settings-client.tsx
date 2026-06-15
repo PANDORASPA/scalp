@@ -13,6 +13,8 @@ type Props = {
   initialIntegrations: IntegrationStatus[]
 }
 
+type TestTarget = 'supabase' | 'google-drive' | 'scalp-ai'
+
 async function saveSettings(body: unknown) {
   const res = await fetch('/api/settings/status', {
     method: 'POST',
@@ -22,6 +24,17 @@ async function saveSettings(body: unknown) {
   const json = (await res.json().catch(() => null)) as { error?: string; integrations?: IntegrationStatus[] } | null
   if (!res.ok) throw new Error(getHumanErrorMessage(json?.error ?? 'settings_save_failed'))
   return json?.integrations ?? []
+}
+
+async function testIntegration(target: TestTarget) {
+  const res = await fetch('/api/settings/test', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ target }),
+  })
+  const json = (await res.json().catch(() => null)) as { ok?: boolean; message?: string } | null
+  if (!res.ok || !json?.ok) throw new Error(json?.message ?? 'connection_test_failed')
+  return json.message ?? '測試成功'
 }
 
 export function SettingsClient({ initialIntegrations }: Props) {
@@ -34,8 +47,23 @@ export function SettingsClient({ initialIntegrations }: Props) {
   const [apiKey, setApiKey] = useState('')
   const [model, setModel] = useState('gpt-5.5')
   const [saving, setSaving] = useState<string | null>(null)
+  const [testing, setTesting] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  async function handleTest(target: TestTarget) {
+    setTesting(target)
+    setMessage(null)
+    setError(null)
+    try {
+      const result = await testIntegration(target)
+      setMessage(result)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '測試連線失敗')
+    } finally {
+      setTesting(null)
+    }
+  }
 
   async function handleSaveGoogleDrive() {
     setSaving('google-drive')
@@ -103,6 +131,14 @@ export function SettingsClient({ initialIntegrations }: Props) {
             </div>
             <div className="mt-3 text-sm text-slate-600">{item.requiredFor}</div>
             <div className="mt-3 rounded-md bg-slate-50 p-3 text-xs text-slate-600">{item.details}</div>
+            <Button
+              className="mt-4"
+              variant="secondary"
+              onClick={() => void handleTest(item.key as TestTarget)}
+              disabled={testing === item.key}
+            >
+              {testing === item.key ? '測試中...' : '測試連線'}
+            </Button>
           </Card>
         ))}
       </div>

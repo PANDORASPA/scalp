@@ -62,6 +62,35 @@ async function getAccessToken(env: GoogleDriveEnv) {
   return json.access_token
 }
 
+export async function testGoogleDriveConnection() {
+  const env = await getConfiguredGoogleDriveEnv()
+  const accessToken = await getAccessToken(env)
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(env.folderId)}?supportsAllDrives=true&fields=id,name,mimeType`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  )
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Google Drive folder check failed: ${res.status} ${text}`)
+  }
+
+  const folder = (await res.json()) as { id?: string; name?: string; mimeType?: string }
+  if (folder.mimeType !== 'application/vnd.google-apps.folder') {
+    throw new Error('Google Drive folder check failed: folder id is not a Drive folder')
+  }
+
+  return {
+    folderId: folder.id ?? env.folderId,
+    folderName: folder.name ?? 'Google Drive folder',
+  }
+}
+
 function buildMultipartBody(metadata: Record<string, unknown>, bytes: Buffer, contentType: string) {
   const boundary = `drive-${crypto.randomUUID()}`
   const chunks = [

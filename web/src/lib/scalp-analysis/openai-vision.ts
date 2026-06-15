@@ -164,3 +164,39 @@ export async function analyzeScalpImageWithOpenAi(imageUrl: string): Promise<Sca
     clearTimeout(timeout)
   }
 }
+
+export async function testOpenAiVisionConnection() {
+  const settings = await getAppSettings()
+  const env = hasOpenAiApiKey(settings.openAi)
+    ? getOpenAiVisionEnvFromSettings(settings.openAi)
+    : getOpenAiVisionEnv()
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), env.timeoutMs)
+
+  try {
+    const res = await fetch(`https://api.openai.com/v1/models/${encodeURIComponent(env.model)}`, {
+      method: 'GET',
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${env.apiKey}`,
+      },
+    })
+
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(`OpenAI model check failed: ${res.status} ${text}`)
+    }
+
+    const model = (await res.json()) as { id?: string }
+    return {
+      model: model.id ?? env.model,
+    }
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`OpenAI model check failed: timeout after ${env.timeoutMs}ms`)
+    }
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
+}
