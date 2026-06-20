@@ -118,6 +118,7 @@ async function main() {
   }
 
   console.log(`\nRunning live release gate against ${baseUrl}`)
+  await run('node', ['./scripts/smoke-health.mjs'])
   const headers = await login()
   await verifyLiveSettings(headers)
   await verifyIntegrationTests(headers)
