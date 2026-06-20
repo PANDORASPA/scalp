@@ -27,6 +27,8 @@ type IntegrationStatus = {
   key: string
   label: string
   ready: boolean
+  officialReady?: boolean
+  mode?: 'official' | 'demo' | 'mock' | 'missing'
   requiredFor: string
   details: string
 }
@@ -46,12 +48,12 @@ async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
 
 function formatMetric(value: number | null, suffix = '') {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '-'
-  return `${value}${suffix}`
+  return `${Math.round(value * 10) / 10}${suffix}`
 }
 
 function SummaryPanel({ summary }: { summary: ScalpAreaSummary | null }) {
   if (!summary) {
-    return <div className="text-sm text-slate-500">需要 3 張已確認圖片，才會生成平均值與比較結果。</div>
+    return <div className="text-sm text-slate-500">需要 3 張已確認圖片，才會產生平均值、上次比較和 baseline 比較。</div>
   }
 
   return (
@@ -75,7 +77,7 @@ function SummaryPanel({ summary }: { summary: ScalpAreaSummary | null }) {
           {summary.compared_to_previous_json?.summary_lines?.length ? (
             summary.compared_to_previous_json.summary_lines.map((line) => <div key={line}>{line}</div>)
           ) : (
-            <div className="text-slate-500">這個部位暫時未有已完成的上一次記錄。</div>
+            <div className="text-slate-500">這個部位暫時未有已完成的上一個 session 可比較。</div>
           )}
         </div>
       </Card>
@@ -85,7 +87,7 @@ function SummaryPanel({ summary }: { summary: ScalpAreaSummary | null }) {
           {summary.compared_to_baseline_json?.summary_lines?.length ? (
             summary.compared_to_baseline_json.summary_lines.map((line) => <div key={line}>{line}</div>)
           ) : (
-            <div className="text-slate-500">完成第一次 baseline 後，這裡會顯示長期變化。</div>
+            <div className="text-slate-500">完成第二次或之後的 session 後，這裡會顯示長期變化。</div>
           )}
         </div>
       </Card>
@@ -145,7 +147,7 @@ export default function ScalpAnalysisClient() {
 
   useEffect(() => {
     if (!customerId) return
-    void loadSessions(customerId).catch((e) => setError(e instanceof Error ? e.message : '載入檢查記錄失敗'))
+    void loadSessions(customerId).catch((e) => setError(e instanceof Error ? e.message : '載入檢查紀錄失敗'))
   }, [customerId])
 
   useEffect(() => {
@@ -174,9 +176,10 @@ export default function ScalpAnalysisClient() {
     () => customers.find((item) => item.id === customerId) ?? null,
     [customerId, customers],
   )
-  const googleDriveReady = integrations.find((item) => item.key === 'google-drive')?.ready ?? false
-  const googleDriveDetails = integrations.find((item) => item.key === 'google-drive')?.details
-  const demoStorageActive = Boolean(googleDriveDetails?.includes('demo storage'))
+  const storageStatus = integrations.find((item) => item.key === 'google-drive')
+  const googleDriveReady = storageStatus?.ready ?? false
+  const googleDriveDetails = storageStatus?.details
+  const demoStorageActive = storageStatus?.mode === 'demo'
 
   async function refreshCurrentSession() {
     if (!sessionId) return
@@ -196,7 +199,7 @@ export default function ScalpAnalysisClient() {
             <div className="text-xs font-medium uppercase tracking-wide text-slate-500">長期追蹤</div>
             <h1 className="text-2xl font-semibold text-slate-900">頭皮放大圖追蹤分析系統</h1>
             <p className="max-w-3xl text-sm text-slate-600">
-              每次檢查以 6 個固定部位、每部位 3 張放大圖作追蹤。AI 先做初步標記，最後統計以已確認標記為準，再和上次及第一次 baseline 比較。
+              每次檢查會記錄 6 個固定部位，每個部位 3 張放大圖。AI 先產生初步標記，使用者再人手確認；最終統計以已確認標記為準，並自動和上次及第一次 baseline 比較。
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -275,7 +278,7 @@ export default function ScalpAnalysisClient() {
           </Card>
 
           <Card className="p-4">
-            <div className="text-sm font-semibold">檢查記錄</div>
+            <div className="text-sm font-semibold">檢查紀錄</div>
             <div className="mt-3 space-y-2">
               {sessions.length === 0 ? (
                 <div className="text-sm text-slate-500">未有頭皮分析 session。</div>
@@ -329,7 +332,7 @@ export default function ScalpAnalysisClient() {
             <Card className="border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
               <div className="font-semibold">目前使用 Demo 圖片儲存</div>
               <div className="mt-1">
-                你可以先測完整上傳、AI 初步標記、人工確認、3 張平均與報告流程；正式客人圖片長期保存請改用 Google Drive。
+                你可以先測完整上傳、AI 初步標記、人手確認、3 張平均與報告流程；正式客人圖片長期保存請改用 Google Drive。
               </div>
             </Card>
           ) : null}
@@ -347,7 +350,7 @@ export default function ScalpAnalysisClient() {
                     <div className="mt-1 text-sm text-slate-600">{sessionState.session.notes || '未有 session 備註。'}</div>
                   </div>
                   <div className="text-xs text-slate-500">
-                    {sessionState.areas.filter((area) => area.ready_for_average).length}/{sessionState.areas.length} 個部位已可出平均
+                    {sessionState.areas.filter((area) => area.ready_for_average).length}/{sessionState.areas.length} 個部位可產生平均
                   </div>
                 </div>
               </Card>
@@ -369,7 +372,7 @@ export default function ScalpAnalysisClient() {
                     <div>
                       <div className="text-lg font-semibold text-slate-900">{area.label}</div>
                       <div className="mt-1 text-sm text-slate-600">
-                        已上傳 {area.images.length}/3 張 {area.ready_for_average ? '| 已生成平均' : '| 等待 3 張已確認圖片'}
+                        已上傳 {area.images.length}/3 張 {area.ready_for_average ? '| 已產生平均' : '| 等待 3 張已確認圖片'}
                       </div>
                     </div>
                   </div>
@@ -472,7 +475,7 @@ export default function ScalpAnalysisClient() {
                                     })
                                     await refreshCurrentSession()
                                   } catch (e) {
-                                    throw (e instanceof Error ? e : new Error('儲存確認標記失敗'))
+                                    throw (e instanceof Error ? e : new Error('保存確認標記失敗'))
                                   } finally {
                                     setBusyKey(null)
                                   }

@@ -10,8 +10,8 @@ export const SCALP_ANALYSIS_AREA_KEYS = [
 export type ScalpAnalysisAreaKey = (typeof SCALP_ANALYSIS_AREA_KEYS)[number]
 
 export const SCALP_ANALYSIS_AREA_LABELS: Record<ScalpAnalysisAreaKey, string> = {
-  m_left: 'M字左',
-  m_right: 'M字右',
+  m_left: 'M 字左',
+  m_right: 'M 字右',
   front_center: '前額中線',
   crown: '頭頂',
   vertex: '頭頂旋位',

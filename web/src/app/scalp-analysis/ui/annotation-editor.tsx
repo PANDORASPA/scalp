@@ -4,7 +4,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { SCALP_ANALYSIS_ANNOTATION_COLORS, SCALP_ANALYSIS_ANNOTATION_LABELS, SCALP_ANALYSIS_ANNOTATION_TYPES, type ScalpAnnotationType } from '@/lib/scalp-analysis/constants'
+import {
+  SCALP_ANALYSIS_ANNOTATION_COLORS,
+  SCALP_ANALYSIS_ANNOTATION_LABELS,
+  SCALP_ANALYSIS_ANNOTATION_TYPES,
+  type ScalpAnnotationType,
+} from '@/lib/scalp-analysis/constants'
 import { createEmptyAnnotations, normalizeAnnotations } from '@/lib/scalp-analysis/logic'
 import type { ScalpAnalysisAnnotations, ScalpAnalysisImage, ScalpEditorMarker } from '@/lib/scalp-analysis/types'
 
@@ -96,7 +101,7 @@ export function AnnotationEditor({
       })
       await onConfirm(next)
     } catch (error) {
-      setLocalError(error instanceof Error ? error.message : '儲存標記失敗')
+      setLocalError(error instanceof Error ? error.message : '保存標記失敗')
     }
   }
 
@@ -104,7 +109,7 @@ export function AnnotationEditor({
     <Card className="p-3">
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="text-sm font-medium">Confirmed annotations</div>
+          <div className="text-sm font-medium">已確認標記</div>
           <div className="flex flex-wrap gap-2">
             <select
               className="rounded-md border border-slate-300 px-3 py-2 text-sm"
@@ -121,13 +126,13 @@ export function AnnotationEditor({
               還原 AI 標記
             </Button>
             <Button type="button" disabled={busy} onClick={() => void handleConfirm()}>
-              {busy ? '儲存中...' : '確認標記'}
+              {busy ? '保存中...' : '確認標記'}
             </Button>
           </div>
         </div>
 
         <div className="text-xs text-slate-500">
-          點擊圖片可新增標記；拖動標記可調整位置；下方清單可更改類型或刪除。
+          點擊圖片可新增標記；拖動標記可調整位置；下方清單可更改類型或刪除。最終統計以確認後的標記為準。
         </div>
 
         <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
@@ -196,7 +201,7 @@ export function AnnotationEditor({
             className="min-h-20 rounded-md border border-slate-300 px-3 py-2 text-sm"
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-            placeholder="輸入這張圖片的人工確認備註..."
+            placeholder="輸入這張圖片的人手確認備註..."
           />
         </div>
 
