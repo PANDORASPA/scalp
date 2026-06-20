@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { buildHealthSummary } from '@/lib/settings/health'
 import { getSystemStatus } from '@/lib/settings/status'
 
 export const runtime = 'nodejs'
@@ -14,28 +15,10 @@ function getAppVersion() {
 
 export async function GET() {
   const integrations = await getSystemStatus()
-  const operationalReady = integrations.every((item) => item.ready)
-  const officialReady = integrations.every((item) => item.officialReady)
 
-  return NextResponse.json({
-    ok: operationalReady,
-    officialReady,
-    status: officialReady
-      ? 'official_ready'
-      : operationalReady
-        ? 'operational_with_demo_integrations'
-        : 'not_ready',
+  return NextResponse.json(buildHealthSummary({
+    integrations,
     checkedAt: new Date().toISOString(),
     version: getAppVersion(),
-    integrations,
-    blockers: integrations
-      .filter((item) => !item.officialReady)
-      .map((item) => ({
-        key: item.key,
-        label: item.label,
-        mode: item.mode,
-        details: item.details,
-        nextAction: item.nextAction ?? null,
-      })),
-  })
+  }))
 }
