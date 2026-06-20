@@ -79,15 +79,18 @@ async function verifyLiveSettings(headers) {
   if (!googleDrive.ready) fail(`Image storage is not ready: ${googleDrive.details}`)
   if (!scalpAi.ready) fail(`Scalp AI is not ready: ${scalpAi.details}`)
 
+  const officialIssues = []
   if (!googleDrive.officialReady) {
-    const message = 'Image storage is still in demo mode. Real customer image storage needs Google Drive credentials.'
-    if (requireOfficialIntegrations) fail(message)
-    warn(message)
+    officialIssues.push('Image storage is still in demo mode. Real customer image storage needs Google Drive credentials.')
   }
   if (!scalpAi.officialReady) {
-    const message = 'Scalp AI is still in mock mode. Real AI counting needs an OpenAI key/model.'
+    officialIssues.push('Scalp AI is still in mock mode. Real AI counting needs an OpenAI key/model.')
+  }
+
+  if (officialIssues.length > 0) {
+    const message = officialIssues.join(' ')
     if (requireOfficialIntegrations) fail(message)
-    warn(message)
+    for (const issue of officialIssues) warn(issue)
   }
 }
 
