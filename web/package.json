@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "node ./scripts/run-tests.mjs",
+    "check:mojibake": "node ./scripts/check-mojibake.mjs",
     "release:gate": "node ./scripts/release-gate.mjs",
     "cleanup:smoke-customers": "node ./scripts/cleanup-smoke-customers.mjs",
     "smoke:supabase": "node ./scripts/smoke-supabase.mjs",
