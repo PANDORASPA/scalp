@@ -27,6 +27,20 @@ For local testing only, the app falls back to demo login users when `AUTH_USERS_
 [{"username":"owner","password":"change-this-long-password","name":"Owner","role":"admin"},{"username":"frontdesk","password":"change-this-too","name":"Front Desk","role":"staff"}]
 ```
 
+Generate a safe production value instead of hand-writing passwords:
+
+```powershell
+npm.cmd run setup:auth-users
+```
+
+Optional custom usernames:
+
+```powershell
+npm.cmd run setup:auth-users -- --owner-username=manager --owner-name="Shop Manager" --staff-username=frontdesk --staff-name="Front Desk"
+```
+
+Copy the printed JSON into Vercel as `AUTH_USERS_JSON` for Production, then redeploy and run `npm run smoke:health`.
+
 ### Migration order
 
 Run these migrations in order:

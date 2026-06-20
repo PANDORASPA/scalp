@@ -17,8 +17,40 @@ const allowedExtensions = new Set([
   '.tsx',
 ])
 
-const suspiciousPattern =
-  /锛|銆|鐨|杓|鍦|绮|骞|闋|妾|瀵|绱|瑷|纰|鍒|涓||�|璩|瑭|鍎|搴|窔|澶|鐩|浣|嬪|熷|帴|枡|偝|墠|寰|伕|悍|灏|傚|湒|犵|叆|彌/
+const suspiciousTokens = [
+  '\u951b',
+  '\u9286',
+  '\u9435',
+  '\ufffd',
+  '\ue05b',
+  '\u7410',
+  '\u7489',
+  '\u9352',
+  '\u7dca',
+  '\u7ec9',
+  '\u95cb',
+  '\u6fbe',
+  '\u6fb6',
+  '\u6d93',
+  '\u5a13',
+  '\u5b2a',
+  '\u5085',
+  '\u509a',
+  '\u5a09',
+  '\u6d60',
+  '\u95ab',
+  '\u75af',
+  '\u93c2',
+  '\u93ac',
+  '\u9427',
+  '\u7f01',
+  '\u7efe',
+  '\u7eab',
+]
+
+function hasSuspiciousMojibake(line) {
+  return suspiciousTokens.some((token) => line.includes(token))
+}
 
 async function listFiles(dir) {
   const entries = await readdir(dir, { withFileTypes: true })
@@ -43,7 +75,7 @@ for (const file of await listFiles(root)) {
   const text = readFileSync(file, 'utf8')
   const lines = text.split(/\r?\n/)
   lines.forEach((line, index) => {
-    if (suspiciousPattern.test(line)) {
+    if (hasSuspiciousMojibake(line)) {
       matches.push({
         file: path.relative(root, file),
         line: index + 1,
