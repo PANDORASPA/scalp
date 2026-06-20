@@ -84,6 +84,7 @@ The gate runs:
 - unit/domain tests
 - production build
 - optional live settings checks when `APP_BASE_URL` is set
+- optional live customer/session operations smoke when `APP_BASE_URL` is set
 - optional live `/scalp-analysis` smoke flow when `APP_BASE_URL` is set
 
 For final official launch, require real Google Drive and OpenAI integrations:
@@ -148,6 +149,15 @@ You may also configure Google Drive and AI credentials from `/settings`. Secrets
 7. Delete one image and confirm the area summary is removed until 3 confirmed images are available again.
 
 ### Live smoke test
+
+Run the fast daily operations smoke flow against the deployed app:
+
+```powershell
+$env:APP_BASE_URL='https://scalp-lake.vercel.app'
+npm.cmd run smoke:operations
+```
+
+This verifies login, customer create/read/update, session create/read/update, customer overview, and cleanup.
 
 Run the complete longitudinal tracking smoke flow against the deployed app:
 

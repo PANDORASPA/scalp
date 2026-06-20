@@ -12,6 +12,7 @@
     "check:mojibake": "node ./scripts/check-mojibake.mjs",
     "release:gate": "node ./scripts/release-gate.mjs",
     "cleanup:smoke-customers": "node ./scripts/cleanup-smoke-customers.mjs",
+    "smoke:operations": "node ./scripts/smoke-operations.mjs",
     "smoke:supabase": "node ./scripts/smoke-supabase.mjs",
     "smoke:scalp-analysis": "node ./scripts/smoke-scalp-analysis.mjs"
   },

@@ -121,6 +121,7 @@ async function main() {
   const headers = await login()
   await verifyLiveSettings(headers)
   await verifyIntegrationTests(headers)
+  await run('node', ['./scripts/smoke-operations.mjs'])
   await run('node', ['./scripts/smoke-scalp-analysis.mjs'])
   console.log('\nRelease gate passed.')
 }
