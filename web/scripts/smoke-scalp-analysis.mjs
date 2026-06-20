@@ -6,8 +6,7 @@ const cleanupSmokeCustomer = process.env.SMOKE_CLEANUP === 'true'
 const areaKeys = ['m_left', 'm_right', 'front_center', 'crown', 'vertex', 'occipital_control']
 
 function fail(message) {
-  console.error(`SCALP ANALYSIS SMOKE FAIL: ${message}`)
-  process.exit(1)
+  throw new Error(message)
 }
 
 async function fetchJson(url, init = {}) {
@@ -157,6 +156,9 @@ async function createAndCompleteSession({ customerId, headers, sessionNumber }) 
 
 async function main() {
   console.log(`Running scalp-analysis smoke flow against ${baseUrl}`)
+  let headers = null
+  let customerId = null
+  let smokePassed = false
 
   const login = await fetchJson(`${baseUrl}/api/auth/login`, {
     method: 'POST',
@@ -165,38 +167,52 @@ async function main() {
   })
   const cookie = login.res.headers.get('set-cookie')
   if (!cookie) fail('login succeeded but no auth cookie was returned')
-  const headers = { Cookie: cookie }
+  headers = { Cookie: cookie }
 
-  const customerName = `Scalp Smoke ${Date.now()}`
-  const createdCustomer = await fetchJson(`${baseUrl}/api/customers`, {
-    method: 'POST',
-    headers: { ...headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      name: customerName,
-      phone: '0900 000 000',
-      notes: 'Created by smoke-scalp-analysis.mjs',
-    }),
-  })
-  const customerId = createdCustomer.json?.customer?.id || createdCustomer.json?.id
-  if (!customerId) fail('customer creation did not return an id')
-
-  const baseline = await createAndCompleteSession({ customerId, headers, sessionNumber: 1 })
-  const followUp = await createAndCompleteSession({ customerId, headers, sessionNumber: 2 })
-
-  const overview = await fetchJson(`${baseUrl}/api/customers/${customerId}/overview`, { headers })
-  if (overview.json?.customer?.id !== customerId) fail('customer overview did not return the smoke customer')
-
-  console.log(
-    `Scalp-analysis smoke flow passed for customer ${customerId}, baseline ${baseline.sessionId}, follow-up ${followUp.sessionId}.`,
-  )
-  if (cleanupSmokeCustomer) {
-    await fetchJson(`${baseUrl}/api/customers/${customerId}`, {
-      method: 'DELETE',
-      headers,
+  try {
+    const customerName = `Scalp Smoke ${Date.now()}`
+    const createdCustomer = await fetchJson(`${baseUrl}/api/customers`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: customerName,
+        phone: '0900 000 000',
+        notes: 'Created by smoke-scalp-analysis.mjs',
+      }),
     })
-    console.log(`Cleaned up smoke customer ${customerId}.`)
+    customerId = createdCustomer.json?.customer?.id || createdCustomer.json?.id
+    if (!customerId) fail('customer creation did not return an id')
+
+    const baseline = await createAndCompleteSession({ customerId, headers, sessionNumber: 1 })
+    const followUp = await createAndCompleteSession({ customerId, headers, sessionNumber: 2 })
+
+    const overview = await fetchJson(`${baseUrl}/api/customers/${customerId}/overview`, { headers })
+    if (overview.json?.customer?.id !== customerId) fail('customer overview did not return the smoke customer')
+
+    smokePassed = true
+    console.log(
+      `Scalp-analysis smoke flow passed for customer ${customerId}, baseline ${baseline.sessionId}, follow-up ${followUp.sessionId}.`,
+    )
+  } finally {
+    if (cleanupSmokeCustomer && customerId && headers) {
+      try {
+        await fetchJson(`${baseUrl}/api/customers/${customerId}`, {
+          method: 'DELETE',
+          headers,
+        })
+        console.log(`Cleaned up smoke customer ${customerId}.`)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        console.error(`SCALP ANALYSIS SMOKE CLEANUP FAIL: ${message}`)
+      }
+    }
   }
   console.log('If this ran with SCALP_ANALYSIS_STORAGE_PROVIDER=demo, repeat once with Google Drive credentials before using real customer images.')
+  if (!smokePassed) fail('scalp-analysis smoke flow did not complete')
 }
 
-await main()
+await main().catch((error) => {
+  const message = error instanceof Error ? error.message : String(error)
+  console.error(`SCALP ANALYSIS SMOKE FAIL: ${message}`)
+  process.exit(1)
+})
