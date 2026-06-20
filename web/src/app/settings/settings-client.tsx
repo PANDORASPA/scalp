@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -14,6 +14,26 @@ type Props = {
 }
 
 type TestTarget = 'supabase' | 'google-drive' | 'scalp-ai'
+
+type HealthResponse = {
+  ok: boolean
+  officialReady: boolean
+  status: 'official_ready' | 'operational_with_demo_integrations' | 'not_ready'
+  checkedAt: string
+  version: {
+    commit: string | null
+    branch: string | null
+    deploymentUrl: string | null
+  }
+  integrations: IntegrationStatus[]
+  blockers: Array<{
+    key: string
+    label: string
+    mode: IntegrationStatus['mode']
+    details: string
+    nextAction: string | null
+  }>
+}
 
 async function saveSettings(body: unknown) {
   const res = await fetch('/api/settings/status', {
@@ -35,6 +55,15 @@ async function testIntegration(target: TestTarget) {
   const json = (await res.json().catch(() => null)) as { ok?: boolean; message?: string } | null
   if (!res.ok || !json?.ok) throw new Error(json?.message ?? 'connection_test_failed')
   return json.message ?? '測試成功'
+}
+
+async function fetchHealth() {
+  const res = await fetch('/api/health')
+  const json = (await res.json().catch(() => null)) as HealthResponse | { error?: string } | null
+  if (!res.ok || !json || !('status' in json)) {
+    throw new Error('讀取 production health 失敗')
+  }
+  return json
 }
 
 function getModeLabel(item: IntegrationStatus) {
@@ -67,11 +96,31 @@ export function SettingsClient({ initialIntegrations }: Props) {
   const [model, setModel] = useState('gpt-5.5')
   const [saving, setSaving] = useState<string | null>(null)
   const [testing, setTesting] = useState<string | null>(null)
+  const [health, setHealth] = useState<HealthResponse | null>(null)
+  const [healthLoading, setHealthLoading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const officialReadyCount = integrations.filter((item) => item.officialReady).length
   const allOfficialReady = officialReadyCount === integrations.length
+
+  const handleRefreshHealth = useCallback(async () => {
+    setHealthLoading(true)
+    setError(null)
+    try {
+      const next = await fetchHealth()
+      setHealth(next)
+      setIntegrations(next.integrations)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '讀取 production health 失敗')
+    } finally {
+      setHealthLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void handleRefreshHealth()
+  }, [handleRefreshHealth])
 
   async function handleTest(target: TestTarget) {
     setTesting(target)
@@ -137,6 +186,58 @@ export function SettingsClient({ initialIntegrations }: Props) {
     <div className="space-y-4">
       {message ? <Card className="border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</Card> : null}
       {error ? <Card className="border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</Card> : null}
+
+      <Card className={`p-5 ${health?.officialReady ? 'border-emerald-200 bg-emerald-50' : health?.ok ? 'border-amber-200 bg-amber-50' : 'border-red-200 bg-red-50'}`}>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="text-sm font-semibold text-slate-900">Production health</div>
+            <p className="mt-1 text-sm text-slate-700">
+              {healthLoading && !health
+                ? '正在檢查 production 狀態...'
+                : health?.officialReady
+                  ? '系統已達正式上線條件。'
+                  : health?.ok
+                    ? '系統可正常操作，但仍未達正式 100% 條件。'
+                    : '系統尚未通過 operational health check。'}
+            </p>
+            {health?.version.commit ? (
+              <div className="mt-2 text-xs text-slate-600">
+                部署 commit：{health.version.commit.slice(0, 7)}
+                {health.version.branch ? ` | branch：${health.version.branch}` : ''}
+              </div>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                health?.officialReady
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : health?.ok
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-red-100 text-red-800'
+              }`}
+            >
+              {health?.officialReady ? 'Official ready' : health?.ok ? 'Operational' : 'Not ready'}
+            </span>
+            <Button variant="secondary" onClick={() => void handleRefreshHealth()} disabled={healthLoading}>
+              {healthLoading ? '檢查中...' : '重新檢查'}
+            </Button>
+          </div>
+        </div>
+
+        {health?.blockers.length ? (
+          <div className="mt-4 grid gap-2 text-sm text-slate-700">
+            {health.blockers.map((blocker) => (
+              <div key={blocker.key} className="rounded-md border border-amber-200 bg-white/70 p-3">
+                <div className="font-medium text-slate-900">
+                  {blocker.label}（{blocker.mode}）
+                </div>
+                <div className="mt-1 text-slate-600">{blocker.nextAction ?? blocker.details}</div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </Card>
 
       <Card className={`p-5 ${allOfficialReady ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
