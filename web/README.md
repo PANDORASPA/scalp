@@ -159,6 +159,25 @@ npm.cmd run smoke:scalp-analysis
 
 This creates one smoke customer, two tracking sessions, and 36 tiny test images. With `SMOKE_CLEANUP=true`, the script deletes the smoke customer after verification so the production customer list is not polluted.
 
+### Smoke customer cleanup
+
+If older smoke tests left `Scalp Smoke ...` customers in production, preview them first:
+
+```powershell
+$env:APP_BASE_URL='https://scalp-lake.vercel.app'
+npm.cmd run cleanup:smoke-customers
+```
+
+The cleanup script is dry-run by default. It only targets customers whose name starts with `Scalp Smoke ` and whose notes equal `Created by smoke-scalp-analysis.mjs`.
+
+To delete the matched smoke customers:
+
+```powershell
+$env:APP_BASE_URL='https://scalp-lake.vercel.app'
+$env:CONFIRM_DELETE_SMOKE_DATA='true'
+npm.cmd run cleanup:smoke-customers
+```
+
 ### OpenAI Vision setup
 
 The app now supports `SCALP_ANALYSIS_AI_PROVIDER=openai-5.5`.
