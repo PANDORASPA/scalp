@@ -72,16 +72,21 @@ async function verifyLiveSettings(headers) {
   if (!Array.isArray(integrations)) fail('settings status did not return integrations')
 
   const supabase = getIntegration(integrations, 'supabase')
+  const auth = getIntegration(integrations, 'auth')
   const googleDrive = getIntegration(integrations, 'google-drive')
   const scalpAi = getIntegration(integrations, 'scalp-ai')
 
   if (!supabase.ready) fail(`Supabase is not ready: ${supabase.details}`)
+  if (!auth.ready) fail(`Auth is not ready: ${auth.details}`)
   if (!googleDrive.ready) fail(`Image storage is not ready: ${googleDrive.details}`)
   if (!scalpAi.ready) fail(`Scalp AI is not ready: ${scalpAi.details}`)
 
   const officialIssues = []
   if (!googleDrive.officialReady) {
     officialIssues.push('Image storage is still in demo mode. Real customer image storage needs Google Drive credentials.')
+  }
+  if (!auth.officialReady) {
+    officialIssues.push('Auth is still using demo users. Official use needs AUTH_USERS_JSON with non-default credentials.')
   }
   if (!scalpAi.officialReady) {
     officialIssues.push('Scalp AI is still in mock mode. Real AI counting needs an OpenAI key/model.')
@@ -95,7 +100,7 @@ async function verifyLiveSettings(headers) {
 }
 
 async function verifyIntegrationTests(headers) {
-  for (const target of ['supabase', 'google-drive', 'scalp-ai']) {
+  for (const target of ['supabase', 'auth', 'google-drive', 'scalp-ai']) {
     const result = await fetchJson(`${baseUrl}/api/settings/test`, {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },

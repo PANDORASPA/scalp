@@ -1,4 +1,4 @@
-import { STAFF_USERS } from './users'
+import { getStaffUsers } from './users'
 
 export type AuthSession = {
   username: string
@@ -25,7 +25,7 @@ export function parseSessionToken(token: string | undefined) {
 }
 
 export function authenticateUser(username: string, password: string) {
-  const user = STAFF_USERS.find((item) => item.username === username && item.password === password)
+  const user = getStaffUsers().find((item) => item.username === username && item.password === password)
   if (!user) return null
   return {
     username: user.username,

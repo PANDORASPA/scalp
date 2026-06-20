@@ -13,7 +13,7 @@ type Props = {
   initialIntegrations: IntegrationStatus[]
 }
 
-type TestTarget = 'supabase' | 'google-drive' | 'scalp-ai'
+type TestTarget = 'supabase' | 'auth' | 'google-drive' | 'scalp-ai'
 
 type HealthResponse = {
   ok: boolean

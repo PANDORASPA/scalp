@@ -19,19 +19,19 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
       <Card className="w-full max-w-md p-6">
         <div className="space-y-2">
-          <h1 className="text-xl font-semibold">Salon Workspace Login</h1>
+          <h1 className="text-xl font-semibold">系統登入</h1>
           <p className="text-sm text-slate-600">
-            Demo accounts: `admin / admin123` or `staff / staff123`
+            請使用已設定的員工帳號登入。正式使用前請在設定頁確認 production health。
           </p>
         </div>
 
         <div className="mt-5 grid gap-4">
           <div className="grid gap-1">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username">帳號</Label>
             <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} />
           </div>
           <div className="grid gap-1">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">密碼</Label>
             <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
 
@@ -41,7 +41,7 @@ export default function LoginPage() {
             disabled={loading}
             onClick={async () => {
               if (!username.trim() || !password.trim()) {
-                setError('Username and password are required.')
+                setError('請輸入帳號和密碼。')
                 return
               }
 
@@ -53,16 +53,16 @@ export default function LoginPage() {
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ username, password }),
                 })
-                if (!res.ok) throw new Error('Invalid username or password')
+                if (!res.ok) throw new Error('帳號或密碼不正確')
                 router.push('/')
                 router.refresh()
               } catch (e) {
-                setError(e instanceof Error ? e.message : 'Login failed')
+                setError(e instanceof Error ? e.message : '登入失敗')
                 setLoading(false)
               }
             }}
           >
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loading ? '登入中...' : '登入'}
           </Button>
         </div>
       </Card>

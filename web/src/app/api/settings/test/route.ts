@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { getAuthReadinessStatus } from '@/lib/auth/users'
 import { requireAuthRole } from '@/lib/auth/session'
 import { getSupabaseServerEnv } from '@/lib/config/supabase'
 import { testOpenAiVisionConnection } from '@/lib/scalp-analysis/openai-vision'
@@ -9,10 +10,10 @@ import { getSystemStatus } from '@/lib/settings/status'
 
 export const runtime = 'nodejs'
 
-type TestTarget = 'supabase' | 'google-drive' | 'scalp-ai'
+type TestTarget = 'supabase' | 'auth' | 'google-drive' | 'scalp-ai'
 
 function isTarget(value: unknown): value is TestTarget {
-  return value === 'supabase' || value === 'google-drive' || value === 'scalp-ai'
+  return value === 'supabase' || value === 'auth' || value === 'google-drive' || value === 'scalp-ai'
 }
 
 function toFailure(error: unknown) {
@@ -63,6 +64,19 @@ export async function POST(req: Request) {
     if (target === 'supabase') {
       await testSupabaseConnection()
       return NextResponse.json({ ok: true, message: 'Supabase database connection is healthy.' })
+    }
+
+    if (target === 'auth') {
+      const authStatus = getAuthReadinessStatus()
+      return NextResponse.json(
+        {
+          ok: authStatus.ready,
+          message: authStatus.officialReady
+            ? '正式登入帳號已設定。'
+            : authStatus.nextAction ?? authStatus.details,
+        },
+        { status: authStatus.ready ? 200 : 500 },
+      )
     }
 
     if (target === 'google-drive') {

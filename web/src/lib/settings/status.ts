@@ -1,5 +1,6 @@
 import { hasGoogleDriveEnv } from '@/lib/config/google-drive'
 import { hasSupabaseServerEnv } from '@/lib/config/supabase'
+import { getAuthReadinessStatus } from '@/lib/auth/users'
 import { getScalpStorageProviderName } from '@/lib/scalp-analysis/storage'
 import { getSupabaseAdminClient } from '@/lib/supabase/client'
 import { getAppSettings, hasCompleteGoogleDriveSettings, hasOpenAiApiKey } from '@/lib/settings/repository'
@@ -59,6 +60,7 @@ async function getSupabaseConnectionStatus() {
 export async function getSystemStatus(): Promise<IntegrationStatus[]> {
   const settings = await getAppSettings()
   const supabase = await getSupabaseConnectionStatus()
+  const auth = getAuthReadinessStatus()
   const aiProvider = settings.openAi.provider ?? process.env.SCALP_ANALYSIS_AI_PROVIDER?.trim().toLowerCase() ?? 'mock'
   const storageProvider = await getScalpStorageProviderName()
   const demoStorageReady = storageProvider === 'demo'
@@ -77,6 +79,16 @@ export async function getSystemStatus(): Promise<IntegrationStatus[]> {
       requiredFor: '客戶、session、分析結果與報告長期儲存',
       details: supabase.details,
       nextAction: supabase.ready ? undefined : '在 Vercel server env 設定 Supabase URL 和 service role key，並確認 migrations 已跑完。',
+    },
+    {
+      key: 'auth',
+      label: '登入帳號',
+      ready: auth.ready,
+      officialReady: auth.officialReady,
+      mode: auth.mode,
+      requiredFor: '員工登入、權限控制與正式公開使用',
+      details: auth.details,
+      nextAction: auth.nextAction,
     },
     {
       key: 'google-drive',

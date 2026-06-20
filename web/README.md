@@ -14,11 +14,18 @@ Copy values from [.env.example](/D:/hairloss/web/.env.example):
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_STORAGE_BUCKET`
+- `AUTH_USERS_JSON`
 - `SCALP_AI_PROVIDER`
 
 For the current cutover, keep:
 
 - `SCALP_AI_PROVIDER=heuristic`
+
+For local testing only, the app falls back to demo login users when `AUTH_USERS_JSON` is empty. Official launch requires `AUTH_USERS_JSON` with non-default passwords:
+
+```json
+[{"username":"owner","password":"change-this-long-password","name":"Owner","role":"admin"},{"username":"frontdesk","password":"change-this-too","name":"Front Desk","role":"staff"}]
+```
 
 ### Migration order
 
@@ -97,7 +104,7 @@ $env:SMOKE_CLEANUP='true'
 npm.cmd run release:gate
 ```
 
-If Google Drive is still in Demo mode or AI is still in Mock mode, this official gate intentionally fails.
+If staff auth is still using demo users, Google Drive is still in Demo mode, or AI is still in Mock mode, this official gate intentionally fails.
 
 ## Scalp Analysis Tracking
 
