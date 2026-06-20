@@ -28,9 +28,13 @@ Run these migrations in order:
 2. `0002_seed_scalp_capture_points.sql`
 3. `0003_add_ai_analysis_and_storage.sql`
 4. `0004_scalp_tracking_analysis.sql`
+5. `0005_app_integration_settings.sql`
+6. `0006_add_tracking_image_score_columns.sql`
 
 `0003` creates the AI analysis tables and the `scalp-images` storage bucket.
 `0004` adds the scalp-analysis tracking columns, tracking workflow type, and `scalp_area_summaries`.
+`0005` stores app-level integration settings, including Google Drive and AI provider settings.
+`0006` adds image-level score columns used by the scalp-analysis tracking report.
 
 ### Verification flow
 
@@ -59,6 +63,40 @@ The smoke script checks:
 - `supabase_storage_error`
   - The storage bucket is missing or inaccessible.
 
+## Release Gate
+
+Before considering a deployment ready, run:
+
+```powershell
+npm.cmd run release:gate
+```
+
+To validate the deployed Vercel app as well:
+
+```powershell
+$env:APP_BASE_URL='https://scalp-lake.vercel.app'
+$env:SMOKE_CLEANUP='true'
+npm.cmd run release:gate
+```
+
+The gate runs:
+
+- unit/domain tests
+- production build
+- optional live settings checks when `APP_BASE_URL` is set
+- optional live `/scalp-analysis` smoke flow when `APP_BASE_URL` is set
+
+For final official launch, require real Google Drive and OpenAI integrations:
+
+```powershell
+$env:APP_BASE_URL='https://scalp-lake.vercel.app'
+$env:REQUIRE_OFFICIAL_INTEGRATIONS='true'
+$env:SMOKE_CLEANUP='true'
+npm.cmd run release:gate
+```
+
+If Google Drive is still in Demo mode or AI is still in Mock mode, this official gate intentionally fails.
+
 ## Scalp Analysis Tracking
 
 The new `/scalp-analysis` page uses:
@@ -75,6 +113,8 @@ The new `/scalp-analysis` page uses:
 - `GOOGLE_DRIVE_FOLDER_ID`
 - `SCALP_ANALYSIS_AI_PROVIDER=mock`
 - `OPENAI_API_KEY` and `OPENAI_VISION_MODEL` only when switching to OpenAI Vision
+
+You may also configure Google Drive and AI credentials from `/settings`. Secrets saved there are stored server-side in Supabase `app_settings`; private keys and API keys are not displayed back to the browser after saving.
 
 ### Google Drive setup
 
@@ -106,6 +146,18 @@ The new `/scalp-analysis` page uses:
 5. Create a second tracking session for the same customer, complete the same area, and verify `compared_to_previous_json` updates.
 6. Verify the earliest completed tracking session becomes the baseline for `compared_to_baseline_json`.
 7. Delete one image and confirm the area summary is removed until 3 confirmed images are available again.
+
+### Live smoke test
+
+Run the complete longitudinal tracking smoke flow against the deployed app:
+
+```powershell
+$env:APP_BASE_URL='https://scalp-lake.vercel.app'
+$env:SMOKE_CLEANUP='true'
+npm.cmd run smoke:scalp-analysis
+```
+
+This creates one smoke customer, two tracking sessions, and 36 tiny test images. With `SMOKE_CLEANUP=true`, the script deletes the smoke customer after verification so the production customer list is not polluted.
 
 ### OpenAI Vision setup
 
