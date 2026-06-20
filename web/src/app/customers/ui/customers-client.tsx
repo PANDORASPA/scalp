@@ -46,10 +46,10 @@ function validateCustomerForm({
   name: string
   phone: string
 }) {
-  if (!name.trim()) return 'Name is required.'
-  if (name.trim().length < 2) return 'Name should be at least 2 characters.'
+  if (!name.trim()) return '請輸入客人姓名。'
+  if (name.trim().length < 2) return '客人姓名最少需要 2 個字元。'
   if (phone.trim() && !/^[0-9+()\-\s]{8,20}$/.test(phone.trim())) {
-    return 'Phone should contain only digits, spaces, or +()- symbols.'
+    return '電話只可以包含數字、空格或 +()- 符號。'
   }
   return null
 }
@@ -92,23 +92,23 @@ function CustomerModal({
       <div className="w-full max-w-lg">
         <Card className="p-5">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold">{isEdit ? 'Edit customer' : 'New customer'}</div>
+            <div className="text-sm font-semibold">{isEdit ? '編輯客人' : '新增客人'}</div>
             <button className="text-sm text-slate-500 hover:text-slate-900" onClick={onClose}>
-              Close
+              關閉
             </button>
           </div>
 
           <div className="mt-4 grid gap-3">
             <div className="grid gap-1">
-              <Label htmlFor="customer_name">Name</Label>
+              <Label htmlFor="customer_name">姓名</Label>
               <Input id="customer_name" value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="grid gap-1">
-              <Label htmlFor="customer_phone">Phone</Label>
+              <Label htmlFor="customer_phone">電話</Label>
               <Input id="customer_phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div className="grid gap-1">
-              <Label htmlFor="customer_notes">Notes</Label>
+              <Label htmlFor="customer_notes">備註</Label>
               <Input id="customer_notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
 
@@ -126,26 +126,26 @@ function CustomerModal({
                   variant="danger"
                   disabled={saving}
                   onClick={async () => {
-                    if (!window.confirm(`Delete customer "${customer.name}" and all related data?`)) return
+                    if (!window.confirm(`確定刪除客人「${customer.name}」和所有相關資料？`)) return
                     setSaving(true)
                     setError(null)
                     try {
                       const res = await fetch(`/api/customers/${customer.id}`, { method: 'DELETE' })
-                      if (!res.ok) throw new Error('Failed to delete customer')
+                      if (!res.ok) throw new Error('刪除客人失敗')
                       onDeleted()
                     } catch (e) {
-                      setError(e instanceof Error ? e.message : 'Failed to delete customer')
+                      setError(e instanceof Error ? e.message : '刪除客人失敗')
                       setSaving(false)
                     }
                   }}
                 >
-                  Delete
+                  刪除
                 </Button>
               ) : null}
             </div>
             <div className="flex gap-2">
               <Button variant="secondary" onClick={onClose} disabled={saving}>
-                Cancel
+                取消
               </Button>
               <Button
                 onClick={async () => {
@@ -163,18 +163,18 @@ function CustomerModal({
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ name: name.trim(), phone: phone.trim(), notes: notes.trim() }),
                     })
-                    if (!res.ok) throw new Error(`Failed to ${customer ? 'update' : 'create'} customer`)
+                    if (!res.ok) throw new Error(customer ? '更新客人失敗' : '新增客人失敗')
                     onSaved()
                     onClose()
                   } catch (e) {
-                    setError(e instanceof Error ? e.message : `Failed to ${customer ? 'update' : 'create'} customer`)
+                    setError(e instanceof Error ? e.message : customer ? '更新客人失敗' : '新增客人失敗')
                   } finally {
                     setSaving(false)
                   }
                 }}
                 disabled={saving}
               >
-                {isEdit ? 'Save changes' : 'Save'}
+                {isEdit ? '保存變更' : '保存'}
               </Button>
             </div>
           </div>
@@ -221,31 +221,31 @@ export default function CustomersClient({
   }, [fetchRows, q])
 
   const filterCards: Array<{ key: FilterKey; label: string; count: number; help: string }> = [
-    { key: 'all', label: 'All customers', count: summary.total, help: 'Full working list' },
-    { key: 'needs_session', label: 'Needs session', count: summary.needs_session, help: 'No session created yet' },
-    { key: 'needs_capture', label: 'Needs capture', count: summary.needs_capture, help: 'Latest session still incomplete' },
-    { key: 'ready_compare', label: 'Ready to compare', count: summary.ready_compare, help: 'At least 2 sessions and latest fully scored' },
-    { key: 'stale_follow_up', label: 'Follow-up due', count: summary.stale_follow_up, help: 'Latest visit was 30+ days ago' },
+    { key: 'all', label: '全部客人', count: summary.total, help: '完整工作清單' },
+    { key: 'needs_session', label: '未有 session', count: summary.needs_session, help: '尚未建立檢查紀錄' },
+    { key: 'needs_capture', label: '待拍攝', count: summary.needs_capture, help: '最新 session 尚未完成' },
+    { key: 'ready_compare', label: '可比較', count: summary.ready_compare, help: '已有 2 次 session 並完成最新評分' },
+    { key: 'stale_follow_up', label: '應跟進', count: summary.stale_follow_up, help: '最近到訪已超過 30 日' },
   ]
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
-          <h1 className="text-lg font-semibold">Customers</h1>
+          <h1 className="text-lg font-semibold">客人管理</h1>
           <div className="text-sm text-slate-600">
-            Search, review, edit, and continue session work from one place.
+            集中搜尋、檢視、編輯客人，並繼續未完成的檢查流程。
           </div>
         </div>
 
         <div className="flex gap-2">
           <div className="w-72">
-            <Label htmlFor="q">Search</Label>
+            <Label htmlFor="q">搜尋</Label>
             <Input
               id="q"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Example: Amy / 09xx"
+              placeholder="例：Amy / 09xx"
             />
           </div>
           <div className="flex items-end gap-2">
@@ -256,7 +256,7 @@ export default function CustomersClient({
                 void fetchRows('')
               }}
             >
-              Clear
+              清除
             </Button>
             <Button
               variant="secondary"
@@ -265,7 +265,7 @@ export default function CustomersClient({
               }}
               disabled={loading}
             >
-              Search
+              搜尋
             </Button>
             <Button
               onClick={() => {
@@ -273,7 +273,7 @@ export default function CustomersClient({
                 setOpenModal(true)
               }}
             >
-              New customer
+              新增客人
             </Button>
           </div>
         </div>
@@ -300,8 +300,8 @@ export default function CustomersClient({
       <Card className="p-4">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-sm font-medium">Customer records</div>
-            <div className="text-xs text-slate-500">Use filters above to work through the day&apos;s queue.</div>
+            <div className="text-sm font-medium">客人紀錄</div>
+            <div className="text-xs text-slate-500">可用上方篩選卡處理每日跟進清單。</div>
           </div>
           <Button
             variant="secondary"
@@ -310,32 +310,32 @@ export default function CustomersClient({
             }}
             disabled={loading}
           >
-            Refresh
+            重新整理
           </Button>
         </div>
         <div className="mt-3 overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead className="border-b border-slate-200 text-xs text-slate-500">
               <tr>
-                <th className="px-3 py-2">Name</th>
-                <th className="px-3 py-2">Phone</th>
-                <th className="px-3 py-2">Latest session</th>
-                <th className="px-3 py-2">Session count</th>
-                <th className="px-3 py-2">Actions</th>
+                <th className="px-3 py-2">姓名</th>
+                <th className="px-3 py-2">電話</th>
+                <th className="px-3 py-2">最近 session</th>
+                <th className="px-3 py-2">Session 數量</th>
+                <th className="px-3 py-2">操作</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td className="px-3 py-4 text-slate-500" colSpan={5}>
-                    Loading...
+                    正在載入...
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
                   <td className="px-3 py-4 text-slate-500" colSpan={5}>
                     <div className="space-y-3">
-                      <div>No customer data yet.</div>
+                      <div>暫時未有客人資料。</div>
                       <DemoSeedButton onSeeded={() => void fetchRows(q)} />
                     </div>
                   </td>
@@ -348,12 +348,12 @@ export default function CustomersClient({
                     <td className="px-3 py-3">{formatDate(c.latest_check_date)}</td>
                     <td className="px-3 py-3">
                       <div>{c.session_count}</div>
-                      <div className="text-xs text-slate-500">{c.latest_completed_points}/5 latest points complete</div>
+                      <div className="text-xs text-slate-500">最新完成 {c.latest_completed_points}/5 個部位</div>
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex flex-wrap gap-3">
                         <Link className="text-blue-700 hover:underline" href={`/customers/${c.id}`}>
-                          Open
+                          開啟
                         </Link>
                         <button
                           className="text-slate-700 underline decoration-slate-300 underline-offset-2 hover:text-slate-900"
@@ -362,7 +362,7 @@ export default function CustomersClient({
                             setOpenModal(true)
                           }}
                         >
-                          Edit
+                          編輯
                         </button>
                       </div>
                     </td>

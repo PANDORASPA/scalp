@@ -31,24 +31,24 @@ export function DemoSeedButton({
               message?: string
             }
 
-            if (!res.ok) throw new Error('Failed to create demo data')
+            if (!res.ok) throw new Error('建立示範資料失敗')
 
             if (json.created) {
-              setMessage('Demo data is ready. You can now test the full flow.')
+              setMessage('示範資料已建立，可以開始測試完整流程。')
             } else {
-              setMessage('Existing data was found, so nothing was overwritten.')
+              setMessage('系統已有資料，沒有覆蓋現有紀錄。')
             }
 
             onSeeded?.()
             router.refresh()
           } catch (e) {
-            setMessage(e instanceof Error ? e.message : 'Failed to create demo data')
+            setMessage(e instanceof Error ? e.message : '建立示範資料失敗')
           } finally {
             setLoading(false)
           }
         }}
       >
-        {loading ? 'Creating demo data...' : 'Load demo data'}
+        {loading ? '正在建立示範資料...' : '載入示範資料'}
       </Button>
       {message ? <div className="mt-2 text-xs text-slate-600">{message}</div> : null}
     </div>

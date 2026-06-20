@@ -143,7 +143,7 @@ function getAiConfidenceScore(values: Array<number | null | undefined>) {
 
 async function fetchJSON<T>(url: string): Promise<T> {
   const res = await fetch(url)
-  if (!res.ok) throw new Error('Failed to load data')
+  if (!res.ok) throw new Error('載入資料失敗')
   return (await res.json()) as T
 }
 
@@ -201,7 +201,7 @@ export default function ComparisonsClient() {
         setBaselineSessionId(baseline)
       } catch (e) {
         if (cancelled) return
-        setError(e instanceof Error ? e.message : 'Failed to load data')
+        setError(e instanceof Error ? e.message : '載入資料失敗')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -226,7 +226,7 @@ export default function ComparisonsClient() {
         setCurrentState(b)
       } catch (e) {
         if (cancelled) return
-        setError(e instanceof Error ? e.message : 'Failed to load data')
+        setError(e instanceof Error ? e.message : '載入資料失敗')
       }
     })()
     return () => {
@@ -336,20 +336,20 @@ export default function ComparisonsClient() {
     <div className="mx-auto max-w-6xl space-y-4 p-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-lg font-semibold">Session comparison</h1>
+          <h1 className="text-lg font-semibold">Session 比較</h1>
           <div className="text-sm text-slate-600">
-            Compare two sessions to understand scalp condition changes by capture point.
+            比較兩次檢查，按部位查看頭皮狀態變化。
           </div>
         </div>
         <div className="flex items-end gap-2">
           <div className="w-72">
-            <Label>Customer</Label>
+            <Label>客人</Label>
             <select
               className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
               value={customerId}
               onChange={(e) => setCustomerId(e.target.value)}
             >
-              <option value="">Select a customer</option>
+              <option value="">選擇客人</option>
               {customers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} ({c.session_count})
@@ -370,7 +370,7 @@ export default function ComparisonsClient() {
                 setError(null)
               }}
             >
-              Clear
+              清除
             </Button>
           </div>
         </div>
@@ -378,18 +378,18 @@ export default function ComparisonsClient() {
 
       {!customerId ? (
         <Card className="p-4">
-          <div className="text-sm text-slate-600">Select a customer to begin.</div>
+          <div className="text-sm text-slate-600">請先選擇客人。</div>
         </Card>
       ) : loading ? (
         <Card className="p-4">
-          <div className="text-sm text-slate-600">Loading...</div>
+          <div className="text-sm text-slate-600">正在載入...</div>
         </Card>
       ) : sessions.length < 2 ? (
         <Card className="p-4">
-          <div className="text-sm text-slate-600">At least 2 sessions are required for comparison.</div>
+          <div className="text-sm text-slate-600">需要最少 2 次 session 才可以比較。</div>
           <div className="mt-3">
             <Link className="text-blue-700 hover:underline" href={`/customers/${customerId}`}>
-              Back to customer detail
+              返回客人詳情
             </Link>
           </div>
         </Card>
@@ -404,7 +404,7 @@ export default function ComparisonsClient() {
                   value={baselineSessionId}
                   onChange={(e) => setBaselineSessionId(e.target.value)}
                 >
-                  <option value="">Select baseline</option>
+                  <option value="">選擇 baseline</option>
                   {sessions.map((s) => (
                     <option key={s.id} value={s.id}>
                       {formatDate(s.check_date)}
@@ -414,13 +414,13 @@ export default function ComparisonsClient() {
                 </select>
               </div>
               <div className="grid gap-1">
-                <Label>Current session</Label>
+                <Label>今次 session</Label>
                 <select
                   className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
                   value={currentSessionId}
                   onChange={(e) => setCurrentSessionId(e.target.value)}
                 >
-                  <option value="">Select current</option>
+                  <option value="">選擇今次 session</option>
                   {sessions.map((s) => (
                     <option key={s.id} value={s.id}>
                       {formatDate(s.check_date)}
@@ -432,39 +432,39 @@ export default function ComparisonsClient() {
             </div>
 
             {baselineSessionId && currentSessionId && baselineSessionId === currentSessionId ? (
-              <div className="mt-2 text-xs text-red-700">Baseline and current sessions must be different.</div>
+              <div className="mt-2 text-xs text-red-700">Baseline 和今次 session 不可以相同。</div>
             ) : null}
           </Card>
 
           <div className="grid gap-4 md:grid-cols-4">
             <Card className="p-4">
-              <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Baseline avg</div>
+              <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Baseline 平均</div>
               <div className="mt-2 text-2xl font-semibold text-slate-900">
                 {summaryCards.baselineAvg ?? '-'}
               </div>
-              <div className="mt-1 text-sm text-slate-600">Average hair-count across completed points.</div>
+              <div className="mt-1 text-sm text-slate-600">已完成部位的平均髮量估算。</div>
             </Card>
             <Card className="p-4">
-              <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Current avg</div>
+              <div className="text-xs font-medium uppercase tracking-wide text-slate-500">今次平均</div>
               <div className="mt-2 text-2xl font-semibold text-slate-900">
                 {summaryCards.currentAvg ?? '-'}
               </div>
-              <div className="mt-1 text-sm text-slate-600">Compare this with the baseline to read the overall trend.</div>
+              <div className="mt-1 text-sm text-slate-600">與 baseline 比較，查看整體趨勢。</div>
             </Card>
             <Card className="p-4">
-              <div className="text-xs font-medium uppercase tracking-wide text-slate-500">AI confidence</div>
+              <div className="text-xs font-medium uppercase tracking-wide text-slate-500">AI 信心度</div>
               <div className="mt-2 text-2xl font-semibold text-slate-900">
                 {summaryCards.averageConfidence !== null ? `${summaryCards.averageConfidence}%` : '-'}
               </div>
-              <div className="mt-1 text-sm text-slate-600">Average confidence across both sessions.</div>
+              <div className="mt-1 text-sm text-slate-600">兩次 session 的平均信心度。</div>
             </Card>
             <Card className="p-4">
-              <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Trend balance</div>
+              <div className="text-xs font-medium uppercase tracking-wide text-slate-500">趨勢概覽</div>
               <div className="mt-2 text-2xl font-semibold text-slate-900">
-                {summaryCards.meaningfulCount > 0 ? `${summaryCards.meaningfulCount} key changes` : 'Mostly stable'}
+                {summaryCards.meaningfulCount > 0 ? `${summaryCards.meaningfulCount} 個明顯變化` : '大致穩定'}
               </div>
               <div className="mt-1 text-sm text-slate-600">
-                {summaryCards.stableCount} points are within normal variation.
+                {summaryCards.stableCount} 個部位屬正常波動範圍。
               </div>
             </Card>
           </div>
@@ -476,19 +476,19 @@ export default function ComparisonsClient() {
           ) : null}
 
           <Card className="p-4">
-            <div className="text-sm font-medium">Point-by-point changes</div>
+            <div className="text-sm font-medium">逐個部位變化</div>
             <div className="mt-3 overflow-x-auto">
               <table className="min-w-full text-left text-sm">
                 <thead className="border-b border-slate-200 text-xs text-slate-500">
                   <tr>
-                    <th className="px-3 py-2">Point</th>
+                    <th className="px-3 py-2">部位</th>
                     <th className="px-3 py-2">Baseline</th>
-                    <th className="px-3 py-2">Current</th>
-                    <th className="px-3 py-2">Delta</th>
-                    <th className="px-3 py-2">Trend</th>
-                    <th className="px-3 py-2">Confidence</th>
-                    <th className="px-3 py-2">Consistency</th>
-                    <th className="px-3 py-2">Notes</th>
+                    <th className="px-3 py-2">今次</th>
+                    <th className="px-3 py-2">差異</th>
+                    <th className="px-3 py-2">趨勢</th>
+                    <th className="px-3 py-2">信心度</th>
+                    <th className="px-3 py-2">一致性</th>
+                    <th className="px-3 py-2">備註</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -500,7 +500,7 @@ export default function ComparisonsClient() {
                         <tr key={row.point} className="border-b border-slate-100">
                           <td className="px-3 py-3 font-medium">{getCapturePointLabel(row.point)}</td>
                           <td className="px-3 py-3 text-slate-500" colSpan={7}>
-                            One side is still missing a completed summary, so we cannot call this trend yet.
+                            其中一邊尚未有完整 summary，暫時不判斷趨勢。
                           </td>
                         </tr>
                       )
@@ -532,7 +532,7 @@ export default function ComparisonsClient() {
                         <td className="px-3 py-3">
                           <div className="text-xs font-medium text-slate-700">{consistency.label}</div>
                           <div className="mt-1 text-xs text-slate-500">
-                            {typeof consistency.score === 'number' ? `${Math.round(consistency.score * 100)}% consistency` : consistency.note}
+                            {typeof consistency.score === 'number' ? `${Math.round(consistency.score * 100)}% 一致性` : consistency.note}
                           </div>
                         </td>
                         <td className="px-3 py-3 text-xs text-slate-700">
@@ -549,19 +549,19 @@ export default function ComparisonsClient() {
           </Card>
 
           <Card className="p-4">
-            <div className="text-sm font-medium">AI hair-count trend</div>
+            <div className="text-sm font-medium">AI 髮量趨勢</div>
             <div className="mt-1 text-xs text-slate-500">
-              We only call out a change when it rises above normal shot-to-shot variation.
+              只有超出一般拍攝誤差的變化，才會標示為明顯變化。
             </div>
             <div className="mt-3 overflow-x-auto">
               <table className="min-w-full text-left text-sm">
                 <thead className="border-b border-slate-200 text-xs text-slate-500">
                   <tr>
-                    <th className="px-3 py-2">Point</th>
-                    <th className="px-3 py-2">Before</th>
-                    <th className="px-3 py-2">After</th>
-                    <th className="px-3 py-2">Delta</th>
-                    <th className="px-3 py-2">Interpretation</th>
+                    <th className="px-3 py-2">部位</th>
+                    <th className="px-3 py-2">之前</th>
+                    <th className="px-3 py-2">今次</th>
+                    <th className="px-3 py-2">差異</th>
+                    <th className="px-3 py-2">解讀</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -588,7 +588,7 @@ export default function ComparisonsClient() {
                           </div>
                           <div className="mt-1 text-xs text-slate-500">{row.current?.trend_summary ?? trend.note}</div>
                           <div className="mt-1 text-xs text-slate-500">
-                            Confidence {confidence !== null ? `${confidence}%` : '-'}
+                            信心度 {confidence !== null ? `${confidence}%` : '-'}
                           </div>
                           <div className="mt-1 text-xs text-slate-500">{formatAnalysisMeta(row.current)}</div>
                         </td>
@@ -602,9 +602,9 @@ export default function ComparisonsClient() {
 
           <Card className="p-4">
             <div className="flex items-center justify-between">
-              <div className="text-sm font-medium">Quick actions</div>
+              <div className="text-sm font-medium">快捷操作</div>
               <Button variant="secondary" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-                Back to top
+                返回頂部
               </Button>
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -612,13 +612,13 @@ export default function ComparisonsClient() {
                 className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50"
                 href={`/customers/${customerId}`}
               >
-                Customer detail
+                客人詳情
               </Link>
               <Link
                 className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50"
                 href={`/sessions/new?customerId=${customerId}`}
               >
-                Create new session
+                建立新 session
               </Link>
             </div>
           </Card>

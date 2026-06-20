@@ -177,11 +177,11 @@ export default function CaptureClient() {
     setError(null)
     try {
       const res = await fetch(`/api/sessions/${sessionId}/state`)
-      if (!res.ok) throw new Error('Session not found')
+      if (!res.ok) throw new Error('找不到 session')
       const json = (await res.json()) as SessionState
       setData(json)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load session')
+      setError(e instanceof Error ? e.message : '載入 session 失敗')
     } finally {
       setLoading(false)
     }
@@ -218,17 +218,17 @@ export default function CaptureClient() {
   }, [data?.aiPointAnalyses])
 
   if (loading) {
-    return <div className="mx-auto max-w-6xl p-6 text-sm text-slate-600">Loading...</div>
+    return <div className="mx-auto max-w-6xl p-6 text-sm text-slate-600">正在載入...</div>
   }
 
   if (error || !data) {
     return (
       <div className="mx-auto max-w-6xl p-6">
         <Card className="p-4">
-          <div className="text-sm text-red-700">{error ?? 'Failed to load session'}</div>
+          <div className="text-sm text-red-700">{error ?? '載入 session 失敗'}</div>
           <div className="mt-3">
             <Link className="text-blue-700 hover:underline" href="/customers">
-              Back to customers
+              返回客人列表
             </Link>
           </div>
         </Card>
@@ -247,23 +247,23 @@ export default function CaptureClient() {
         <div>
           <div className="text-sm text-slate-500">
             <Link className="hover:underline" href={`/customers/${customerId}`}>
-              Back to customer detail
+              返回客人詳情
             </Link>
           </div>
-          <h1 className="mt-1 text-lg font-semibold">Capture and score</h1>
+          <h1 className="mt-1 text-lg font-semibold">拍攝及評分</h1>
           <div className="text-sm text-slate-600">
-            Customer: {customerName} | Session: {formatDate(data.session.check_date)}
+            客人：{customerName} | Session：{formatDate(data.session.check_date)}
           </div>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => void refresh()}>
-            Refresh
+            重新整理
           </Button>
           <Link
             className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-50"
             href={`/comparisons?customerId=${customerId}&currentSessionId=${data.session.id}`}
           >
-            Open comparison
+            打開比較
           </Link>
         </div>
       </div>
@@ -512,7 +512,7 @@ export default function CaptureClient() {
                             disabled={!img || busy}
                             onClick={async () => {
                               if (!img) return
-                              if (!window.confirm(`Delete shot ${shotIndex} for ${pointTitle}?`)) return
+                              if (!window.confirm(`確定刪除「${pointTitle}」第 ${shotIndex} 張圖片？`)) return
                               setBusyKey(key)
                               try {
                                 const qs = new URLSearchParams({
@@ -523,17 +523,17 @@ export default function CaptureClient() {
                                 const res = await fetch(`/api/scalp-images?${qs.toString()}`, {
                                   method: 'DELETE',
                                 })
-                                if (!res.ok) throw new Error('Failed to delete this shot')
+                                if (!res.ok) throw new Error('刪除圖片失敗')
                                 setFiles((prev) => ({ ...prev, [key]: null }))
                                 await refresh()
                               } catch (e) {
-                                alert(e instanceof Error ? e.message : 'Delete failed')
+                                alert(e instanceof Error ? e.message : '刪除失敗')
                               } finally {
                                 setBusyKey(null)
                               }
                             }}
                           >
-                            Delete shot
+                            刪除圖片
                           </Button>
                           <Button
                             variant="secondary"
@@ -563,18 +563,18 @@ export default function CaptureClient() {
                                   method: 'POST',
                                   body: fd,
                                 })
-                                if (!res.ok) throw new Error('Failed to save this shot')
+                                if (!res.ok) throw new Error('保存圖片失敗')
 
                                 setFiles((prev) => ({ ...prev, [key]: null }))
                                 await refresh()
                               } catch (e) {
-                                alert(e instanceof Error ? e.message : 'Save failed')
+                                alert(e instanceof Error ? e.message : '保存失敗')
                               } finally {
                                 setBusyKey(null)
                               }
                             }}
                           >
-                            {img ? 'Save updates' : 'Save shot'}
+                            {img ? '保存更新' : '保存圖片'}
                           </Button>
                         </div>
                       </div>

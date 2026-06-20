@@ -6,7 +6,7 @@ import NewSessionClient from '@/app/sessions/new/ui/new-session-client'
 export default function NewSessionPage() {
   return (
     <AppShell>
-      <Suspense fallback={<div className="p-6 text-sm text-slate-600">Loading...</div>}>
+      <Suspense fallback={<div className="p-6 text-sm text-slate-600">正在載入...</div>}>
         <NewSessionClient />
       </Suspense>
     </AppShell>

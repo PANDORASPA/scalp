@@ -384,19 +384,19 @@ export default function CustomerDetailClient({
     setTrackingError(null)
     try {
       const res = await fetch(`/api/customers/${customerId}/overview`)
-      if (!res.ok) throw new Error('Customer not found')
+      if (!res.ok) throw new Error('找不到客人資料')
       const json = (await res.json()) as OverviewResponse
       setData(json)
 
       const trackingRes = await fetch(`/api/scalp-analysis/sessions?customerId=${customerId}`)
-      if (!trackingRes.ok) throw new Error('Failed to load scalp tracking sessions')
+      if (!trackingRes.ok) throw new Error('載入頭皮追蹤 session 失敗')
       const trackingList = (await trackingRes.json()) as ScalpSession[]
       setTrackingSessions(trackingList)
 
       const latestTracking = trackingList[0] ?? null
       if (latestTracking) {
         const stateRes = await fetch(`/api/scalp-analysis/sessions/${latestTracking.id}`)
-        if (!stateRes.ok) throw new Error('Failed to load latest scalp tracking state')
+        if (!stateRes.ok) throw new Error('載入最近頭皮追蹤狀態失敗')
         setLatestTrackingState((await stateRes.json()) as ScalpAnalysisSessionState)
       } else {
         setLatestTrackingState(null)

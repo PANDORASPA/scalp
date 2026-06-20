@@ -15,8 +15,8 @@ function toDatetimeLocalValue(iso: string) {
 }
 
 function validateSessionForm(checkDate: string) {
-  if (!checkDate.trim()) return 'Please select a check date'
-  if (Number.isNaN(new Date(checkDate).getTime())) return 'Please enter a valid check date'
+  if (!checkDate.trim()) return '請選擇檢查日期。'
+  if (Number.isNaN(new Date(checkDate).getTime())) return '請輸入有效檢查日期。'
   return null
 }
 
@@ -34,11 +34,11 @@ export default function NewSessionClient() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-6">
-      <h1 className="text-lg font-semibold">Create scalp check session</h1>
+      <h1 className="text-lg font-semibold">建立頭皮檢查 session</h1>
       <Card className="p-5">
         <div className="grid gap-4">
           <div className="grid gap-1">
-            <Label htmlFor="check_date">Check date</Label>
+            <Label htmlFor="check_date">檢查日期</Label>
             <Input
               id="check_date"
               type="datetime-local"
@@ -47,21 +47,21 @@ export default function NewSessionClient() {
             />
           </div>
           <div className="grid gap-1">
-            <Label htmlFor="staff_name">Staff name</Label>
+            <Label htmlFor="staff_name">負責員工</Label>
             <Input
               id="staff_name"
               value={staffName}
               onChange={(e) => setStaffName(e.target.value)}
-              placeholder="Example: Amy"
+              placeholder="例：Amy"
             />
           </div>
           <div className="grid gap-1">
-            <Label htmlFor="notes">Notes</Label>
+            <Label htmlFor="notes">備註</Label>
             <Input
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Optional"
+              placeholder="可留空"
             />
           </div>
 
@@ -77,12 +77,12 @@ export default function NewSessionClient() {
               onClick={() => router.push(customerId ? `/customers/${customerId}` : '/customers')}
               disabled={saving}
             >
-              Cancel
+              取消
             </Button>
             <Button
               onClick={async () => {
                 try {
-                  if (!customerId) throw new Error('Missing customerId')
+                  if (!customerId) throw new Error('缺少客人 ID')
                   const validationError = validateSessionForm(checkDate)
                   if (validationError) throw new Error(validationError)
 
@@ -99,18 +99,18 @@ export default function NewSessionClient() {
                       notes: notes.trim(),
                     }),
                   })
-                  if (!res.ok) throw new Error('Failed to create session')
+                  if (!res.ok) throw new Error('建立 session 失敗')
                   const created = (await res.json()) as { id: string }
                   router.push(`/sessions/${created.id}/capture`)
                 } catch (e) {
-                  setError(e instanceof Error ? e.message : 'Failed to create session')
+                  setError(e instanceof Error ? e.message : '建立 session 失敗')
                 } finally {
                   setSaving(false)
                 }
               }}
               disabled={saving}
             >
-              Create and open capture
+              建立並開始拍攝
             </Button>
           </div>
         </div>
