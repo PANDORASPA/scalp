@@ -112,6 +112,7 @@ async function verifyIntegrationTests(headers) {
 }
 
 async function main() {
+  await run(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['audit'])
   await run(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'check:mojibake'])
   await run(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['test'])
   await run(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build'])
