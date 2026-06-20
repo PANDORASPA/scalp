@@ -18,19 +18,22 @@
     "smoke:scalp-analysis": "node ./scripts/smoke-scalp-analysis.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.99.2",
-    "next": "^15.3.0",
+    "@supabase/supabase-js": "^2.108.2",
+    "next": "^15.5.19",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@types/node": "^22.13.10",
-    "@types/react": "^18.3.18",
+    "@types/node": "^22.20.0",
+    "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.5",
     "eslint": "^9.21.0",
-    "eslint-config-next": "^15.3.0",
-    "postcss": "^8.5.3",
+    "eslint-config-next": "^15.5.19",
+    "postcss": "^8.5.15",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.2"
+  },
+  "overrides": {
+    "postcss": "$postcss"
   }
 }

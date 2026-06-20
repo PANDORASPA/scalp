@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Security audit
+        run: npm audit
+
       - name: Check text encoding
         run: npm run check:mojibake
 
