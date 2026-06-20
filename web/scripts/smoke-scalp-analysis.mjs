@@ -1,6 +1,7 @@
 const baseUrl = process.env.APP_BASE_URL?.trim() || process.env.BASE_URL?.trim() || 'http://localhost:3000'
 const username = process.env.SMOKE_USERNAME?.trim() || 'admin'
 const password = process.env.SMOKE_PASSWORD?.trim() || 'admin123'
+const cleanupSmokeCustomer = process.env.SMOKE_CLEANUP === 'true'
 
 const areaKeys = ['m_left', 'm_right', 'front_center', 'crown', 'vertex', 'occipital_control']
 
@@ -188,6 +189,13 @@ async function main() {
   console.log(
     `Scalp-analysis smoke flow passed for customer ${customerId}, baseline ${baseline.sessionId}, follow-up ${followUp.sessionId}.`,
   )
+  if (cleanupSmokeCustomer) {
+    await fetchJson(`${baseUrl}/api/customers/${customerId}`, {
+      method: 'DELETE',
+      headers,
+    })
+    console.log(`Cleaned up smoke customer ${customerId}.`)
+  }
   console.log('If this ran with SCALP_ANALYSIS_STORAGE_PROVIDER=demo, repeat once with Google Drive credentials before using real customer images.')
 }
 
