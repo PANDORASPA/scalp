@@ -17,6 +17,8 @@
     "src/lib/auth/users.ts",
     "src/lib/auth/core.ts",
     "src/lib/auth/session.test.ts",
+    "src/lib/config/scalp-analysis-ai.ts",
+    "src/lib/config/scalp-analysis-ai.test.ts",
     "src/lib/customers/workspace.ts",
     "src/lib/customers/workspace.test.ts",
     "src/lib/scalp/ai.ts",

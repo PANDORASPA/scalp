@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { normalizeScalpAnalysisAiProvider } from '@/lib/config/scalp-analysis-ai'
 import { hasSupabaseServerEnv } from '@/lib/config/supabase'
 import { getAppSettings } from '@/lib/settings/repository'
 import { touchCustomerInSupabase } from '@/lib/supabase/repository'
@@ -47,8 +48,7 @@ type UploadInput = {
 async function getAnalysisProvider() {
   const settings = await getAppSettings()
   if (settings.openAi.provider) return settings.openAi.provider
-  const provider = process.env.SCALP_ANALYSIS_AI_PROVIDER?.trim().toLowerCase() || 'mock'
-  return provider === 'openai-5.5' ? 'openai-5.5' : 'mock'
+  return normalizeScalpAnalysisAiProvider(process.env.SCALP_ANALYSIS_AI_PROVIDER)
 }
 
 export async function createScalpSession(customerId: string, input?: { sessionDate?: string; notes?: string | null }) {

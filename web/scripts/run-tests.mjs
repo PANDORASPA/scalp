@@ -20,6 +20,7 @@ const tests = spawnSync(
   [
     '--test',
     '.test-dist/lib/auth/session.test.js',
+    '.test-dist/lib/config/scalp-analysis-ai.test.js',
     '.test-dist/lib/customers/workspace.test.js',
     '.test-dist/lib/scalp/ai.test.js',
     '.test-dist/lib/scalp/pipeline.test.js',
