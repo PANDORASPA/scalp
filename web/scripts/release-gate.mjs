@@ -125,12 +125,24 @@ async function verifyIntegrationTests(headers) {
 }
 
 async function verifyProtectedRoutes() {
-  const demoSeed = await fetch(`${baseUrl}/api/demo/seed`, { method: 'POST' })
-  if (demoSeed.status !== 401) {
-    const text = await demoSeed.text()
-    fail(`unauthenticated demo seed should return 401, got ${demoSeed.status}: ${text}`)
+  const protectedTargets = [
+    { method: 'POST', path: '/api/demo/seed', label: 'demo seed' },
+    { method: 'GET', path: '/api/customers', label: 'customers list' },
+    { method: 'GET', path: '/api/customers/overview?mode=workspace', label: 'customer workspace' },
+    { method: 'GET', path: '/api/dashboard/summary', label: 'dashboard summary' },
+    { method: 'GET', path: '/api/sessions', label: 'sessions list' },
+    { method: 'GET', path: '/api/settings/status', label: 'settings status' },
+    { method: 'GET', path: '/api/scalp-analysis/sessions?customerId=00000000-0000-0000-0000-000000000000', label: 'tracking sessions' },
+  ]
+
+  for (const target of protectedTargets) {
+    const res = await fetch(`${baseUrl}${target.path}`, { method: target.method, redirect: 'manual' })
+    if (res.status !== 401 && res.status !== 307 && res.status !== 308) {
+      const text = await res.text()
+      fail(`unauthenticated ${target.label} should be blocked, got ${res.status}: ${text}`)
+    }
   }
-  console.log('protected routes: unauthenticated demo seed is blocked.')
+  console.log('protected routes: unauthenticated data and demo endpoints are blocked.')
 }
 
 async function main() {

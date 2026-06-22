@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { requireAuthRole } from '@/lib/auth/session'
 import { hasSupabaseServerEnv } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
 import { buildCustomerWorkspaceRows } from '@/lib/customers/workspace'
@@ -8,6 +9,9 @@ import { getWorkspaceSnapshot, toRepositoryError } from '@/lib/supabase/reposito
 export const runtime = 'nodejs'
 
 export async function GET() {
+  const auth = await requireAuthRole(['admin', 'staff'])
+  if (!auth.ok) return auth.response
+
   if (hasSupabaseServerEnv()) {
     try {
       const snapshot = await getWorkspaceSnapshot()

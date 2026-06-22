@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { requireAuthRole } from '@/lib/auth/session'
 import { hasSupabaseServerEnv } from '@/lib/config/supabase'
 import { buildCustomerWorkspaceRows } from '@/lib/customers/workspace'
 import { updateDb } from '@/lib/mockdb/store'
@@ -8,6 +9,9 @@ import { getWorkspaceSnapshot, toRepositoryError } from '@/lib/supabase/reposito
 export const runtime = 'nodejs'
 
 export async function GET(req: Request) {
+  const auth = await requireAuthRole(['admin', 'staff'])
+  if (!auth.ok) return auth.response
+
   const url = new URL(req.url)
   const q = url.searchParams.get('q')?.trim().toLowerCase() ?? ''
   const mode = url.searchParams.get('mode') ?? 'list'

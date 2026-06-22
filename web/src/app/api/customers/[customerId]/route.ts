@@ -27,6 +27,9 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ customerId: string }> },
 ) {
+  const auth = await requireAuthRole(['admin', 'staff'])
+  if (!auth.ok) return auth.response
+
   const { customerId } = await params
 
   if (hasSupabaseServerEnv()) {

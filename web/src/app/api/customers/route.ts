@@ -18,6 +18,9 @@ function isValidPhone(value: string | null) {
 }
 
 export async function GET(req: Request) {
+  const auth = await requireAuthRole(['admin', 'staff'])
+  if (!auth.ok) return auth.response
+
   const url = new URL(req.url)
   const q = url.searchParams.get('q')?.trim().toLowerCase() ?? ''
 

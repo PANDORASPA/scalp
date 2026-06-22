@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { requireAuthRole } from '@/lib/auth/session'
 import { hasSupabaseServerEnv } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
 import { getCustomerOverviewFromSupabase, toRepositoryError } from '@/lib/supabase/repository'
@@ -10,6 +11,9 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ customerId: string }> },
 ) {
+  const auth = await requireAuthRole(['admin', 'staff'])
+  if (!auth.ok) return auth.response
+
   const { customerId } = await params
 
   if (hasSupabaseServerEnv()) {

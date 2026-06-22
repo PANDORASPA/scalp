@@ -7,6 +7,9 @@ import { saveGoogleDriveSettings, saveOpenAiSettings } from '@/lib/settings/repo
 export const runtime = 'nodejs'
 
 export async function GET() {
+  const auth = await requireAuthRole(['admin', 'staff'])
+  if (!auth.ok) return auth.response
+
   return NextResponse.json({
     integrations: await getSystemStatus(),
     updated_at: new Date().toISOString(),

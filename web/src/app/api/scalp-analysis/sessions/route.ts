@@ -11,6 +11,9 @@ function isValidDate(value: string) {
 }
 
 export async function GET(req: Request) {
+  const auth = await requireAuthRole(['admin', 'staff'])
+  if (!auth.ok) return auth.response
+
   const url = new URL(req.url)
   const customerId = url.searchParams.get('customerId') ?? ''
   if (!customerId) {
