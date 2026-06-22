@@ -26,7 +26,7 @@ test('authenticateUser supports AUTH_USERS_JSON official credentials', () => {
   process.env.AUTH_USERS_JSON = JSON.stringify([
     {
       username: 'owner',
-      password: 'strong-password',
+      password: 'N8x_qr7VnZ2pL5',
       name: 'Owner',
       role: 'admin',
     },
@@ -34,9 +34,35 @@ test('authenticateUser supports AUTH_USERS_JSON official credentials', () => {
 
   try {
     assert.equal(authenticateUser('admin', 'admin123'), null)
-    const session = authenticateUser('owner', 'strong-password')
+    const session = authenticateUser('owner', 'N8x_qr7VnZ2pL5')
     assert.equal(session?.role, 'admin')
     assert.equal(getAuthReadinessStatus().officialReady, true)
+  } finally {
+    if (previous === undefined) {
+      delete process.env.AUTH_USERS_JSON
+    } else {
+      process.env.AUTH_USERS_JSON = previous
+    }
+  }
+})
+
+test('AUTH_USERS_JSON with weak or placeholder passwords is not official-ready', () => {
+  const previous = process.env.AUTH_USERS_JSON
+  process.env.AUTH_USERS_JSON = JSON.stringify([
+    {
+      username: 'owner',
+      password: 'change-this-long-password',
+      name: 'Owner',
+      role: 'admin',
+    },
+  ])
+
+  try {
+    const status = getAuthReadinessStatus()
+    assert.equal(status.ready, true)
+    assert.equal(status.officialReady, false)
+    assert.equal(status.mode, 'demo')
+    assert.match(status.details, /placeholder/)
   } finally {
     if (previous === undefined) {
       delete process.env.AUTH_USERS_JSON

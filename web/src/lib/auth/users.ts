@@ -20,6 +20,8 @@ const DEMO_STAFF_USERS: StaffUser[] = [
   },
 ]
 
+const DEMO_PASSWORDS = new Set(['admin123', 'staff123', 'password', 'password123'])
+
 function parseAuthUsersJson(value: string | undefined): StaffUser[] | null {
   if (!value?.trim()) return null
 
@@ -45,6 +47,29 @@ function parseAuthUsersJson(value: string | undefined): StaffUser[] | null {
   }
 }
 
+function getCredentialSafetyIssue(users: StaffUser[]) {
+  for (const user of users) {
+    const password = user.password.trim()
+    const loweredPassword = password.toLowerCase()
+    const loweredUsername = user.username.trim().toLowerCase()
+
+    if (password.length < 12) {
+      return `Password for "${user.username}" must be at least 12 characters.`
+    }
+    if (DEMO_PASSWORDS.has(loweredPassword)) {
+      return `Password for "${user.username}" is a demo/default password.`
+    }
+    if (loweredPassword.includes('change-this') || loweredPassword.includes('password')) {
+      return `Password for "${user.username}" still looks like a placeholder.`
+    }
+    if (loweredPassword === loweredUsername) {
+      return `Password for "${user.username}" cannot match the username.`
+    }
+  }
+
+  return null
+}
+
 export function getConfiguredStaffUsers() {
   return parseAuthUsersJson(process.env.AUTH_USERS_JSON)
 }
@@ -59,11 +84,23 @@ export function getAuthReadinessStatus() {
   const configuredUsers = getConfiguredStaffUsers()
 
   if (configuredUsers && configuredUsers.length > 0) {
+    const safetyIssue = getCredentialSafetyIssue(configuredUsers)
+    if (safetyIssue) {
+      return {
+        ready: true,
+        officialReady: false,
+        mode: 'demo' as const,
+        details: `AUTH_USERS_JSON is configured, but it is not safe for official use. ${safetyIssue}`,
+        nextAction:
+          'Generate a stronger AUTH_USERS_JSON with npm run setup:auth-users, save it in Vercel Production env, then redeploy.',
+      }
+    }
+
     return {
       ready: true,
       officialReady: true,
       mode: 'official' as const,
-      details: '已設定正式員工登入帳號。',
+      details: 'Official staff login accounts are configured.',
       nextAction: undefined,
     }
   }
@@ -73,8 +110,8 @@ export function getAuthReadinessStatus() {
       ready: false,
       officialReady: false,
       mode: 'missing' as const,
-      details: 'AUTH_USERS_JSON 已設定，但沒有有效員工帳號。',
-      nextAction: '請在 Vercel env 以 JSON array 設定至少一個 admin/staff 帳號。',
+      details: 'AUTH_USERS_JSON is set, but it does not contain any valid staff accounts.',
+      nextAction: 'Set AUTH_USERS_JSON in Vercel env as a JSON array with at least one admin or staff account.',
     }
   }
 
@@ -82,7 +119,7 @@ export function getAuthReadinessStatus() {
     ready: true,
     officialReady: false,
     mode: 'demo' as const,
-    details: '目前使用內建 Demo 登入帳號，可測試流程，但不適合正式公開使用。',
-    nextAction: '正式使用前請在 Vercel env 設定 AUTH_USERS_JSON，並使用非預設密碼。',
+    details: 'Demo staff login is active. This is useful for testing but not safe for official public use.',
+    nextAction: 'Before official use, set AUTH_USERS_JSON in Vercel env with non-default strong passwords.',
   }
 }
