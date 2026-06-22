@@ -151,6 +151,19 @@ You may also configure Google Drive and AI credentials from `/settings`. Secrets
    - `private_key` -> `GOOGLE_DRIVE_PRIVATE_KEY` (keep `\n` escaped in `.env`)
 7. Copy the folder id from the Drive URL into `GOOGLE_DRIVE_FOLDER_ID`.
 
+You can generate the env values from the downloaded service-account JSON:
+
+```powershell
+npm.cmd run setup:google-drive -- --key-file="C:\path\to\service-account.json" --folder="https://drive.google.com/drive/folders/1D1LevLpvklBp2vtwiGMfk9gkANbfhdK3"
+```
+
+Current prepared Drive folder:
+
+- Name: `Pandora Scalp Analysis Images`
+- Folder ID: `1D1LevLpvklBp2vtwiGMfk9gkANbfhdK3`
+
+Important: share that folder with the service account `client_email` as Editor before pressing `Test connection` in `/settings`.
+
 ### Tracking flow
 
 1. Open `/scalp-analysis`.
