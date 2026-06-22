@@ -2,18 +2,12 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
 import { AUTH_COOKIE, parseSessionToken } from '@/lib/auth/core'
-
-const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/logout']
+import { isPublicPath } from '@/lib/auth/public-paths'
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon') ||
-    pathname.startsWith('/scalp-images') ||
-    PUBLIC_PATHS.some((path) => pathname.startsWith(path))
-  ) {
+  if (isPublicPath(pathname)) {
     return NextResponse.next()
   }
 

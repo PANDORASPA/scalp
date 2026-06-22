@@ -16,6 +16,8 @@
   "include": [
     "src/lib/auth/users.ts",
     "src/lib/auth/core.ts",
+    "src/lib/auth/public-paths.ts",
+    "src/lib/auth/public-paths.test.ts",
     "src/lib/auth/session.test.ts",
     "src/lib/config/scalp-analysis-ai.ts",
     "src/lib/config/scalp-analysis-ai.test.ts",
