@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 
 const baseUrl = process.env.APP_BASE_URL?.trim() || process.env.BASE_URL?.trim() || ''
 const username = process.env.SMOKE_USERNAME?.trim() || 'admin'
@@ -12,6 +13,18 @@ function fail(message) {
 
 function warn(message) {
   console.warn(`RELEASE GATE WARN: ${message}`)
+}
+
+function getLocalGitCommit() {
+  try {
+    return execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+  } catch {
+    return ''
+  }
 }
 
 function run(command, args) {
@@ -124,6 +137,7 @@ async function main() {
   }
 
   console.log(`\nRunning live release gate against ${baseUrl}`)
+  process.env.EXPECTED_DEPLOYMENT_COMMIT = process.env.EXPECTED_DEPLOYMENT_COMMIT || getLocalGitCommit()
   await run('node', ['./scripts/smoke-health.mjs'])
   const headers = await login()
   await verifyLiveSettings(headers)

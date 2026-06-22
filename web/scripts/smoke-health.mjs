@@ -1,5 +1,6 @@
 const baseUrl = process.env.APP_BASE_URL?.trim() || process.env.BASE_URL?.trim() || 'http://localhost:3000'
 const requireOfficialIntegrations = process.env.REQUIRE_OFFICIAL_INTEGRATIONS === 'true'
+const expectedDeploymentCommit = process.env.EXPECTED_DEPLOYMENT_COMMIT?.trim() || ''
 
 function fail(message) {
   throw new Error(message)
@@ -20,10 +21,18 @@ async function main() {
   if (!json?.ok) fail(`health status is not operational: ${JSON.stringify(json)}`)
 
   const integrations = Array.isArray(json.integrations) ? json.integrations : []
-  for (const key of ['supabase', 'google-drive', 'scalp-ai']) {
+  for (const key of ['supabase', 'auth', 'google-drive', 'scalp-ai']) {
     const item = integrations.find((candidate) => candidate.key === key)
     if (!item) fail(`health response is missing ${key}`)
     if (!item.ready) fail(`${key} is not ready: ${item.details}`)
+  }
+
+  const liveCommit = json.version?.commit
+  if (expectedDeploymentCommit) {
+    if (!liveCommit) fail(`expected deployment commit ${expectedDeploymentCommit}, but health response did not include a commit`)
+    if (!liveCommit.startsWith(expectedDeploymentCommit) && !expectedDeploymentCommit.startsWith(liveCommit)) {
+      fail(`live deployment commit mismatch: expected ${expectedDeploymentCommit}, got ${liveCommit}`)
+    }
   }
 
   if (requireOfficialIntegrations && !json.officialReady) {
