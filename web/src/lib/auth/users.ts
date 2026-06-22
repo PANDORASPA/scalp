@@ -22,6 +22,16 @@ const DEMO_STAFF_USERS: StaffUser[] = [
 
 const DEMO_PASSWORDS = new Set(['admin123', 'staff123', 'password', 'password123'])
 
+function getSessionSecretSafetyIssue() {
+  const secret = process.env.AUTH_SESSION_SECRET?.trim()
+  if (!secret) return 'AUTH_SESSION_SECRET is not set.'
+  if (secret.length < 32) return 'AUTH_SESSION_SECRET must be at least 32 characters.'
+  if (secret.toLowerCase().includes('change-this') || secret.toLowerCase().includes('secret')) {
+    return 'AUTH_SESSION_SECRET still looks like a placeholder.'
+  }
+  return null
+}
+
 function parseAuthUsersJson(value: string | undefined): StaffUser[] | null {
   if (!value?.trim()) return null
 
@@ -93,6 +103,18 @@ export function getAuthReadinessStatus() {
         details: `AUTH_USERS_JSON is configured, but it is not safe for official use. ${safetyIssue}`,
         nextAction:
           'Generate a stronger AUTH_USERS_JSON with npm run setup:auth-users, save it in Vercel Production env, then redeploy.',
+      }
+    }
+
+    const sessionSecretIssue = getSessionSecretSafetyIssue()
+    if (sessionSecretIssue) {
+      return {
+        ready: true,
+        officialReady: false,
+        mode: 'demo' as const,
+        details: `Official staff accounts are configured, but session signing is not safe for official use. ${sessionSecretIssue}`,
+        nextAction:
+          'Set a strong AUTH_SESSION_SECRET in Vercel Production env, then redeploy.',
       }
     }
 

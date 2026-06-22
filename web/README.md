@@ -15,13 +15,14 @@ Copy values from [.env.example](/D:/hairloss/web/.env.example):
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_STORAGE_BUCKET`
 - `AUTH_USERS_JSON`
+- `AUTH_SESSION_SECRET`
 - `SCALP_AI_PROVIDER`
 
 For the current cutover, keep:
 
 - `SCALP_AI_PROVIDER=heuristic`
 
-For local testing only, the app falls back to demo login users when `AUTH_USERS_JSON` is empty. Official launch requires `AUTH_USERS_JSON` with non-default passwords:
+For local testing only, the app falls back to demo login users when `AUTH_USERS_JSON` is empty. Official launch requires `AUTH_USERS_JSON` with non-default passwords and `AUTH_SESSION_SECRET` for signed staff session cookies:
 
 ```json
 [{"username":"owner","password":"change-this-long-password","name":"Owner","role":"admin"},{"username":"frontdesk","password":"change-this-too","name":"Front Desk","role":"staff"}]
@@ -39,7 +40,7 @@ Optional custom usernames:
 npm.cmd run setup:auth-users -- --owner-username=manager --owner-name="Shop Manager" --staff-username=frontdesk --staff-name="Front Desk"
 ```
 
-Copy the printed JSON into Vercel as `AUTH_USERS_JSON` for Production, then redeploy and run `npm run smoke:health`.
+Copy the printed JSON into Vercel as `AUTH_USERS_JSON`, copy the printed secret into Vercel as `AUTH_SESSION_SECRET`, then redeploy and run `npm run smoke:health`.
 
 ### Migration order
 

@@ -5,7 +5,7 @@ import { AUTH_COOKIE, parseSessionToken } from '@/lib/auth/core'
 
 const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/logout']
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   if (
@@ -17,7 +17,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  const session = parseSessionToken(req.cookies.get(AUTH_COOKIE)?.value)
+  const session = await parseSessionToken(req.cookies.get(AUTH_COOKIE)?.value)
   if (session) return NextResponse.next()
 
   const url = req.nextUrl.clone()

@@ -8,16 +8,65 @@ export type AuthSession = {
 
 export const AUTH_COOKIE = 'scalp_auth'
 
-export function createSessionToken(session: AuthSession) {
-  return Buffer.from(JSON.stringify(session), 'utf8').toString('base64url')
+const FALLBACK_SESSION_SECRET = 'dev-only-insecure-session-secret'
+
+function getSessionSecret() {
+  return process.env.AUTH_SESSION_SECRET?.trim() || FALLBACK_SESSION_SECRET
 }
 
-export function parseSessionToken(token: string | undefined) {
+function bytesToBase64Url(bytes: Uint8Array) {
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+function base64UrlToBytes(value: string) {
+  const padded = value.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (value.length % 4)) % 4)
+  const binary = atob(padded)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)
+  return bytes
+}
+
+async function hmacSha256(value: string) {
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(getSessionSecret()),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  return new Uint8Array(await crypto.subtle.sign('HMAC', key, encoder.encode(value)))
+}
+
+function safeEqual(left: string, right: string) {
+  if (left.length !== right.length) return false
+  let diff = 0
+  for (let index = 0; index < left.length; index += 1) {
+    diff |= left.charCodeAt(index) ^ right.charCodeAt(index)
+  }
+  return diff === 0
+}
+
+export async function createSessionToken(session: AuthSession) {
+  const payload = bytesToBase64Url(new TextEncoder().encode(JSON.stringify(session)))
+  const signature = bytesToBase64Url(await hmacSha256(payload))
+  return `v1.${payload}.${signature}`
+}
+
+export async function parseSessionToken(token: string | undefined) {
   if (!token) return null
 
   try {
-    const parsed = JSON.parse(Buffer.from(token, 'base64url').toString('utf8')) as AuthSession
+    const [version, payload, signature] = token.split('.')
+    if (version !== 'v1' || !payload || !signature) return null
+    const expectedSignature = bytesToBase64Url(await hmacSha256(payload))
+    if (!safeEqual(signature, expectedSignature)) return null
+
+    const parsed = JSON.parse(new TextDecoder().decode(base64UrlToBytes(payload))) as AuthSession
     if (!parsed.username || !parsed.role) return null
+    if (parsed.role !== 'admin' && parsed.role !== 'staff') return null
     return parsed
   } catch {
     return null

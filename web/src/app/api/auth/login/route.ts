@@ -18,9 +18,11 @@ export async function POST(req: Request) {
   }
 
   const jar = await cookies()
-  jar.set(AUTH_COOKIE, createSessionToken(session), {
+  jar.set(AUTH_COOKIE, await createSessionToken(session), {
     httpOnly: true,
     sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 60 * 60 * 12,
     path: '/',
   })
 
