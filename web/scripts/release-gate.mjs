@@ -129,6 +129,7 @@ async function main() {
   await verifyLiveSettings(headers)
   await verifyIntegrationTests(headers)
   await run('node', ['./scripts/smoke-operations.mjs'])
+  process.env.SMOKE_CLEANUP = process.env.SMOKE_CLEANUP || 'true'
   await run('node', ['./scripts/smoke-scalp-analysis.mjs'])
   console.log('\nRelease gate passed.')
 }

@@ -71,9 +71,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           ok: authStatus.ready,
-          message: authStatus.officialReady
-            ? '正式登入帳號已設定。'
-            : authStatus.nextAction ?? authStatus.details,
+          message: authStatus.officialReady ? '正式登入帳號已設定。' : authStatus.nextAction ?? authStatus.details,
         },
         { status: authStatus.ready ? 200 : 500 },
       )
@@ -90,7 +88,7 @@ export async function POST(req: Request) {
       const result = await testGoogleDriveConnection()
       return NextResponse.json({
         ok: true,
-        message: `Google Drive connection is healthy. Folder: ${result.folderName}`,
+        message: `Google Drive connection is healthy. Folder: ${result.folderName}. Upload and delete permissions verified.`,
       })
     }
 

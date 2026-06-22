@@ -85,9 +85,51 @@ export async function testGoogleDriveConnection() {
     throw new Error('Google Drive folder check failed: folder id is not a Drive folder')
   }
 
+  const probeMetadata = {
+    name: `scalp-analysis-connection-test-${Date.now()}.txt`,
+    parents: [env.folderId],
+    description: 'Temporary file created by the Pandora scalp analysis connection test.',
+  }
+  const probe = buildMultipartBody(probeMetadata, Buffer.from('ok'), 'text/plain')
+  const uploadRes = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': `multipart/related; boundary=${probe.boundary}`,
+      },
+      body: probe.body,
+    },
+  )
+
+  if (!uploadRes.ok) {
+    const text = await uploadRes.text()
+    throw new Error(`Google Drive write check failed: ${uploadRes.status} ${text}`)
+  }
+
+  const uploadedProbe = (await uploadRes.json()) as { id?: string }
+  if (!uploadedProbe.id) throw new Error('Google Drive write check failed: missing probe file id')
+
+  const deleteRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(uploadedProbe.id)}?supportsAllDrives=true`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  )
+
+  if (!deleteRes.ok && deleteRes.status !== 404) {
+    const text = await deleteRes.text()
+    throw new Error(`Google Drive delete check failed: ${deleteRes.status} ${text}`)
+  }
+
   return {
     folderId: folder.id ?? env.folderId,
     folderName: folder.name ?? 'Google Drive folder',
+    writeVerified: true,
   }
 }
 
