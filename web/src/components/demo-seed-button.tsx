@@ -27,11 +27,12 @@ export function DemoSeedButton({
           try {
             const res = await fetch('/api/demo/seed', { method: 'POST' })
             const json = (await res.json()) as {
-              created: boolean
+              created?: boolean
               message?: string
+              error?: string
             }
 
-            if (!res.ok) throw new Error('建立示範資料失敗')
+            if (!res.ok) throw new Error(json.error ?? '建立示範資料失敗')
 
             if (json.created) {
               setMessage('示範資料已建立，可以開始測試完整流程。')

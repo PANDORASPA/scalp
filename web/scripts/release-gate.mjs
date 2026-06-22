@@ -124,6 +124,15 @@ async function verifyIntegrationTests(headers) {
   }
 }
 
+async function verifyProtectedRoutes() {
+  const demoSeed = await fetch(`${baseUrl}/api/demo/seed`, { method: 'POST' })
+  if (demoSeed.status !== 401) {
+    const text = await demoSeed.text()
+    fail(`unauthenticated demo seed should return 401, got ${demoSeed.status}: ${text}`)
+  }
+  console.log('protected routes: unauthenticated demo seed is blocked.')
+}
+
 async function main() {
   await run(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['audit'])
   await run(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'check:mojibake'])
@@ -139,6 +148,7 @@ async function main() {
   console.log(`\nRunning live release gate against ${baseUrl}`)
   process.env.EXPECTED_DEPLOYMENT_COMMIT = process.env.EXPECTED_DEPLOYMENT_COMMIT || getLocalGitCommit()
   await run('node', ['./scripts/smoke-health.mjs'])
+  await verifyProtectedRoutes()
   const headers = await login()
   await verifyLiveSettings(headers)
   await verifyIntegrationTests(headers)

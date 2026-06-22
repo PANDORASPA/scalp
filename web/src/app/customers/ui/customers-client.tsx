@@ -336,7 +336,7 @@ export default function CustomersClient({
                   <td className="px-3 py-4 text-slate-500" colSpan={5}>
                     <div className="space-y-3">
                       <div>暫時未有客人資料。</div>
-                      <DemoSeedButton onSeeded={() => void fetchRows(q)} />
+                      {role === 'admin' ? <DemoSeedButton onSeeded={() => void fetchRows(q)} /> : null}
                     </div>
                   </td>
                 </tr>
@@ -353,7 +353,7 @@ export default function CustomersClient({
                     <td className="px-3 py-3">
                       <div className="flex flex-wrap gap-3">
                         <Link className="text-blue-700 hover:underline" href={`/customers/${c.id}`}>
-                          開啟
+                          打開
                         </Link>
                         <button
                           className="text-slate-700 underline decoration-slate-300 underline-offset-2 hover:text-slate-900"

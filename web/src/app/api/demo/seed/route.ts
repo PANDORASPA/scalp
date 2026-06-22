@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { requireAuthRole } from '@/lib/auth/session'
 import { hasSupabaseServerEnv } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
 import { CAPTURE_POINT_CODES } from '@/lib/scalp/constants'
@@ -25,6 +26,9 @@ type SeedResult = {
 }
 
 export async function POST() {
+  const auth = await requireAuthRole(['admin'])
+  if (!auth.ok) return auth.response
+
   const now = new Date().toISOString()
   type ScoreMatrix = Record<(typeof CAPTURE_POINT_CODES)[number], readonly [number, number, number, number, number, number]>
 
