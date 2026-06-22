@@ -78,7 +78,9 @@ export async function getSystemStatus(): Promise<IntegrationStatus[]> {
       mode: supabase.ready ? 'official' : 'missing',
       requiredFor: '客戶、session、分析結果與報告長期儲存',
       details: supabase.details,
-      nextAction: supabase.ready ? undefined : '在 Vercel server env 設定 Supabase URL 和 service role key，並確認 migrations 已跑完。',
+      nextAction: supabase.ready
+        ? undefined
+        : '在 Vercel server env 設定 Supabase URL 和 service role key，並確認 migrations 已跑完。',
     },
     {
       key: 'auth',
@@ -117,7 +119,7 @@ export async function getSystemStatus(): Promise<IntegrationStatus[]> {
       requiredFor: '上傳後自動產生初步標記與統計建議',
       details:
         aiProvider === 'mock'
-          ? '目前使用 Mock AI，可先完成流程測試；正式計數需切換 OpenAI Vision。'
+          ? '目前使用 Mock AI，可先完成流程測試；正式計數需要切換 OpenAI Vision。'
           : officialOpenAiReady
             ? `已設定 ${aiProvider}。`
             : '已選 OpenAI Vision，但尚未設定 OPENAI_API_KEY。',
