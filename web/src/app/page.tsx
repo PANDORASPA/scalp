@@ -19,6 +19,7 @@ export default async function HomePage() {
     sessions: db.sessions,
     pointSummaries: db.pointSummaries,
   })
+  const canLoadDemoData = session?.role === 'admin' && db.customers.length === 0 && db.sessions.length === 0
 
   return (
     <AppShell>
@@ -44,7 +45,7 @@ export default async function HomePage() {
               >
                 打開頭皮分析
               </Link>
-              {session?.role === 'admin' ? <DemoSeedButton /> : null}
+              {canLoadDemoData ? <DemoSeedButton /> : null}
             </div>
           </div>
         </Card>

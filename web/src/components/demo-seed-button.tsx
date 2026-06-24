@@ -22,6 +22,7 @@ export function DemoSeedButton({
         variant="secondary"
         disabled={loading}
         onClick={async () => {
+          if (!window.confirm('載入示範資料只適合測試流程，不會覆蓋現有紀錄。確定要繼續？')) return
           setLoading(true)
           setMessage(null)
           try {
