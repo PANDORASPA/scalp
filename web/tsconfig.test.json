@@ -16,6 +16,8 @@
   "include": [
     "src/lib/auth/users.ts",
     "src/lib/auth/core.ts",
+    "src/lib/auth/login-rate-limit.ts",
+    "src/lib/auth/login-rate-limit.test.ts",
     "src/lib/auth/public-paths.ts",
     "src/lib/auth/public-paths.test.ts",
     "src/lib/auth/session.test.ts",
