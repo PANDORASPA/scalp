@@ -108,6 +108,22 @@ async function createAndCompleteSession({ customerId, headers, sessionNumber }) 
       const image = uploaded.json
       if (!image?.id) fail(`upload did not return image id for ${areaKey}/${imageIndex}`)
 
+      if (sessionNumber === 1 && areaKey === 'm_left' && imageIndex === 1) {
+        const overwriteForm = new FormData()
+        overwriteForm.set('sessionId', sessionId)
+        overwriteForm.set('customerId', customerId)
+        overwriteForm.set('areaKey', areaKey)
+        overwriteForm.set('imageIndex', String(imageIndex))
+        overwriteForm.set('file', new File([buildTinyPngBuffer()], `${areaKey}-${imageIndex}-overwrite.png`, { type: 'image/png' }))
+
+        const overwritten = await fetchJson(`${baseUrl}/api/scalp-analysis/images`, {
+          method: 'POST',
+          headers,
+          body: overwriteForm,
+        })
+        if (overwritten.json?.id !== image.id) fail('overwriting the same area/image slot should update the existing image record')
+      }
+
       const annotations = fallbackAnnotations(areaKey, imageIndex, sessionNumber)
       await fetchJson(`${baseUrl}/api/scalp-analysis/images/${image.id}/confirm`, {
         method: 'POST',
@@ -154,6 +170,65 @@ async function createAndCompleteSession({ customerId, headers, sessionNumber }) 
   return { sessionId, state: state.json }
 }
 
+async function verifyDeleteReturnsAreaToIncomplete({ customerId, headers }) {
+  const createdSession = await fetchJson(`${baseUrl}/api/scalp-analysis/sessions`, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      customerId,
+      sessionDate: new Date(Date.UTC(2026, 0, 3)).toISOString(),
+      notes: 'Smoke test delete rollback session',
+    }),
+  })
+  const sessionId = createdSession.json?.id
+  if (!sessionId) fail('delete smoke session creation did not return an id')
+
+  let imageToDelete = null
+  for (const imageIndex of [1, 2, 3]) {
+    const form = new FormData()
+    form.set('sessionId', sessionId)
+    form.set('customerId', customerId)
+    form.set('areaKey', 'm_left')
+    form.set('imageIndex', String(imageIndex))
+    form.set('file', new File([buildTinyPngBuffer()], `delete-check-${imageIndex}.png`, { type: 'image/png' }))
+
+    const uploaded = await fetchJson(`${baseUrl}/api/scalp-analysis/images`, {
+      method: 'POST',
+      headers,
+      body: form,
+    })
+    const image = uploaded.json
+    if (!image?.id) fail(`delete smoke upload did not return image id for index ${imageIndex}`)
+    if (imageIndex === 2) imageToDelete = image
+
+    await fetchJson(`${baseUrl}/api/scalp-analysis/images/${image.id}/confirm`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ annotations: fallbackAnnotations('m_left', imageIndex, 3) }),
+    })
+  }
+
+  const completeState = await fetchJson(`${baseUrl}/api/scalp-analysis/sessions/${sessionId}`, { headers })
+  const completeArea = completeState.json?.areas?.find((area) => area.area_key === 'm_left')
+  if (!completeArea?.ready_for_average || !completeArea?.summary) {
+    fail('delete smoke area should be complete before deleting one image')
+  }
+  if (!imageToDelete?.id) fail('delete smoke did not capture an image to delete')
+
+  await fetchJson(`${baseUrl}/api/scalp-analysis/images/${imageToDelete.id}`, {
+    method: 'DELETE',
+    headers,
+  })
+
+  const incompleteState = await fetchJson(`${baseUrl}/api/scalp-analysis/sessions/${sessionId}`, { headers })
+  const incompleteArea = incompleteState.json?.areas?.find((area) => area.area_key === 'm_left')
+  if (!incompleteArea) fail('delete smoke state did not include m_left area')
+  if (incompleteArea.images.length !== 2) fail(`delete smoke expected 2 images after delete, got ${incompleteArea.images.length}`)
+  if (incompleteArea.ready_for_average) fail('delete smoke area should not remain ready_for_average after deleting one image')
+  if (incompleteArea.summary) fail('delete smoke area summary should be removed after deleting one confirmed image')
+  if (incompleteArea.missing_images !== 1) fail(`delete smoke expected 1 missing image, got ${incompleteArea.missing_images}`)
+}
+
 async function main() {
   console.log(`Running scalp-analysis smoke flow against ${baseUrl}`)
   let headers = null
@@ -185,6 +260,7 @@ async function main() {
 
     const baseline = await createAndCompleteSession({ customerId, headers, sessionNumber: 1 })
     const followUp = await createAndCompleteSession({ customerId, headers, sessionNumber: 2 })
+    await verifyDeleteReturnsAreaToIncomplete({ customerId, headers })
 
     const overview = await fetchJson(`${baseUrl}/api/customers/${customerId}/overview`, { headers })
     if (overview.json?.customer?.id !== customerId) fail('customer overview did not return the smoke customer')
