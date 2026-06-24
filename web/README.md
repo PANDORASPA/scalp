@@ -119,6 +119,14 @@ $env:SMOKE_CLEANUP='true'
 npm.cmd run release:gate
 ```
 
+Shortcut:
+
+```powershell
+npm.cmd run official:gate
+```
+
+`official:gate` defaults to `https://scalp-lake.vercel.app`, enables `REQUIRE_OFFICIAL_INTEGRATIONS=true`, and cleans up smoke customers. Use this as the final "can we really go live?" check after setting production auth, Google Drive, and OpenAI credentials.
+
 If staff auth is still using demo users, Google Drive is still in Demo mode, or AI is still in Mock mode, this official gate intentionally fails.
 
 ## Scalp Analysis Tracking

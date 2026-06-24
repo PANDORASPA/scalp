@@ -11,6 +11,7 @@
     "test": "node ./scripts/run-tests.mjs",
     "check:mojibake": "node ./scripts/check-mojibake.mjs",
     "release:gate": "node ./scripts/release-gate.mjs",
+    "official:gate": "node ./scripts/official-gate.mjs",
     "setup:auth-users": "node ./scripts/generate-auth-users.mjs",
     "setup:google-drive": "node ./scripts/generate-google-drive-env.mjs",
     "cleanup:smoke-customers": "node ./scripts/cleanup-smoke-customers.mjs",

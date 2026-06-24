@@ -54,6 +54,16 @@ const suspiciousTokens = [
   '\u95d6',
   '\u8bf2',
   '\u5ba0',
+  '灏氭',
+  '瑷',
+  '宸茶',
+  '鐧诲',
+  '鍦栫',
+  '闋',
+  '鍒嗘',
+  '姝ｅ',
+  '鍙栧',
+  '濉',
 ]
 
 function hasSuspiciousMojibake(line) {
