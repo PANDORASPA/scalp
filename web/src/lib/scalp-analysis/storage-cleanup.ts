@@ -1,8 +1,9 @@
 import 'server-only'
 
 import type { ScalpImageStorageRef } from '@/lib/supabase/repository'
-import { buildScalpImageStoragePath, deleteScalpImages } from '@/lib/supabase/storage'
+import { deleteScalpImages } from '@/lib/supabase/storage'
 
+import { planScalpImageStorageCleanup } from './storage-cleanup-plan'
 import { googleDriveStorageAdapter } from './storage/google-drive'
 
 function logStorageCleanupFailure(context: string, error: unknown) {
@@ -10,28 +11,13 @@ function logStorageCleanupFailure(context: string, error: unknown) {
 }
 
 export async function cleanupScalpImageStorageRefs(refs: ScalpImageStorageRef[]) {
-  const supabasePaths: string[] = []
+  const plan = planScalpImageStorageCleanup(refs)
 
-  for (const ref of refs) {
-    if (ref.storage_provider === 'google-drive') {
-      await googleDriveStorageAdapter
-        .delete(ref.drive_file_id, ref.storage_object_key)
-        .catch((error) => logStorageCleanupFailure(`google-drive:${ref.drive_file_id ?? ref.storage_object_key ?? 'unknown'}`, error))
-      continue
-    }
-
-    if (ref.storage_provider === 'demo') continue
-
-    supabasePaths.push(
-      ref.storage_object_key ||
-        buildScalpImageStoragePath({
-          customerId: ref.customer_id,
-          sessionId: ref.session_id,
-          capturePointCode: ref.capture_point_code,
-          shotIndex: ref.shot_index,
-        }),
-    )
+  for (const target of plan.googleDriveTargets) {
+    await googleDriveStorageAdapter
+      .delete(target.fileId, target.objectKey)
+      .catch((error) => logStorageCleanupFailure(`google-drive:${target.fileId ?? target.objectKey ?? 'unknown'}`, error))
   }
 
-  await deleteScalpImages(supabasePaths).catch((error) => logStorageCleanupFailure('supabase-storage', error))
+  await deleteScalpImages(plan.supabasePaths).catch((error) => logStorageCleanupFailure('supabase-storage', error))
 }

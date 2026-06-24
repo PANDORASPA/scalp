@@ -1,18 +1,11 @@
 import 'server-only'
 
 import { getSupabaseServerEnv } from '@/lib/config/supabase'
+import { buildScalpImageStoragePath } from '@/lib/supabase/storage-path'
 
 import { getSupabaseAdminClient } from './client'
 
-export function buildScalpImageStoragePath(params: {
-  customerId: string
-  sessionId: string
-  capturePointCode: string
-  shotIndex: 1 | 2 | 3
-}) {
-  const { customerId, sessionId, capturePointCode, shotIndex } = params
-  return `${customerId}/${sessionId}/${capturePointCode}/${shotIndex}.jpg`
-}
+export { buildScalpImageStoragePath }
 
 export function getScalpImagePublicUrl(path: string) {
   const env = getSupabaseServerEnv()
