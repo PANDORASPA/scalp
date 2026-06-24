@@ -99,7 +99,9 @@ async function verifyLiveSettings(headers) {
     officialIssues.push('Image storage is still in demo mode. Real customer image storage needs Google Drive credentials.')
   }
   if (!auth.officialReady) {
-    officialIssues.push('Auth is still using demo users. Official use needs AUTH_USERS_JSON with non-default credentials.')
+    officialIssues.push(
+      'Auth is not official-ready. Official use needs AUTH_USERS_JSON with non-default credentials and AUTH_SESSION_SECRET.',
+    )
   }
   if (!scalpAi.officialReady) {
     officialIssues.push('Scalp AI is still in mock mode. Real AI counting needs an OpenAI key/model.')

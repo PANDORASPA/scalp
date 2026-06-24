@@ -142,6 +142,7 @@ export function getAuthReadinessStatus() {
     officialReady: false,
     mode: 'demo' as const,
     details: 'Demo staff login is active. This is useful for testing but not safe for official public use.',
-    nextAction: 'Before official use, set AUTH_USERS_JSON in Vercel env with non-default strong passwords.',
+    nextAction:
+      'Before official use, set AUTH_USERS_JSON with non-default strong passwords and AUTH_SESSION_SECRET in Vercel env.',
   }
 }
