@@ -35,6 +35,7 @@ import {
   updateTrackingImageRecord,
 } from './repository'
 import { getScalpStorageAdapter } from './storage'
+import { commitUploadedStorageRecord, deleteStorageBestEffort } from './storage-consistency'
 import type { ScalpAnalysisAnnotations } from './types'
 
 type UploadInput = {
@@ -43,24 +44,6 @@ type UploadInput = {
   areaKey: ScalpAnalysisAreaKey
   imageIndex: 1 | 2 | 3
   file: File
-}
-
-type StorageCleanupTarget = {
-  fileId: string | null
-  objectKey: string | null
-}
-
-async function deleteStorageBestEffort(
-  adapter: Awaited<ReturnType<typeof getScalpStorageAdapter>>,
-  target: StorageCleanupTarget,
-  context: string,
-) {
-  if (!target.fileId && !target.objectKey) return
-  try {
-    await adapter.delete(target.fileId, target.objectKey)
-  } catch (error) {
-    console.warn(`Scalp analysis storage cleanup failed (${context})`, error)
-  }
 }
 
 async function getAnalysisProvider() {
@@ -138,35 +121,30 @@ export async function uploadScalpImage(input: UploadInput) {
   })
 
   const now = new Date().toISOString()
-  let image
-  try {
-    image = await upsertTrackingImageRecord({
-      customerId: input.customerId,
-      sessionId: input.sessionId,
-      areaKey: input.areaKey,
-      imageIndex: input.imageIndex,
-      imageUrl: uploaded.url,
-      driveFileId: uploaded.fileId,
-      storageProvider: uploaded.provider,
-      storageObjectKey: uploaded.objectKey,
-      analysisStatus: 'uploaded',
-      nowISO: now,
-    })
-  } catch (error) {
-    await deleteStorageBestEffort(
-      adapter,
-      { fileId: uploaded.fileId, objectKey: uploaded.objectKey },
-      'new upload rollback after database failure',
-    )
-    throw error
-  }
+  let image = await commitUploadedStorageRecord({
+    adapter,
+    uploaded,
+    writeRecord: () =>
+      upsertTrackingImageRecord({
+        customerId: input.customerId,
+        sessionId: input.sessionId,
+        areaKey: input.areaKey,
+        imageIndex: input.imageIndex,
+        imageUrl: uploaded.url,
+        driveFileId: uploaded.fileId,
+        storageProvider: uploaded.provider,
+        storageObjectKey: uploaded.objectKey,
+        analysisStatus: 'uploaded',
+        nowISO: now,
+      }),
+  })
 
   if (existing?.drive_file_id || existing?.storage_object_key) {
-    await deleteStorageBestEffort(
+    await deleteStorageBestEffort({
       adapter,
-      { fileId: existing.drive_file_id, objectKey: existing.storage_object_key },
-      'old overwritten image',
-    )
+      target: { fileId: existing.drive_file_id, objectKey: existing.storage_object_key },
+      context: 'old overwritten image',
+    })
   }
 
   try {
@@ -334,11 +312,11 @@ export async function removeScalpImage(imageId: string) {
   if (!image) throw new Error('missing_image: Scalp analysis image not found.')
   const adapter = await getScalpStorageAdapter()
   const deleted = await deleteTrackingImageRecord(imageId)
-  await deleteStorageBestEffort(
+  await deleteStorageBestEffort({
     adapter,
-    { fileId: image.drive_file_id, objectKey: image.storage_object_key },
-    'deleted image',
-  )
+    target: { fileId: image.drive_file_id, objectKey: image.storage_object_key },
+    context: 'deleted image',
+  })
   await calculateAreaSummary(deleted.session_id, deleted.area_key).catch(async () => {
     await deleteTrackingAreaSummary(deleted.session_id, deleted.area_key)
   })
