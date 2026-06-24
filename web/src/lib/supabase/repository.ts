@@ -37,6 +37,26 @@ type ScalpImageRow = {
   updated_at: string
 }
 
+export type ScalpImageStorageRef = {
+  customer_id: string
+  session_id: string
+  capture_point_code: string
+  shot_index: 1 | 2 | 3
+  drive_file_id: string | null
+  storage_provider: string | null
+  storage_object_key: string | null
+}
+
+type ScalpImageStorageRefRow = {
+  customer_id: string
+  session_id: string
+  capture_point_id: string
+  shot_index: number
+  drive_file_id: string | null
+  storage_provider: string | null
+  storage_object_key: string | null
+}
+
 type ScalpPointSummaryRow = {
   id: string
   customer_id: string
@@ -494,6 +514,40 @@ export async function getImagesForSessionFromSupabase(sessionId: string) {
   const { byId } = await getCapturePointMaps()
   const rows = await queryFiltered<ScalpImageRow>('scalp_images', 'session_id', sessionId)
   return rows.map((row) => mapImage(row, byId))
+}
+
+function mapStorageRef(row: ScalpImageStorageRefRow, byId: Map<string, string>): ScalpImageStorageRef {
+  return {
+    customer_id: row.customer_id,
+    session_id: row.session_id,
+    capture_point_code: byId.get(row.capture_point_id) ?? row.capture_point_id,
+    shot_index: row.shot_index as 1 | 2 | 3,
+    drive_file_id: row.drive_file_id,
+    storage_provider: row.storage_provider,
+    storage_object_key: row.storage_object_key,
+  }
+}
+
+export async function getImageStorageRefsForCustomerFromSupabase(customerId: string) {
+  const { byId } = await getCapturePointMaps()
+  const rows = await queryFiltered<ScalpImageStorageRefRow>(
+    'scalp_images',
+    'customer_id',
+    customerId,
+    'customer_id,session_id,capture_point_id,shot_index,drive_file_id,storage_provider,storage_object_key',
+  )
+  return rows.map((row) => mapStorageRef(row, byId))
+}
+
+export async function getImageStorageRefsForSessionFromSupabase(sessionId: string) {
+  const { byId } = await getCapturePointMaps()
+  const rows = await queryFiltered<ScalpImageStorageRefRow>(
+    'scalp_images',
+    'session_id',
+    sessionId,
+    'customer_id,session_id,capture_point_id,shot_index,drive_file_id,storage_provider,storage_object_key',
+  )
+  return rows.map((row) => mapStorageRef(row, byId))
 }
 
 export async function upsertImageRecordInSupabase(input: {

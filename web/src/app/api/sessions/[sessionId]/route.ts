@@ -6,15 +6,15 @@ import { NextResponse } from 'next/server'
 import { requireAuthRole } from '@/lib/auth/session'
 import { hasSupabaseServerEnv } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
+import { cleanupScalpImageStorageRefs } from '@/lib/scalp-analysis/storage-cleanup'
 import {
   deleteSessionInSupabase,
-  getImagesForSessionFromSupabase,
+  getImageStorageRefsForSessionFromSupabase,
   getSessionFromSupabase,
   toRepositoryError,
   touchCustomerInSupabase,
   updateSessionInSupabase,
 } from '@/lib/supabase/repository'
-import { buildScalpImageStoragePath, deleteScalpImages } from '@/lib/supabase/storage'
 import type { ScalpSession } from '@/lib/scalp/types'
 
 export const runtime = 'nodejs'
@@ -146,18 +146,9 @@ export async function DELETE(
       if (!session) {
         return NextResponse.json({ error: 'not_found' }, { status: 404 })
       }
-      const images = await getImagesForSessionFromSupabase(sessionId)
+      const imageStorageRefs = await getImageStorageRefsForSessionFromSupabase(sessionId)
       const deleted = await deleteSessionInSupabase(sessionId)
-      await deleteScalpImages(
-        images.map((image) =>
-          buildScalpImageStoragePath({
-            customerId: image.customer_id,
-            sessionId: image.session_id,
-            capturePointCode: image.capture_point_code,
-            shotIndex: image.shot_index,
-          }),
-        ),
-      )
+      await cleanupScalpImageStorageRefs(imageStorageRefs)
       await touchCustomerInSupabase(session.customer_id, new Date().toISOString())
       return NextResponse.json(deleted)
     } catch (error) {

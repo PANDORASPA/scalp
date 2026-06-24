@@ -1,14 +1,13 @@
 import 'server-only'
 
 import { getSupabaseServerEnv } from '@/lib/config/supabase'
-import type { CapturePointCode } from '@/lib/scalp/constants'
 
 import { getSupabaseAdminClient } from './client'
 
 export function buildScalpImageStoragePath(params: {
   customerId: string
   sessionId: string
-  capturePointCode: CapturePointCode
+  capturePointCode: string
   shotIndex: 1 | 2 | 3
 }) {
   const { customerId, sessionId, capturePointCode, shotIndex } = params

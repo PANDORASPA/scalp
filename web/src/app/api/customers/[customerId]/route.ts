@@ -6,14 +6,14 @@ import { NextResponse } from 'next/server'
 import { requireAuthRole } from '@/lib/auth/session'
 import { hasSupabaseServerEnv } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
+import { cleanupScalpImageStorageRefs } from '@/lib/scalp-analysis/storage-cleanup'
 import {
   deleteCustomerInSupabase,
+  getImageStorageRefsForCustomerFromSupabase,
   getCustomerFromSupabase,
-  getImagesForCustomerFromSupabase,
   toRepositoryError,
   updateCustomerInSupabase,
 } from '@/lib/supabase/repository'
-import { buildScalpImageStoragePath, deleteScalpImages } from '@/lib/supabase/storage'
 import type { Customer } from '@/lib/scalp/types'
 
 export const runtime = 'nodejs'
@@ -131,18 +131,9 @@ export async function DELETE(
 
   if (hasSupabaseServerEnv()) {
     try {
-      const images = await getImagesForCustomerFromSupabase(customerId)
+      const imageStorageRefs = await getImageStorageRefsForCustomerFromSupabase(customerId)
       const deleted = await deleteCustomerInSupabase(customerId)
-      await deleteScalpImages(
-        images.map((image) =>
-          buildScalpImageStoragePath({
-            customerId: image.customer_id,
-            sessionId: image.session_id,
-            capturePointCode: image.capture_point_code,
-            shotIndex: image.shot_index,
-          }),
-        ),
-      )
+      await cleanupScalpImageStorageRefs(imageStorageRefs)
       return NextResponse.json(deleted)
     } catch (error) {
       return NextResponse.json({ error: toRepositoryError(error) }, { status: 500 })
