@@ -2,6 +2,7 @@ import 'server-only'
 
 import { hasSupabaseServerEnv } from '@/lib/config/supabase'
 import { getSupabaseAdminClient } from '@/lib/supabase/client'
+import { keepExistingSecretUnlessReplacement } from '@/lib/settings/secret-merge'
 
 export type GoogleDriveSettings = {
   storageProvider?: 'google-drive' | 'demo'
@@ -90,7 +91,7 @@ export async function saveGoogleDriveSettings(input: GoogleDriveSettings) {
   const next = normalizeGoogleDriveSettings({
     storageProvider: input.storageProvider ?? current.googleDrive.storageProvider ?? 'google-drive',
     clientEmail: input.clientEmail?.trim() ? input.clientEmail : current.googleDrive.clientEmail,
-    privateKey: input.privateKey || current.googleDrive.privateKey,
+    privateKey: keepExistingSecretUnlessReplacement(input.privateKey, current.googleDrive.privateKey),
     folderId: input.folderId?.trim() ? input.folderId : current.googleDrive.folderId,
   })
 
@@ -107,7 +108,7 @@ export async function saveOpenAiSettings(input: OpenAiSettings) {
   const current = await getAppSettings()
   const next = normalizeOpenAiSettings({
     provider: input.provider ?? current.openAi.provider ?? 'mock',
-    apiKey: input.apiKey || current.openAi.apiKey,
+    apiKey: keepExistingSecretUnlessReplacement(input.apiKey, current.openAi.apiKey),
     model: input.model?.trim() ? input.model : current.openAi.model ?? 'gpt-5.5',
     timeoutMs: input.timeoutMs ?? current.openAi.timeoutMs ?? 30000,
   })
