@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { getAuthReadinessStatus } from '@/lib/auth/users'
 import { requireAuthRole } from '@/lib/auth/session'
-import { getSupabaseServerEnv } from '@/lib/config/supabase'
+import { explainSupabaseConnectivityError, testSupabaseConnectivity } from '@/lib/config/supabase-connectivity'
 import { testOpenAiVisionConnection } from '@/lib/scalp-analysis/openai-vision'
 import { getScalpStorageProviderName } from '@/lib/scalp-analysis/storage'
 import { testGoogleDriveConnection } from '@/lib/scalp-analysis/storage/google-drive'
@@ -16,38 +16,14 @@ function isTarget(value: unknown): value is TestTarget {
   return value === 'supabase' || value === 'auth' || value === 'google-drive' || value === 'scalp-ai'
 }
 
-function toFailure(error: unknown) {
-  const message = error instanceof Error ? error.message : 'connection_test_failed'
+function toFailure(error: unknown, target?: TestTarget) {
+  const message =
+    error instanceof Error
+      ? target === 'supabase'
+        ? explainSupabaseConnectivityError(error)
+        : error.message
+      : 'connection_test_failed'
   return NextResponse.json({ ok: false, message }, { status: 500 })
-}
-
-async function testSupabaseConnection() {
-  const env = getSupabaseServerEnv()
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 10000)
-
-  try {
-    const res = await fetch(`${env.url}/rest/v1/scalp_capture_points?select=id&limit=1`, {
-      method: 'GET',
-      signal: controller.signal,
-      headers: {
-        apikey: env.serviceRoleKey,
-        Authorization: `Bearer ${env.serviceRoleKey}`,
-      },
-    })
-
-    if (!res.ok) {
-      const text = await res.text()
-      throw new Error(`Supabase REST check failed: ${res.status} ${text}`)
-    }
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Supabase REST check failed: timeout after 10000ms')
-    }
-    throw error
-  } finally {
-    clearTimeout(timeout)
-  }
 }
 
 export async function POST(req: Request) {
@@ -62,7 +38,7 @@ export async function POST(req: Request) {
 
   try {
     if (target === 'supabase') {
-      await testSupabaseConnection()
+      await testSupabaseConnectivity()
       return NextResponse.json({ ok: true, message: 'Supabase database connection is healthy.' })
     }
 
@@ -105,6 +81,6 @@ export async function POST(req: Request) {
       message: `OpenAI connection is healthy. Model: ${result.model}`,
     })
   } catch (error) {
-    return toFailure(error)
+    return toFailure(error, target)
   }
 }

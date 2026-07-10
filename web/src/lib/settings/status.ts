@@ -1,9 +1,8 @@
 import { hasGoogleDriveEnv } from '@/lib/config/google-drive'
 import { normalizeScalpAnalysisAiProvider } from '@/lib/config/scalp-analysis-ai'
-import { getSupabaseServerEnvIssue } from '@/lib/config/supabase'
+import { explainSupabaseConnectivityError, testSupabaseConnectivity } from '@/lib/config/supabase-connectivity'
 import { getAuthReadinessStatus } from '@/lib/auth/users'
 import { getScalpStorageProviderName } from '@/lib/scalp-analysis/storage'
-import { getSupabaseAdminClient } from '@/lib/supabase/client'
 import { getAppSettings, hasCompleteGoogleDriveSettings, hasOpenAiApiKey } from '@/lib/settings/repository'
 
 export type IntegrationStatus = {
@@ -17,51 +16,21 @@ export type IntegrationStatus = {
   nextAction?: string
 }
 
-function getErrorMessage(error: unknown) {
-  if (!(error instanceof Error)) return 'unknown connection error'
-  const cause = error.cause
-  if (cause instanceof Error && cause.message) return `${error.message}: ${cause.message}`
-  if (cause && typeof cause === 'object' && 'message' in cause && typeof cause.message === 'string') {
-    return `${error.message}: ${cause.message}`
-  }
-  return error.message
-}
-
-function explainSupabaseConnectionFailure(message: string) {
-  if (message.toLowerCase().includes('fetch failed')) {
-    return `${message}. Verify SUPABASE_URL by copying the Project URL from Supabase Settings > API; the dashboard project ref alone may not be enough if the API hostname does not resolve.`
-  }
-  return message
-}
-
 async function getSupabaseConnectionStatus() {
-  const envIssue = getSupabaseServerEnvIssue()
-  if (envIssue) {
-    return {
-      ready: false,
-      details: `Supabase env is not ready: ${envIssue}`,
-    }
-  }
-
   try {
-    const client = getSupabaseAdminClient()
-    const { error } = await client.from('scalp_capture_points').select('id', { head: true, count: 'exact' }).limit(1)
-    if (error) {
-      return {
-        ready: false,
-        details: `已設定 Supabase env，但資料庫連線失敗：${explainSupabaseConnectionFailure(error.message)}`,
-      }
-    }
+    await testSupabaseConnectivity()
     return {
       ready: true,
       details: '已連接正式 Supabase 資料庫。',
     }
   } catch (error) {
-    const message = getErrorMessage(error)
-    console.error('Supabase connection status check failed', error)
+    const explained = explainSupabaseConnectivityError(error)
+    if (!explained.includes('Supabase env is not ready')) {
+      console.error('Supabase connection status check failed', error)
+    }
     return {
       ready: false,
-      details: `已設定 Supabase env，但資料庫連線失敗：${explainSupabaseConnectionFailure(message)}`,
+      details: `Supabase connection is not ready: ${explained}`,
     }
   }
 }
