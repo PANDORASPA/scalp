@@ -19,6 +19,7 @@ const tests = spawnSync(
   process.execPath,
   [
     '--test',
+    '.test-dist/lib/api/json.test.js',
     '.test-dist/lib/auth/login-rate-limit.test.js',
     '.test-dist/lib/auth/public-paths.test.js',
     '.test-dist/lib/auth/session.test.js',

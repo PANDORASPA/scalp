@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
+import { readJsonBody } from '@/lib/api/json'
 import { AUTH_COOKIE, authenticateUser, createSessionToken } from '@/lib/auth/core'
 import {
   buildLoginRateLimitKey,
@@ -18,7 +19,11 @@ function getClientIp(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const body = (await req.json()) as { username?: string; password?: string }
+  const parsed = await readJsonBody<{ username?: string; password?: string }>(req)
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 })
+  }
+  const body = parsed.body
   const username = (body.username ?? '').trim()
   const password = (body.password ?? '').trim()
 

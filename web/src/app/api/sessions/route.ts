@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { readJsonBody } from '@/lib/api/json'
 import { requireAuthRole } from '@/lib/auth/session'
 import { hasSupabaseServerEnv } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
@@ -46,7 +47,11 @@ export async function POST(req: Request) {
   const auth = await requireAuthRole(['admin', 'staff'])
   if (!auth.ok) return auth.response
 
-  const body = (await req.json()) as Partial<ScalpSession>
+  const parsed = await readJsonBody<Partial<ScalpSession>>(req)
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 })
+  }
+  const body = parsed.body
   const customerId = (body.customer_id ?? '').toString()
   const checkDate = (body.check_date ?? '').toString()
   if (!customerId || !checkDate) {

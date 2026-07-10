@@ -3,6 +3,7 @@ import path from 'node:path'
 
 import { NextResponse } from 'next/server'
 
+import { readJsonBody } from '@/lib/api/json'
 import { requireAuthRole } from '@/lib/auth/session'
 import { hasSupabaseServerEnv } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
@@ -64,7 +65,11 @@ export async function PATCH(
   if (!auth.ok) return auth.response
 
   const { sessionId } = await params
-  const body = (await req.json()) as Partial<ScalpSession>
+  const parsed = await readJsonBody<Partial<ScalpSession>>(req)
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 })
+  }
+  const body = parsed.body
   const nextCheckDate = (body.check_date ?? '').toString()
   if (body.check_date !== undefined && !isValidDate(nextCheckDate)) {
     return NextResponse.json({ error: 'invalid_check_date' }, { status: 400 })

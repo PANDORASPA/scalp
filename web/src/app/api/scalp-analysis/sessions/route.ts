@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { readJsonBody } from '@/lib/api/json'
 import { requireAuthRole } from '@/lib/auth/session'
 import { createScalpSession, toScalpAnalysisError } from '@/lib/scalp-analysis/service'
 import { listTrackingSessions } from '@/lib/scalp-analysis/repository'
@@ -31,11 +32,15 @@ export async function POST(req: Request) {
   const auth = await requireAuthRole(['admin', 'staff'])
   if (!auth.ok) return auth.response
 
-  const body = (await req.json()) as {
+  const parsed = await readJsonBody<{
     customerId?: string
     sessionDate?: string
     notes?: string | null
+  }>(req)
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 })
   }
+  const body = parsed.body
 
   const customerId = body.customerId?.toString() ?? ''
   const sessionDate = body.sessionDate?.toString() ?? new Date().toISOString()

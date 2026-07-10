@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { readJsonBody } from '@/lib/api/json'
 import { requireAuthRole } from '@/lib/auth/session'
 import { getSystemStatus } from '@/lib/settings/status'
 import { saveGoogleDriveSettings, saveOpenAiSettings } from '@/lib/settings/repository'
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
   const auth = await requireAuthRole(['admin'])
   if (!auth.ok) return auth.response
 
-  const body = (await req.json()) as {
+  const parsed = await readJsonBody<{
     googleDrive?: {
       storageProvider?: 'google-drive' | 'demo'
       clientEmail?: string
@@ -33,7 +34,11 @@ export async function POST(req: Request) {
       model?: string
       timeoutMs?: number
     }
+  }>(req)
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 })
   }
+  const body = parsed.body
 
   try {
     if (body.googleDrive) {
