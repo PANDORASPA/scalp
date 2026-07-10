@@ -57,6 +57,15 @@ export function explainSupabaseErrorMessage(message: string) {
   }
 
   if (
+    normalized.includes('fetch failed') ||
+    normalized.includes('getaddrinfo') ||
+    normalized.includes('enotfound') ||
+    normalized.includes('ebusy')
+  ) {
+    return `supabase_connection_failed: ${message}. Copy SUPABASE_URL directly from Supabase Project Settings > API > Project URL, update Vercel Production env, then redeploy.`
+  }
+
+  if (
     normalized.includes('relation') ||
     normalized.includes('does not exist') ||
     normalized.includes('column') ||

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { getSupabaseServerEnvIssue, hasSupabaseServerEnv } from './supabase'
+import { explainSupabaseErrorMessage, getSupabaseServerEnvIssue, hasSupabaseServerEnv } from './supabase'
 
 const validJwtShape = `eyJ${'a'.repeat(40)}.eyJ${'b'.repeat(40)}.${'c'.repeat(80)}`
 
@@ -59,5 +59,16 @@ test('hasSupabaseServerEnv accepts valid Supabase URL and service key shape', ()
       SUPABASE_SERVICE_ROLE_KEY: validJwtShape,
     } as NodeJS.ProcessEnv),
     true,
+  )
+})
+
+test('explainSupabaseErrorMessage classifies connectivity failures', () => {
+  assert.match(
+    explainSupabaseErrorMessage('customers: TypeError: fetch failed'),
+    /^supabase_connection_failed:/,
+  )
+  assert.match(
+    explainSupabaseErrorMessage('getaddrinfo ENOTFOUND rpmnwlrfwrxyjbclbtsq.supabase.co'),
+    /^supabase_connection_failed:/,
   )
 })

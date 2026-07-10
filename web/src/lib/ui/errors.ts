@@ -2,6 +2,9 @@ export function getHumanErrorMessage(error: string) {
   if (error.includes('supabase_env_missing')) {
     return 'Supabase 尚未設定完成，暫時不能儲存資料。請到系統設定檢查環境變數。'
   }
+  if (error.includes('supabase_connection_failed')) {
+    return 'Supabase 連線失敗，暫時不能儲存客人或紀錄。請到 Supabase Project Settings > API 複製正確 Project URL 和 service_role key，更新 Vercel env 後重新部署。'
+  }
   if (error.includes('google_drive_auth_failed')) {
     return 'Google Drive 認證失敗，請檢查 service account email / private key。'
   }
