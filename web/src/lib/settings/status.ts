@@ -27,6 +27,13 @@ function getErrorMessage(error: unknown) {
   return error.message
 }
 
+function explainSupabaseConnectionFailure(message: string) {
+  if (message.toLowerCase().includes('fetch failed')) {
+    return `${message}. Verify SUPABASE_URL by copying the Project URL from Supabase Settings > API; the dashboard project ref alone may not be enough if the API hostname does not resolve.`
+  }
+  return message
+}
+
 async function getSupabaseConnectionStatus() {
   const envIssue = getSupabaseServerEnvIssue()
   if (envIssue) {
@@ -42,7 +49,7 @@ async function getSupabaseConnectionStatus() {
     if (error) {
       return {
         ready: false,
-        details: `已設定 Supabase env，但資料庫連線失敗：${error.message}`,
+        details: `已設定 Supabase env，但資料庫連線失敗：${explainSupabaseConnectionFailure(error.message)}`,
       }
     }
     return {
@@ -54,7 +61,7 @@ async function getSupabaseConnectionStatus() {
     console.error('Supabase connection status check failed', error)
     return {
       ready: false,
-      details: `已設定 Supabase env，但資料庫連線失敗：${message}`,
+      details: `已設定 Supabase env，但資料庫連線失敗：${explainSupabaseConnectionFailure(message)}`,
     }
   }
 }
