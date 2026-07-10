@@ -103,6 +103,7 @@ export function SettingsClient({ initialIntegrations }: Props) {
 
   const officialReadyCount = integrations.filter((item) => item.officialReady).length
   const allOfficialReady = officialReadyCount === integrations.length
+  const supabaseBlocker = health?.blockers.find((item) => item.key === 'supabase')
 
   const handleRefreshHealth = useCallback(async () => {
     setHealthLoading(true)
@@ -238,6 +239,27 @@ export function SettingsClient({ initialIntegrations }: Props) {
           </div>
         ) : null}
       </Card>
+
+      {supabaseBlocker ? (
+        <Card className="border-red-200 bg-white p-5">
+          <div className="text-sm font-semibold text-slate-900">Supabase 連線修復</div>
+          <p className="mt-2 text-sm text-slate-700">
+            系統暫時未能連到 Supabase，所以新增客人、建立紀錄和保存分析都會失敗。請先完成以下四步，再重新部署。
+          </p>
+          <div className="mt-3 rounded-md border border-red-100 bg-red-50 p-3 text-xs text-red-700">
+            {supabaseBlocker.details}
+          </div>
+          <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm text-slate-700">
+            <li>到 Supabase Dashboard 的 Project Settings &gt; API，直接複製 Project URL，不要用 dashboard 網址推斷。</li>
+            <li>同一頁複製 service_role key，填入 Vercel Production env：SUPABASE_URL、SUPABASE_SERVICE_ROLE_KEY。</li>
+            <li>Redeploy Vercel production deployment，讓新 env 生效。</li>
+            <li>本機或部署後跑 `npm run diagnose:supabase` 和 `npm run smoke:health` 確認連線。</li>
+          </ol>
+          <div className="mt-4 rounded-md bg-slate-900 p-3 font-mono text-xs text-slate-100">
+            npm.cmd run diagnose:supabase
+          </div>
+        </Card>
+      ) : null}
 
       <Card className={`p-5 ${allOfficialReady ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
