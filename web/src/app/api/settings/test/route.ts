@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server'
-
+import { jsonNoStore } from '@/lib/api/response'
 import { getAuthReadinessStatus } from '@/lib/auth/users'
 import { requireAuthRole } from '@/lib/auth/session'
 import { explainSupabaseConnectivityError, testSupabaseConnectivity } from '@/lib/config/supabase-connectivity'
@@ -23,7 +22,7 @@ function toFailure(error: unknown, target?: TestTarget) {
         ? explainSupabaseConnectivityError(error)
         : error.message
       : 'connection_test_failed'
-  return NextResponse.json({ ok: false, message }, { status: 500 })
+  return jsonNoStore({ ok: false, message }, { status: 500 })
 }
 
 export async function POST(req: Request) {
@@ -33,18 +32,18 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as { target?: unknown } | null
   const target = body?.target
   if (!isTarget(target)) {
-    return NextResponse.json({ ok: false, message: 'invalid_test_target' }, { status: 400 })
+    return jsonNoStore({ ok: false, message: 'invalid_test_target' }, { status: 400 })
   }
 
   try {
     if (target === 'supabase') {
       await testSupabaseConnectivity()
-      return NextResponse.json({ ok: true, message: 'Supabase database connection is healthy.' })
+      return jsonNoStore({ ok: true, message: 'Supabase database connection is healthy.' })
     }
 
     if (target === 'auth') {
       const authStatus = getAuthReadinessStatus()
-      return NextResponse.json(
+      return jsonNoStore(
         {
           ok: authStatus.ready,
           message: authStatus.officialReady ? '正式登入帳號已設定。' : authStatus.nextAction ?? authStatus.details,
@@ -56,13 +55,13 @@ export async function POST(req: Request) {
     if (target === 'google-drive') {
       const storageProvider = await getScalpStorageProviderName()
       if (storageProvider === 'demo') {
-        return NextResponse.json({
+        return jsonNoStore({
           ok: true,
           message: 'Demo storage is active. The flow can be tested, but real images should use Google Drive.',
         })
       }
       const result = await testGoogleDriveConnection()
-      return NextResponse.json({
+      return jsonNoStore({
         ok: true,
         message: `Google Drive connection is healthy. Folder: ${result.folderName}. Upload and delete permissions verified.`,
       })
@@ -70,13 +69,13 @@ export async function POST(req: Request) {
 
     const aiStatus = (await getSystemStatus()).find((item) => item.key === 'scalp-ai')
     if (aiStatus?.mode === 'mock') {
-      return NextResponse.json({
+      return jsonNoStore({
         ok: true,
         message: 'Mock AI is active. The flow can be tested; switch to OpenAI Vision to verify the real API.',
       })
     }
     const result = await testOpenAiVisionConnection()
-    return NextResponse.json({
+    return jsonNoStore({
       ok: true,
       message: `OpenAI connection is healthy. Model: ${result.model}`,
     })

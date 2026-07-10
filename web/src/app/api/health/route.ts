@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server'
-
+import { jsonNoStore } from '@/lib/api/response'
 import { buildHealthSummary } from '@/lib/settings/health'
 import { getSystemStatus } from '@/lib/settings/status'
 
@@ -16,7 +15,7 @@ function getAppVersion() {
 export async function GET() {
   const integrations = await getSystemStatus()
 
-  return NextResponse.json(buildHealthSummary({
+  return jsonNoStore(buildHealthSummary({
     integrations,
     checkedAt: new Date().toISOString(),
     version: getAppVersion(),

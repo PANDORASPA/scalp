@@ -20,6 +20,7 @@ const tests = spawnSync(
   [
     '--test',
     '.test-dist/lib/api/json.test.js',
+    '.test-dist/lib/api/response.test.js',
     '.test-dist/lib/auth/login-rate-limit.test.js',
     '.test-dist/lib/auth/public-paths.test.js',
     '.test-dist/lib/auth/session.test.js',

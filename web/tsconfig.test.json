@@ -17,6 +17,8 @@
     "src/lib/auth/users.ts",
     "src/lib/api/json.ts",
     "src/lib/api/json.test.ts",
+    "src/lib/api/response.ts",
+    "src/lib/api/response.test.ts",
     "src/lib/auth/core.ts",
     "src/lib/auth/login-rate-limit.ts",
     "src/lib/auth/login-rate-limit.test.ts",

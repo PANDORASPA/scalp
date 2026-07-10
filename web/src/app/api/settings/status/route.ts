@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server'
-
 import { readJsonBody } from '@/lib/api/json'
+import { jsonNoStore } from '@/lib/api/response'
 import { requireAuthRole } from '@/lib/auth/session'
 import { getSystemStatus } from '@/lib/settings/status'
 import { saveGoogleDriveSettings, saveOpenAiSettings } from '@/lib/settings/repository'
@@ -11,7 +10,7 @@ export async function GET() {
   const auth = await requireAuthRole(['admin', 'staff'])
   if (!auth.ok) return auth.response
 
-  return NextResponse.json({
+  return jsonNoStore({
     integrations: await getSystemStatus(),
     updated_at: new Date().toISOString(),
   })
@@ -36,7 +35,7 @@ export async function POST(req: Request) {
     }
   }>(req)
   if (!parsed.ok) {
-    return NextResponse.json({ error: parsed.error }, { status: 400 })
+    return jsonNoStore({ error: parsed.error }, { status: 400 })
   }
   const body = parsed.body
 
@@ -47,12 +46,12 @@ export async function POST(req: Request) {
     if (body.openAi) {
       await saveOpenAiSettings(body.openAi)
     }
-    return NextResponse.json({
+    return jsonNoStore({
       integrations: await getSystemStatus(),
       updated_at: new Date().toISOString(),
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'settings_save_failed'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return jsonNoStore({ error: message }, { status: 500 })
   }
 }
