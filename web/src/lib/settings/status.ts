@@ -1,6 +1,6 @@
 import { hasGoogleDriveEnv } from '@/lib/config/google-drive'
 import { normalizeScalpAnalysisAiProvider } from '@/lib/config/scalp-analysis-ai'
-import { hasSupabaseServerEnv } from '@/lib/config/supabase'
+import { getSupabaseServerEnvIssue } from '@/lib/config/supabase'
 import { getAuthReadinessStatus } from '@/lib/auth/users'
 import { getScalpStorageProviderName } from '@/lib/scalp-analysis/storage'
 import { getSupabaseAdminClient } from '@/lib/supabase/client'
@@ -28,10 +28,11 @@ function getErrorMessage(error: unknown) {
 }
 
 async function getSupabaseConnectionStatus() {
-  if (!hasSupabaseServerEnv()) {
+  const envIssue = getSupabaseServerEnvIssue()
+  if (envIssue) {
     return {
       ready: false,
-      details: '尚未設定 SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY。',
+      details: `Supabase env is not ready: ${envIssue}`,
     }
   }
 

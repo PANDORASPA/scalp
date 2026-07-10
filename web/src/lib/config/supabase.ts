@@ -7,23 +7,44 @@ export type SupabaseServerEnv = {
 export const SUPABASE_LOCAL_FALLBACK_MESSAGE =
   'Supabase server env is not configured. The app will stay in local mock mode until SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.'
 
+export function getSupabaseServerEnvIssue(env: NodeJS.ProcessEnv = process.env) {
+  const url = env.SUPABASE_URL?.trim()
+  const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+
+  if (!url) return 'SUPABASE_URL is missing.'
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'https:') return 'SUPABASE_URL must start with https://.'
+  } catch {
+    return 'SUPABASE_URL is not a valid URL.'
+  }
+
+  if (!serviceRoleKey) return 'SUPABASE_SERVICE_ROLE_KEY is missing.'
+  if (!serviceRoleKey.startsWith('eyJ') || serviceRoleKey.split('.').length !== 3 || serviceRoleKey.length < 100) {
+    return 'SUPABASE_SERVICE_ROLE_KEY does not look like a valid service role JWT.'
+  }
+
+  return null
+}
+
 export function hasSupabaseServerEnv(env: NodeJS.ProcessEnv = process.env) {
-  return Boolean(env.SUPABASE_URL?.trim() && env.SUPABASE_SERVICE_ROLE_KEY?.trim())
+  return getSupabaseServerEnvIssue(env) === null
 }
 
 export function getSupabaseServerEnv(env: NodeJS.ProcessEnv = process.env): SupabaseServerEnv {
   const url = env.SUPABASE_URL?.trim()
   const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY?.trim()
 
-  if (!url || !serviceRoleKey) {
+  const issue = getSupabaseServerEnvIssue(env)
+  if (issue) {
     throw new Error(
-      `SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required. ${SUPABASE_LOCAL_FALLBACK_MESSAGE}`,
+      `SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required: ${issue} ${SUPABASE_LOCAL_FALLBACK_MESSAGE}`,
     )
   }
 
   return {
-    url,
-    serviceRoleKey,
+    url: url!,
+    serviceRoleKey: serviceRoleKey!,
     storageBucket: env.SUPABASE_STORAGE_BUCKET?.trim() || 'scalp-images',
   }
 }
