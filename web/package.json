@@ -14,6 +14,7 @@
     "official:gate": "node ./scripts/official-gate.mjs",
     "setup:auth-users": "node ./scripts/generate-auth-users.mjs",
     "setup:google-drive": "node ./scripts/generate-google-drive-env.mjs",
+    "diagnose:supabase": "node ./scripts/diagnose-supabase-env.mjs",
     "cleanup:smoke-customers": "node ./scripts/cleanup-smoke-customers.mjs",
     "smoke:health": "node ./scripts/smoke-health.mjs",
     "smoke:operations": "node ./scripts/smoke-operations.mjs",

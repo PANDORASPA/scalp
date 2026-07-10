@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import dns from 'node:dns/promises'
 
 const baseUrl = process.env.APP_BASE_URL?.trim() || process.env.BASE_URL?.trim() || ''
 const supabaseUrl = process.env.SUPABASE_URL?.trim() || ''
@@ -12,6 +13,34 @@ function fail(message) {
 
 function requireEnv(name, value) {
   if (!value) fail(`${name} is required`)
+}
+
+function parseSupabaseUrl() {
+  let parsed
+  try {
+    parsed = new URL(supabaseUrl)
+  } catch {
+    fail(`SUPABASE_URL is not a valid URL: ${supabaseUrl || '<empty>'}`)
+  }
+  if (parsed.protocol !== 'https:') fail(`SUPABASE_URL must start with https://, got ${parsed.protocol}`)
+  return parsed
+}
+
+function checkServiceRoleKeyShape() {
+  if (!supabaseKey.startsWith('eyJ') || supabaseKey.split('.').length !== 3 || supabaseKey.length < 100) {
+    fail('SUPABASE_SERVICE_ROLE_KEY does not look like a valid service role JWT')
+  }
+}
+
+async function checkSupabaseDns(hostname) {
+  try {
+    await dns.lookup(hostname)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    fail(
+      `DNS cannot resolve ${hostname}: ${message}. Copy SUPABASE_URL from Supabase Settings > API instead of guessing from the dashboard URL.`,
+    )
+  }
 }
 
 async function fetchJson(url, init = {}) {
@@ -39,6 +68,9 @@ function buildTinyPngBuffer() {
 async function main() {
   requireEnv('SUPABASE_URL', supabaseUrl)
   requireEnv('SUPABASE_SERVICE_ROLE_KEY', supabaseKey)
+  const parsedSupabaseUrl = parseSupabaseUrl()
+  checkServiceRoleKeyShape()
+  await checkSupabaseDns(parsedSupabaseUrl.hostname)
 
   const client = createClient(supabaseUrl, supabaseKey, {
     auth: { persistSession: false, autoRefreshToken: false },

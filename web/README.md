@@ -62,7 +62,23 @@ Run these migrations in order:
 
 1. Fill the server-only Supabase env vars.
 2. Start the app.
-3. Run `npm run smoke:supabase`.
+3. Run `npm run diagnose:supabase`.
+4. Run `npm run smoke:supabase`.
+
+`SUPABASE_URL` must be copied from Supabase Dashboard -> Project Settings -> API -> Project URL.
+Do not guess it from the dashboard URL alone. If the hostname cannot be resolved by DNS, customer and
+session saves will fail even when the dashboard project page opens.
+
+```powershell
+npm.cmd run diagnose:supabase
+```
+
+The diagnose script checks:
+
+- `SUPABASE_URL` format
+- `SUPABASE_SERVICE_ROLE_KEY` JWT shape without printing the secret
+- DNS resolution for the Supabase API host
+- a direct REST query to `scalp_capture_points`
 
 The smoke script checks:
 
