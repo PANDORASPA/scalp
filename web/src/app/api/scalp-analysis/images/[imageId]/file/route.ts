@@ -27,7 +27,7 @@ export async function GET(
     }
 
     const file = await adapter.download(image.drive_file_id)
-    return new NextResponse(file.bytes, {
+    return new NextResponse(new Uint8Array(file.bytes), {
       headers: {
         'Content-Type': file.contentType,
         'Cache-Control': 'private, no-store, max-age=0',
