@@ -17,6 +17,7 @@ export type ScalpSession = {
   check_date: string
   staff_name: string | null
   notes: string | null
+  workflow_type?: string
   created_at: string
   updated_at: string
 }

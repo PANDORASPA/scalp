@@ -65,10 +65,11 @@ async function getAnalysisProvider() {
   return normalizeScalpAnalysisAiProvider(process.env.SCALP_ANALYSIS_AI_PROVIDER)
 }
 
+async function touchCustomer(customerId: string, now: string) {
+  if (hasSupabaseServerEnv()) await touchCustomerInSupabase(customerId, now)
+}
+
 export async function createScalpSession(customerId: string, input?: { sessionDate?: string; notes?: string | null }) {
-  if (!hasSupabaseServerEnv()) {
-    throw new Error('supabase_env_missing: Scalp analysis tracking requires Supabase server env.')
-  }
   await ensureScalpAnalysisCapturePoints()
   const sessionDate = input?.sessionDate ?? new Date().toISOString()
   const now = new Date().toISOString()
@@ -78,7 +79,7 @@ export async function createScalpSession(customerId: string, input?: { sessionDa
     notes: input?.notes ?? null,
     nowISO: now,
   })
-  await touchCustomerInSupabase(customerId, now)
+  await touchCustomer(customerId, now)
   await recomputeCustomerTrackingSummaries(customerId)
   return created
 }
@@ -95,7 +96,7 @@ export async function updateScalpSession(
     notes: input.notes ?? null,
     nowISO: now,
   })
-  await touchCustomerInSupabase(updated.customer_id, now)
+  await touchCustomer(updated.customer_id, now)
   await recomputeCustomerTrackingSummaries(updated.customer_id)
   return updated
 }
@@ -124,9 +125,6 @@ function buildObjectKey(params: {
 }
 
 export async function uploadScalpImage(input: UploadInput) {
-  if (!hasSupabaseServerEnv()) {
-    throw new Error('supabase_env_missing: Scalp analysis tracking requires Supabase server env.')
-  }
   const session = await getTrackingSession(input.sessionId)
   if (!session || session.customer_id !== input.customerId) {
     throw new Error('missing_image: Session not found for scalp analysis tracking.')
@@ -206,7 +204,7 @@ export async function uploadScalpImage(input: UploadInput) {
   }
 
   await calculateAreaSummary(input.sessionId, input.areaKey)
-  await touchCustomerInSupabase(input.customerId, now)
+  await touchCustomer(input.customerId, now)
   return image
 }
 
@@ -249,7 +247,7 @@ export async function saveConfirmedAnnotations(imageId: string, annotationsJson:
   })
   const stats = await calculateImageStats(imageId)
   const summary = await calculateAreaSummary(updated.session_id, updated.area_key)
-  await touchCustomerInSupabase(updated.customer_id, now)
+  await touchCustomer(updated.customer_id, now)
   return { image: stats, summary }
 }
 
@@ -438,7 +436,7 @@ export async function removeScalpSession(sessionId: string) {
     ),
   )
   await recomputeCustomerTrackingSummaries(deleted.customer_id)
-  await touchCustomerInSupabase(deleted.customer_id, new Date().toISOString())
+  await touchCustomer(deleted.customer_id, new Date().toISOString())
   return deleted
 }
 

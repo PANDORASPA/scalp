@@ -10,7 +10,8 @@ import type {
   ScalpImageMetrics,
   ScalpPointSummary,
   ScalpSession,
-} from '@/lib/scalp/types'
+} from '../scalp/types'
+import type { ScalpAnalysisImage, ScalpAreaSummary } from '../scalp-analysis/types'
 
 export type MockDb = {
   customers: Customer[]
@@ -21,6 +22,8 @@ export type MockDb = {
   comparisons: ScalpComparison[]
   aiShotAnalyses: ScalpAiShotAnalysis[]
   aiPointAnalyses: ScalpAiPointAnalysis[]
+  trackingImages?: ScalpAnalysisImage[]
+  trackingAreaSummaries?: ScalpAreaSummary[]
 }
 
 const DB_PATH = path.join(process.cwd(), '.data', 'mock-db.json')
@@ -35,6 +38,8 @@ function emptyDb(): MockDb {
     comparisons: [],
     aiShotAnalyses: [],
     aiPointAnalyses: [],
+    trackingImages: [],
+    trackingAreaSummaries: [],
   }
 }
 
@@ -57,6 +62,8 @@ export async function readDb(): Promise<MockDb> {
     comparisons: parsed.comparisons ?? [],
     aiShotAnalyses: parsed.aiShotAnalyses ?? [],
     aiPointAnalyses: parsed.aiPointAnalyses ?? [],
+    trackingImages: parsed.trackingImages ?? [],
+    trackingAreaSummaries: parsed.trackingAreaSummaries ?? [],
   }
 }
 

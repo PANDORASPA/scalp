@@ -12,6 +12,7 @@ import { CAPTURE_POINT_CODES } from '@/lib/scalp/constants'
 import { getCapturePointLabel } from '@/lib/scalp/display'
 import type { ScalpAnalysisSessionState } from '@/lib/scalp-analysis/types'
 import type { ScalpPointSummary, ScalpSession } from '@/lib/scalp/types'
+import { getHumanErrorMessage } from '@/lib/ui/errors'
 import { fetchJson } from '@/lib/ui/fetch'
 import { formatDate } from '@/lib/ui/format'
 
@@ -382,7 +383,14 @@ export default function CustomerDetailClient({
     try {
       const json = await fetchJson<OverviewResponse>(`/api/customers/${customerId}/overview`)
       setData(json)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Unable to load customer details'
+      setError(message)
+      setLoading(false)
+      return
+    }
 
+    try {
       const trackingList = await fetchJson<ScalpSession[]>(`/api/scalp-analysis/sessions?customerId=${customerId}`)
       setTrackingSessions(trackingList)
 
@@ -394,11 +402,9 @@ export default function CustomerDetailClient({
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : '載入客人資料失敗'
-      if (message.includes('scalp tracking')) {
-        setTrackingError(message)
-      } else {
-        setError(message)
-      }
+      setTrackingSessions([])
+      setLatestTrackingState(null)
+      setTrackingError(getHumanErrorMessage(message))
     } finally {
       setLoading(false)
     }

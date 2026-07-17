@@ -3,9 +3,13 @@ import 'server-only'
 import { SCALP_ANALYSIS_AREA_KEYS, SCALP_ANALYSIS_AREA_LABELS, type ScalpAnalysisAreaKey } from '@/lib/scalp-analysis/constants'
 import type { Customer, ScalpSession } from '@/lib/scalp/types'
 import { getSupabaseAdminClient } from '@/lib/supabase/client'
+import { hasSupabaseServerEnv } from '@/lib/config/supabase'
 
 import { normalizeAnnotations } from './logic'
 import type { ScalpAnalysisImage, ScalpAreaSummary, ScalpAnalysisSessionState, ScalpSessionComparison } from './types'
+import * as mockRepository from './mock-repository'
+
+const shouldUseMockRepository = () => !hasSupabaseServerEnv()
 
 type CapturePointRow = {
   id: string
@@ -132,6 +136,7 @@ function mapSummary(row: ScalpAreaSummaryRow, byId: Map<string, string>): ScalpA
 }
 
 export async function ensureScalpAnalysisCapturePoints() {
+  if (shouldUseMockRepository()) return mockRepository.ensureScalpAnalysisCapturePoints()
   const client = getSupabaseAdminClient()
   const { error } = await client.from('scalp_capture_points').upsert(
     SCALP_ANALYSIS_AREA_KEYS.map((code, index) => ({
@@ -150,6 +155,7 @@ export async function createTrackingSessionRecord(input: {
   notes: string | null
   nowISO: string
 }) {
+  if (shouldUseMockRepository()) return mockRepository.createTrackingSessionRecord(input)
   const client = getSupabaseAdminClient()
   const { data, error } = await client
     .from('scalp_sessions')
@@ -168,6 +174,7 @@ export async function createTrackingSessionRecord(input: {
 }
 
 export async function listTrackingSessions(customerId: string) {
+  if (shouldUseMockRepository()) return mockRepository.listTrackingSessions(customerId)
   const client = getSupabaseAdminClient()
   const { data, error } = await client
     .from('scalp_sessions')
@@ -180,6 +187,7 @@ export async function listTrackingSessions(customerId: string) {
 }
 
 export async function getTrackingSession(sessionId: string) {
+  if (shouldUseMockRepository()) return mockRepository.getTrackingSession(sessionId)
   const client = getSupabaseAdminClient()
   const { data, error } = await client
     .from('scalp_sessions')
@@ -195,6 +203,7 @@ export async function updateTrackingSessionRecord(
   sessionId: string,
   input: { checkDate: string; notes: string | null; nowISO: string },
 ) {
+  if (shouldUseMockRepository()) return mockRepository.updateTrackingSessionRecord(sessionId, input)
   const client = getSupabaseAdminClient()
   const { data, error } = await client
     .from('scalp_sessions')
@@ -212,6 +221,7 @@ export async function updateTrackingSessionRecord(
 }
 
 export async function deleteTrackingSessionRecord(sessionId: string) {
+  if (shouldUseMockRepository()) return mockRepository.deleteTrackingSessionRecord(sessionId)
   const client = getSupabaseAdminClient()
   const { data, error } = await client
     .from('scalp_sessions')
@@ -225,6 +235,7 @@ export async function deleteTrackingSessionRecord(sessionId: string) {
 }
 
 export async function getCustomerRecord(customerId: string) {
+  if (shouldUseMockRepository()) return mockRepository.getCustomerRecord(customerId)
   const client = getSupabaseAdminClient()
   const { data, error } = await client.from('customers').select('*').eq('id', customerId).maybeSingle()
   if (error) throw new Error(`get customer: ${error.message}`)
@@ -245,6 +256,7 @@ export async function upsertTrackingImageRecord(input: {
   confirmedAnnotationsJson?: unknown
   nowISO: string
 }) {
+  if (shouldUseMockRepository()) return mockRepository.upsertTrackingImageRecord(input)
   const { byCode, byId } = await getCapturePointMaps()
   const capturePointId = byCode.get(input.areaKey)
   if (!capturePointId) throw new Error(`Unknown area key: ${input.areaKey}`)
@@ -297,6 +309,7 @@ export async function updateTrackingImageRecord(
     updated_at: string
   }>,
 ) {
+  if (shouldUseMockRepository()) return mockRepository.updateTrackingImageRecord(imageId, patch)
   const { byId } = await getCapturePointMaps()
   const client = getSupabaseAdminClient()
   const { data, error } = await client.from('scalp_images').update(patch).eq('id', imageId).select('*').single()
@@ -305,6 +318,7 @@ export async function updateTrackingImageRecord(
 }
 
 export async function getTrackingImageById(imageId: string) {
+  if (shouldUseMockRepository()) return mockRepository.getTrackingImageById(imageId)
   const { byId } = await getCapturePointMaps()
   const client = getSupabaseAdminClient()
   const { data, error } = await client.from('scalp_images').select('*').eq('id', imageId).maybeSingle()
@@ -313,6 +327,7 @@ export async function getTrackingImageById(imageId: string) {
 }
 
 export async function getTrackingImageBySlot(sessionId: string, areaKey: ScalpAnalysisAreaKey, imageIndex: 1 | 2 | 3) {
+  if (shouldUseMockRepository()) return mockRepository.getTrackingImageBySlot(sessionId, areaKey, imageIndex)
   const { byCode, byId } = await getCapturePointMaps()
   const capturePointId = byCode.get(areaKey)
   if (!capturePointId) throw new Error(`Unknown area key: ${areaKey}`)
@@ -329,6 +344,7 @@ export async function getTrackingImageBySlot(sessionId: string, areaKey: ScalpAn
 }
 
 export async function deleteTrackingImageRecord(imageId: string) {
+  if (shouldUseMockRepository()) return mockRepository.deleteTrackingImageRecord(imageId)
   const { byId } = await getCapturePointMaps()
   const client = getSupabaseAdminClient()
   const { data, error } = await client.from('scalp_images').delete().eq('id', imageId).select('*').single()
@@ -337,6 +353,7 @@ export async function deleteTrackingImageRecord(imageId: string) {
 }
 
 export async function listTrackingImagesForSession(sessionId: string) {
+  if (shouldUseMockRepository()) return mockRepository.listTrackingImagesForSession(sessionId)
   const { byId } = await getCapturePointMaps()
   const client = getSupabaseAdminClient()
   const { data, error } = await client.from('scalp_images').select('*').eq('session_id', sessionId)
@@ -348,6 +365,7 @@ export async function listTrackingImagesForSession(sessionId: string) {
 }
 
 export async function listTrackingAreaSummariesForCustomer(customerId: string) {
+  if (shouldUseMockRepository()) return mockRepository.listTrackingAreaSummariesForCustomer(customerId)
   const { byId } = await getCapturePointMaps()
   const client = getSupabaseAdminClient()
   const { data, error } = await client.from('scalp_area_summaries').select('*').eq('customer_id', customerId)
@@ -356,6 +374,7 @@ export async function listTrackingAreaSummariesForCustomer(customerId: string) {
 }
 
 export async function upsertTrackingAreaSummary(input: Omit<ScalpAreaSummary, 'id' | 'created_at' | 'updated_at'> & { id?: string }) {
+  if (shouldUseMockRepository()) return mockRepository.upsertTrackingAreaSummary(input)
   const { byCode, byId } = await getCapturePointMaps()
   const capturePointId = byCode.get(input.area_key)
   if (!capturePointId) throw new Error(`Unknown area key: ${input.area_key}`)
@@ -389,6 +408,7 @@ export async function upsertTrackingAreaSummary(input: Omit<ScalpAreaSummary, 'i
 }
 
 export async function deleteTrackingAreaSummary(sessionId: string, areaKey: ScalpAnalysisAreaKey) {
+  if (shouldUseMockRepository()) return mockRepository.deleteTrackingAreaSummary(sessionId, areaKey)
   const { byCode } = await getCapturePointMaps()
   const capturePointId = byCode.get(areaKey)
   if (!capturePointId) throw new Error(`Unknown area key: ${areaKey}`)
@@ -402,6 +422,7 @@ export async function deleteTrackingAreaSummary(sessionId: string, areaKey: Scal
 }
 
 export async function getTrackingAreaSummary(sessionId: string, areaKey: ScalpAnalysisAreaKey) {
+  if (shouldUseMockRepository()) return mockRepository.getTrackingAreaSummary(sessionId, areaKey)
   const { byCode, byId } = await getCapturePointMaps()
   const capturePointId = byCode.get(areaKey)
   if (!capturePointId) throw new Error(`Unknown area key: ${areaKey}`)
@@ -417,6 +438,7 @@ export async function getTrackingAreaSummary(sessionId: string, areaKey: ScalpAn
 }
 
 export async function getTrackingSessionStateRecord(sessionId: string): Promise<ScalpAnalysisSessionState | null> {
+  if (shouldUseMockRepository()) return mockRepository.getTrackingSessionStateRecord(sessionId)
   const [session, { byId }, images] = await Promise.all([
     getTrackingSession(sessionId),
     getCapturePointMaps(),

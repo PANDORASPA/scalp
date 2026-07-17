@@ -1,15 +1,17 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useState } from 'react'
 
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { getSafeLoginRedirect } from '@/lib/auth/redirect'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -54,7 +56,7 @@ export default function LoginPage() {
                   body: JSON.stringify({ username, password }),
                 })
                 if (!res.ok) throw new Error('帳號或密碼不正確')
-                router.push('/')
+                router.push(getSafeLoginRedirect(searchParams.get('next')))
                 router.refresh()
               } catch (e) {
                 setError(e instanceof Error ? e.message : '登入失敗')
@@ -67,5 +69,13 @@ export default function LoginPage() {
         </div>
       </Card>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">正在載入登入...</div>}>
+      <LoginForm />
+    </Suspense>
   )
 }
