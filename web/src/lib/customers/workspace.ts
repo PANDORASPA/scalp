@@ -1,5 +1,10 @@
 import type { Customer, ScalpPointSummary, ScalpSession } from '@/lib/scalp/types'
 
+export type TrackingAreaProgress = {
+  customer_id: string
+  session_id: string
+}
+
 export type CustomerWorkspaceRow = Customer & {
   session_count: number
   latest_check_date: string | null
@@ -8,6 +13,9 @@ export type CustomerWorkspaceRow = Customer & {
   needs_capture: boolean
   ready_compare: boolean
   stale_follow_up: boolean
+  tracking_session_count: number
+  latest_tracking_check_date: string | null
+  latest_tracking_completed_areas: number
 }
 
 export type CustomerWorkspaceSummary = {
@@ -16,6 +24,8 @@ export type CustomerWorkspaceSummary = {
   needs_capture: number
   ready_compare: number
   stale_follow_up: number
+  tracking_active: number
+  tracking_incomplete: number
 }
 
 export type CustomerWorkspaceFilter =
@@ -34,11 +44,31 @@ export function buildCustomerWorkspaceRows(params: {
   customers: Customer[]
   sessions: ScalpSession[]
   pointSummaries: ScalpPointSummary[]
+  trackingSessions?: ScalpSession[]
+  trackingCompletedAreas?: TrackingAreaProgress[]
   q?: string
   filter?: CustomerWorkspaceFilter
 }) {
-  const { customers, sessions, pointSummaries, q = '', filter = 'all' } = params
+  const {
+    customers,
+    sessions,
+    pointSummaries,
+    trackingSessions = [],
+    trackingCompletedAreas = [],
+    q = '',
+    filter = 'all',
+  } = params
   const query = q.trim().toLowerCase()
+
+  const legacySessions = sessions.filter(
+    (session) => (session as ScalpSession & { workflow_type?: string }).workflow_type !== 'scalp_analysis_tracking',
+  )
+  const allTrackingSessions = [
+    ...trackingSessions,
+    ...sessions.filter(
+      (session) => (session as ScalpSession & { workflow_type?: string }).workflow_type === 'scalp_analysis_tracking',
+    ),
+  ]
 
   const allRows = customers
     .filter((c) => {
@@ -46,13 +76,21 @@ export function buildCustomerWorkspaceRows(params: {
       return c.name.toLowerCase().includes(query) || (c.phone ?? '').toLowerCase().includes(query)
     })
     .map((customer) => {
-      const customerSessions = sessions
+      const customerSessions = legacySessions
+        .filter((session) => session.customer_id === customer.id)
+        .sort((a, b) => b.check_date.localeCompare(a.check_date))
+
+      const customerTrackingSessions = allTrackingSessions
         .filter((session) => session.customer_id === customer.id)
         .sort((a, b) => b.check_date.localeCompare(a.check_date))
 
       const latestSession = customerSessions[0] ?? null
       const latestCompletedPoints = latestSession
         ? pointSummaries.filter((summary) => summary.session_id === latestSession.id && summary.completed).length
+        : 0
+      const latestTrackingSession = customerTrackingSessions[0] ?? null
+      const latestTrackingCompletedAreas = latestTrackingSession
+        ? trackingCompletedAreas.filter((item) => item.session_id === latestTrackingSession.id).length
         : 0
 
       const row: CustomerWorkspaceRow = {
@@ -64,6 +102,9 @@ export function buildCustomerWorkspaceRows(params: {
         needs_capture: Boolean(latestSession) && latestCompletedPoints < 5,
         ready_compare: customerSessions.length >= 2 && latestCompletedPoints === 5,
         stale_follow_up: Boolean(latestSession) && daysSince(latestSession.check_date) >= 30,
+        tracking_session_count: customerTrackingSessions.length,
+        latest_tracking_check_date: latestTrackingSession?.check_date ?? null,
+        latest_tracking_completed_areas: latestTrackingCompletedAreas,
       }
 
       return row
@@ -76,6 +117,10 @@ export function buildCustomerWorkspaceRows(params: {
     needs_capture: allRows.filter((row) => row.needs_capture).length,
     ready_compare: allRows.filter((row) => row.ready_compare).length,
     stale_follow_up: allRows.filter((row) => row.stale_follow_up).length,
+    tracking_active: allRows.filter((row) => row.tracking_session_count > 0).length,
+    tracking_incomplete: allRows.filter(
+      (row) => row.tracking_session_count > 0 && row.latest_tracking_completed_areas < 6,
+    ).length,
   }
 
   const rows = allRows.filter((row) => (filter === 'all' ? true : row[filter]))

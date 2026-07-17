@@ -27,6 +27,8 @@
     "src/lib/auth/session.test.ts",
     "src/lib/config/scalp-analysis-ai.ts",
     "src/lib/config/scalp-analysis-ai.test.ts",
+    "src/lib/config/google-drive.ts",
+    "src/lib/config/google-drive.test.ts",
     "src/lib/config/supabase.ts",
     "src/lib/config/supabase.test.ts",
     "src/lib/customers/workspace.ts",

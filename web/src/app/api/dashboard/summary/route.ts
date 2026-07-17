@@ -19,6 +19,8 @@ export async function GET() {
         customers: snapshot.customers,
         sessions: snapshot.sessions,
         pointSummaries: snapshot.pointSummaries,
+        trackingSessions: snapshot.trackingSessions,
+        trackingCompletedAreas: snapshot.trackingCompletedAreas,
       })
       return NextResponse.json(summary)
     } catch (error) {

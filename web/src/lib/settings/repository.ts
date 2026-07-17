@@ -9,6 +9,7 @@ export type GoogleDriveSettings = {
   clientEmail?: string
   privateKey?: string
   folderId?: string
+  publicAccess?: boolean
 }
 
 export type OpenAiSettings = {
@@ -45,6 +46,7 @@ function normalizeGoogleDriveSettings(value: unknown): GoogleDriveSettings {
     clientEmail: typeof value.clientEmail === 'string' ? value.clientEmail.trim() : undefined,
     privateKey: typeof value.privateKey === 'string' ? value.privateKey.trim() : undefined,
     folderId: typeof value.folderId === 'string' ? value.folderId.trim() : undefined,
+    publicAccess: value.publicAccess === true,
   }
 }
 
@@ -93,6 +95,7 @@ export async function saveGoogleDriveSettings(input: GoogleDriveSettings) {
     clientEmail: input.clientEmail?.trim() ? input.clientEmail : current.googleDrive.clientEmail,
     privateKey: keepExistingSecretUnlessReplacement(input.privateKey, current.googleDrive.privateKey),
     folderId: input.folderId?.trim() ? input.folderId : current.googleDrive.folderId,
+    publicAccess: input.publicAccess ?? current.googleDrive.publicAccess ?? false,
   })
 
   const client = getSupabaseAdminClient()

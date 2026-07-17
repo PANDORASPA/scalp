@@ -191,6 +191,39 @@ export async function getTrackingSession(sessionId: string) {
   return (data as ScalpSession | null) ?? null
 }
 
+export async function updateTrackingSessionRecord(
+  sessionId: string,
+  input: { checkDate: string; notes: string | null; nowISO: string },
+) {
+  const client = getSupabaseAdminClient()
+  const { data, error } = await client
+    .from('scalp_sessions')
+    .update({
+      check_date: input.checkDate,
+      notes: input.notes,
+      updated_at: input.nowISO,
+    })
+    .eq('id', sessionId)
+    .eq('workflow_type', 'scalp_analysis_tracking')
+    .select('*')
+    .single()
+  if (error) throw new Error(`update scalp analysis session: ${error.message}`)
+  return data as ScalpSession
+}
+
+export async function deleteTrackingSessionRecord(sessionId: string) {
+  const client = getSupabaseAdminClient()
+  const { data, error } = await client
+    .from('scalp_sessions')
+    .delete()
+    .eq('id', sessionId)
+    .eq('workflow_type', 'scalp_analysis_tracking')
+    .select('*')
+    .single()
+  if (error) throw new Error(`delete scalp analysis session: ${error.message}`)
+  return data as ScalpSession
+}
+
 export async function getCustomerRecord(customerId: string) {
   const client = getSupabaseAdminClient()
   const { data, error } = await client.from('customers').select('*').eq('id', customerId).maybeSingle()
@@ -384,18 +417,14 @@ export async function getTrackingAreaSummary(sessionId: string, areaKey: ScalpAn
 }
 
 export async function getTrackingSessionStateRecord(sessionId: string): Promise<ScalpAnalysisSessionState | null> {
-  const [session, { byId }, images, customerMaybe] = await Promise.all([
+  const [session, { byId }, images] = await Promise.all([
     getTrackingSession(sessionId),
     getCapturePointMaps(),
     listTrackingImagesForSession(sessionId),
-    (async () => {
-      const rawSession = await getTrackingSession(sessionId)
-      if (!rawSession) return null
-      return getCustomerRecord(rawSession.customer_id)
-    })(),
   ])
 
   if (!session) return null
+  const customerMaybe = await getCustomerRecord(session.customer_id)
   const client = getSupabaseAdminClient()
   const { data, error } = await client.from('scalp_area_summaries').select('*').eq('session_id', sessionId)
   if (error) throw new Error(`session area summaries: ${error.message}`)

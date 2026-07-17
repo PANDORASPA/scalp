@@ -11,8 +11,8 @@ export async function getScalpStorageProviderName() {
   return settings.googleDrive.storageProvider ?? process.env.SCALP_ANALYSIS_STORAGE_PROVIDER?.trim() ?? 'google-drive'
 }
 
-export async function getScalpStorageAdapter(): Promise<ScalpStorageAdapter> {
-  const provider = await getScalpStorageProviderName()
+export async function getScalpStorageAdapter(providerOverride?: string): Promise<ScalpStorageAdapter> {
+  const provider = providerOverride ?? (await getScalpStorageProviderName())
 
   if (provider === 'google-drive') return googleDriveStorageAdapter
   if (provider === 'demo') return demoStorageAdapter

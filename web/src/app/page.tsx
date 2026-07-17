@@ -50,9 +50,9 @@ export default async function HomePage() {
           </div>
         </Card>
 
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-5">
           <Card className="p-5">
-            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">未建立檢查</div>
+            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">未建立一般檢查</div>
             <div className="mt-2 text-2xl font-semibold text-slate-900">{summary.needs_session}</div>
             <div className="mt-1 text-sm text-slate-600">已建立客戶但未有第一次檢查的客人。</div>
           </Card>
@@ -70,6 +70,11 @@ export default async function HomePage() {
             <div className="text-xs font-medium uppercase tracking-wide text-slate-500">需要跟進</div>
             <div className="mt-2 text-2xl font-semibold text-slate-900">{summary.stale_follow_up}</div>
             <div className="mt-1 text-sm text-slate-600">超過 30 日未有新檢查的客人。</div>
+          </Card>
+          <Card className="p-5">
+            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">放大圖待完成</div>
+            <div className="mt-2 text-2xl font-semibold text-slate-900">{summary.tracking_incomplete}</div>
+            <div className="mt-1 text-sm text-slate-600">已開始 tracking 但仍未完成 6 個固定部位的客人。</div>
           </Card>
         </div>
 

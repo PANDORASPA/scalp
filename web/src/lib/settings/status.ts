@@ -14,6 +14,7 @@ export type IntegrationStatus = {
   requiredFor: string
   details: string
   nextAction?: string
+  publicAccess?: boolean
 }
 
 async function getSupabaseConnectionStatus() {
@@ -77,6 +78,7 @@ export async function getSystemStatus(): Promise<IntegrationStatus[]> {
       officialReady: !demoStorageReady && officialGoogleDriveReady,
       mode: demoStorageReady ? 'demo' : officialGoogleDriveReady ? 'official' : 'missing',
       requiredFor: '頭皮放大圖上傳與圖片長期保存',
+      publicAccess: settings.googleDrive.publicAccess === true,
       details: demoStorageReady
         ? '目前使用 Demo storage，可測試完整流程；正式客人圖片仍需設定 Google Drive。'
         : officialGoogleDriveReady

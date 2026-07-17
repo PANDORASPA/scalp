@@ -30,6 +30,8 @@ export async function GET(req: Request) {
         customers: snapshot.customers,
         sessions: snapshot.sessions,
         pointSummaries: snapshot.pointSummaries,
+        trackingSessions: snapshot.trackingSessions,
+        trackingCompletedAreas: snapshot.trackingCompletedAreas,
         q,
         filter,
       })

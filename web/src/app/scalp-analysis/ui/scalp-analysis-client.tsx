@@ -110,7 +110,7 @@ function SummaryPanel({ summary }: { summary: ScalpAreaSummary | null }) {
   )
 }
 
-export default function ScalpAnalysisClient() {
+export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' }) {
   const searchParams = useSearchParams()
   const [customers, setCustomers] = useState<CustomerRow[]>([])
   const [customerId, setCustomerId] = useState('')
@@ -123,6 +123,9 @@ export default function ScalpAnalysisClient() {
   const [error, setError] = useState<string | null>(null)
   const [createNotes, setCreateNotes] = useState('')
   const [createDate, setCreateDate] = useState(() => toDatetimeLocalValue(new Date().toISOString()))
+  const [editingSession, setEditingSession] = useState<ScalpSession | null>(null)
+  const [editDate, setEditDate] = useState('')
+  const [editNotes, setEditNotes] = useState('')
   const [integrations, setIntegrations] = useState<IntegrationStatus[]>([])
 
   useEffect(() => {
@@ -197,6 +200,13 @@ export default function ScalpAnalysisClient() {
   const googleDriveDetails = storageStatus?.details
   const demoStorageActive = storageStatus?.mode === 'demo'
 
+  function beginEditSession(session: ScalpSession) {
+    setEditingSession(session)
+    setEditDate(toDatetimeLocalValue(session.check_date))
+    setEditNotes(session.notes ?? '')
+    setError(null)
+  }
+
   async function refreshCurrentSession() {
     if (!sessionId) return
     const data = await fetchJSON<ScalpAnalysisSessionState>(`/api/scalp-analysis/sessions/${sessionId}`)
@@ -222,12 +232,15 @@ export default function ScalpAnalysisClient() {
             <Button variant="secondary" onClick={() => void refreshCurrentSession()} disabled={!sessionId || busyKey === 'load-session'}>
               重新整理
             </Button>
+            <Button variant="secondary" onClick={() => window.print()} disabled={!sessionState}>
+              列印報告
+            </Button>
           </div>
         </div>
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-        <div className="space-y-4">
+        <div className="space-y-4 print:hidden">
           <Card className="p-4">
             <div className="grid gap-2">
               <Label>選擇客人</Label>
@@ -306,22 +319,98 @@ export default function ScalpAnalysisClient() {
                 <div className="text-sm text-slate-500">未有頭皮分析 session。</div>
               ) : (
                 sessions.map((session) => (
-                  <button
+                  <div
                     key={session.id}
                     className={`w-full rounded-lg border px-3 py-3 text-left text-sm ${
                       session.id === sessionId
                         ? 'border-blue-300 bg-blue-50 text-blue-900'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
-                    onClick={() => setSessionId(session.id)}
                   >
-                    <div className="font-medium">{formatDate(session.check_date)}</div>
-                    <div className="mt-1 text-xs text-slate-500">{session.notes || '沒有備註'}</div>
-                  </button>
+                    <button type="button" className="w-full text-left" onClick={() => setSessionId(session.id)}>
+                      <div className="font-medium">{formatDate(session.check_date)}</div>
+                      <div className="mt-1 text-xs text-slate-500">{session.notes || '沒有備註'}</div>
+                    </button>
+                    <div className="mt-2 flex gap-3 text-xs">
+                      <button
+                        type="button"
+                        className="text-blue-700 underline underline-offset-2"
+                        onClick={() => beginEditSession(session)}
+                      >
+                        編輯日期/備註
+                      </button>
+                      {role === 'admin' ? (
+                        <button
+                          type="button"
+                          className="text-red-700 underline underline-offset-2"
+                          disabled={busyKey === `delete-session:${session.id}`}
+                          onClick={async () => {
+                            if (!window.confirm('確定刪除這次追蹤 session、所有圖片及分析結果？')) return
+                            setBusyKey(`delete-session:${session.id}`)
+                            setError(null)
+                            try {
+                              await fetchJSON(`/api/scalp-analysis/sessions/${session.id}`, { method: 'DELETE' })
+                              if (editingSession?.id === session.id) setEditingSession(null)
+                              await loadSessions(customerId)
+                              if (sessionId === session.id) setSessionState(null)
+                            } catch (e) {
+                              setError(e instanceof Error ? e.message : '刪除追蹤 session 失敗')
+                            } finally {
+                              setBusyKey(null)
+                            }
+                          }}
+                        >
+                          {busyKey === `delete-session:${session.id}` ? '刪除中...' : '刪除'}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
                 ))
               )}
             </div>
           </Card>
+
+          {editingSession ? (
+            <Card className="border-blue-200 bg-blue-50 p-4">
+              <div className="text-sm font-semibold">編輯追蹤 session</div>
+              <div className="mt-3 grid gap-3">
+                <Input type="datetime-local" value={editDate} onChange={(event) => setEditDate(event.target.value)} />
+                <Input value={editNotes} onChange={(event) => setEditNotes(event.target.value)} placeholder="檢查備註" />
+                <div className="flex gap-2">
+                  <Button
+                    disabled={busyKey === `edit-session:${editingSession.id}`}
+                    onClick={async () => {
+                      if (!editDate) return
+                      setBusyKey(`edit-session:${editingSession.id}`)
+                      setError(null)
+                      try {
+                        await fetchJSON(`/api/scalp-analysis/sessions/${editingSession.id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            sessionDate: new Date(editDate).toISOString(),
+                            notes: editNotes.trim() || null,
+                          }),
+                        })
+                        setEditingSession(null)
+                        await loadSessions(customerId)
+                        if (sessionId === editingSession.id) await refreshCurrentSession()
+                      } catch (e) {
+                        setError(e instanceof Error ? e.message : '更新追蹤 session 失敗')
+                      } finally {
+                        setBusyKey(null)
+                      }
+                    }}
+                  >
+                    {busyKey === `edit-session:${editingSession.id}` ? '保存中...' : '保存變更'}
+                  </Button>
+                  <Button variant="secondary" onClick={() => setEditingSession(null)} disabled={busyKey?.startsWith('edit-session:')}>
+                    取消
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ) : null}
 
           <Card className="p-4">
             <div className="text-sm font-semibold">固定拍攝部位</div>

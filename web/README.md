@@ -159,6 +159,7 @@ The new `/scalp-analysis` page uses:
 - `GOOGLE_DRIVE_CLIENT_EMAIL`
 - `GOOGLE_DRIVE_PRIVATE_KEY`
 - `GOOGLE_DRIVE_FOLDER_ID`
+- `GOOGLE_DRIVE_PUBLIC_ACCESS=false` (recommended; only enable when an external consumer requires public image URLs)
 - `SCALP_ANALYSIS_AI_PROVIDER=mock`
 - `OPENAI_API_KEY` and `OPENAI_VISION_MODEL` only when switching to OpenAI Vision
 
@@ -175,6 +176,11 @@ You may also configure Google Drive and AI credentials from `/settings`. Secrets
    - `client_email` -> `GOOGLE_DRIVE_CLIENT_EMAIL`
    - `private_key` -> `GOOGLE_DRIVE_PRIVATE_KEY` (keep `\n` escaped in `.env`)
 7. Copy the folder id from the Drive URL into `GOOGLE_DRIVE_FOLDER_ID`.
+
+New uploads are private by default. The app stores the Drive file id in Supabase and serves the image through
+the authenticated `/api/scalp-analysis/images/{imageId}/file` proxy. If OpenAI Vision is enabled, the server
+passes image bytes as a data URL, so the Drive file does not need a public permission. Existing files uploaded
+before private mode was enabled may still have their old public permission and should be reviewed in Drive.
 
 You can generate the env values from the downloaded service-account JSON:
 
@@ -207,6 +213,8 @@ Important: share that folder with the service account `client_email` as Editor b
 5. Create a second tracking session for the same customer, complete the same area, and verify `compared_to_previous_json` updates.
 6. Verify the earliest completed tracking session becomes the baseline for `compared_to_baseline_json`.
 7. Delete one image and confirm the area summary is removed until 3 confirmed images are available again.
+8. With private Drive mode enabled, confirm a newly saved `image_url` uses the authenticated image proxy and that
+   an unauthenticated request cannot read the image.
 
 ### Live smoke test
 

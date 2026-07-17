@@ -26,6 +26,7 @@ export async function POST(req: Request) {
       clientEmail?: string
       privateKey?: string
       folderId?: string
+      publicAccess?: boolean
     }
     openAi?: {
       provider?: 'mock' | 'openai-5.5'

@@ -70,3 +70,39 @@ test('buildCustomerWorkspaceRows derives workflow states', () => {
   assert.equal(summary.needs_session, 1)
   assert.equal(summary.needs_capture, 1)
 })
+
+test('buildCustomerWorkspaceRows keeps tracking workflow progress visible beside legacy sessions', () => {
+  const result = buildCustomerWorkspaceRows({
+    customers: [
+      {
+        id: 'c1',
+        name: 'Tracking only',
+        phone: null,
+        notes: null,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      },
+    ],
+    sessions: [],
+    pointSummaries: [],
+    trackingSessions: [
+      {
+        id: 'tracking-1',
+        customer_id: 'c1',
+        check_date: '2026-03-20T00:00:00.000Z',
+        staff_name: null,
+        notes: null,
+        created_at: '2026-03-20T00:00:00.000Z',
+        updated_at: '2026-03-20T00:00:00.000Z',
+      },
+    ],
+    trackingCompletedAreas: [
+      { customer_id: 'c1', session_id: 'tracking-1' },
+      { customer_id: 'c1', session_id: 'tracking-1' },
+    ],
+  })
+
+  assert.equal(result.rows[0]?.tracking_session_count, 1)
+  assert.equal(result.rows[0]?.latest_tracking_completed_areas, 2)
+  assert.equal(result.rows[0]?.latest_tracking_check_date, '2026-03-20T00:00:00.000Z')
+})

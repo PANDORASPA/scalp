@@ -18,6 +18,7 @@ export function getHumanErrorMessage(error: string) {
   if (error.includes('capture_points_missing')) return '固定拍攝部位尚未完成設定，請先執行 Supabase migration。'
   if (error.includes('incomplete_images')) return '此部位需要 3 張圖片，而且每張都要確認標記後才可計算平均。'
   if (error.includes('storage_provider')) return '圖片儲存設定不完整，請到系統設定檢查 Google Drive。'
+  if (error.includes('private_image_proxy_unavailable')) return '私有圖片 proxy 尚未啟用，請檢查 storage adapter 設定。'
   if (error.includes('supabase_env_missing')) {
     return 'Supabase 尚未設定完成，暫時不能儲存資料。請到系統設定檢查環境變數。'
   }

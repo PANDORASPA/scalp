@@ -2,12 +2,14 @@ export type GoogleDriveEnv = {
   clientEmail: string
   privateKey: string
   folderId: string
+  publicAccess: boolean
 }
 
 type GoogleDriveSettingsSource = {
   clientEmail?: string
   privateKey?: string
   folderId?: string
+  publicAccess?: boolean
 }
 
 export function hasGoogleDriveEnv(env: NodeJS.ProcessEnv = process.env) {
@@ -33,6 +35,7 @@ export function getGoogleDriveEnv(env: NodeJS.ProcessEnv = process.env): GoogleD
     clientEmail,
     privateKey: privateKeyRaw.replace(/\\n/g, '\n'),
     folderId,
+    publicAccess: env.GOOGLE_DRIVE_PUBLIC_ACCESS?.trim().toLowerCase() === 'true',
   }
 }
 
@@ -55,5 +58,6 @@ export function getGoogleDriveEnvFromSettings(settings: GoogleDriveSettingsSourc
     clientEmail,
     privateKey: privateKeyRaw.replace(/\\n/g, '\n'),
     folderId,
+    publicAccess: settings.publicAccess === true,
   }
 }

@@ -7,7 +7,7 @@ import { touchCustomerInSupabase } from '@/lib/supabase/repository'
 
 import { SCALP_ANALYSIS_AREA_LABELS, SCALP_ANALYSIS_WORKFLOW_TYPE, type ScalpAnalysisAreaKey } from './constants'
 import { analyzeScalpImage as runMockAnalyzer } from './mock-analyzer'
-import { analyzeScalpImageWithOpenAi } from './openai-vision'
+import { analyzeScalpImageWithOpenAi, type ScalpVisionImageSource } from './openai-vision'
 import {
   buildAreaReportLine,
   calculateAreaAverages,
@@ -18,6 +18,7 @@ import {
 } from './logic'
 import {
   createTrackingSessionRecord,
+  deleteTrackingSessionRecord,
   deleteTrackingAreaSummary,
   deleteTrackingImageRecord,
   ensureScalpAnalysisCapturePoints,
@@ -33,6 +34,7 @@ import {
   upsertTrackingAreaSummary,
   upsertTrackingImageRecord,
   updateTrackingImageRecord,
+  updateTrackingSessionRecord,
 } from './repository'
 import { getScalpStorageAdapter } from './storage'
 import { commitUploadedStorageRecord, deleteStorageBestEffort } from './storage-consistency'
@@ -44,6 +46,17 @@ type UploadInput = {
   areaKey: ScalpAnalysisAreaKey
   imageIndex: 1 | 2 | 3
   file: File
+}
+
+async function getStoredVisionSource(image: {
+  storage_provider: string
+  drive_file_id: string | null
+  image_url: string
+}): Promise<ScalpVisionImageSource> {
+  if (image.storage_provider !== 'google-drive' || !image.drive_file_id) return {}
+  const adapter = await getScalpStorageAdapter(image.storage_provider)
+  if (!adapter.download) return {}
+  return adapter.download(image.drive_file_id)
 }
 
 async function getAnalysisProvider() {
@@ -69,11 +82,30 @@ export async function createScalpSession(customerId: string, input?: { sessionDa
   return created
 }
 
-export async function analyzeScalpImage(imageUrl: string): Promise<ScalpAnalysisAnnotations> {
+export async function updateScalpSession(
+  sessionId: string,
+  input: { sessionDate: string; notes?: string | null },
+) {
+  const session = await getTrackingSession(sessionId)
+  if (!session) throw new Error('missing_image: Scalp analysis session not found.')
+  const now = new Date().toISOString()
+  const updated = await updateTrackingSessionRecord(sessionId, {
+    checkDate: input.sessionDate,
+    notes: input.notes ?? null,
+    nowISO: now,
+  })
+  await touchCustomerInSupabase(updated.customer_id, now)
+  return updated
+}
+
+export async function analyzeScalpImage(
+  imageUrl: string,
+  source?: ScalpVisionImageSource,
+): Promise<ScalpAnalysisAnnotations> {
   const provider = await getAnalysisProvider()
   if (provider === 'mock') return runMockAnalyzer(imageUrl)
   try {
-    return await analyzeScalpImageWithOpenAi(imageUrl)
+    return await analyzeScalpImageWithOpenAi(imageUrl, source)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'OpenAI Vision analysis failed'
     throw new Error(`ai_analysis_failed: ${message}`)
@@ -136,16 +168,27 @@ export async function uploadScalpImage(input: UploadInput) {
       }),
   })
 
+  if (!uploaded.publicAccess && uploaded.fileId) {
+    image = await updateTrackingImageRecord(image.id, {
+      image_url: `/api/scalp-analysis/images/${image.id}/file`,
+      updated_at: now,
+    })
+  }
+
   if (existing?.drive_file_id || existing?.storage_object_key) {
+    const previousAdapter = await getScalpStorageAdapter(existing.storage_provider)
     await deleteStorageBestEffort({
-      adapter,
+      adapter: previousAdapter,
       target: { fileId: existing.drive_file_id, objectKey: existing.storage_object_key },
       context: 'old overwritten image',
     })
   }
 
   try {
-    const aiResult = await analyzeScalpImage(uploaded.url)
+    const aiResult = await analyzeScalpImage(uploaded.url, {
+      bytes,
+      contentType: input.file.type || 'image/jpeg',
+    })
     image = await updateTrackingImageRecord(image.id, {
       analysis_status: 'ai_ready',
       ai_result_json: aiResult,
@@ -174,7 +217,7 @@ export async function retryScalpImageAnalysis(imageId: string) {
 
   const now = new Date().toISOString()
   try {
-    const aiResult = await analyzeScalpImage(image.image_url)
+    const aiResult = await analyzeScalpImage(image.image_url, await getStoredVisionSource(image))
     return updateTrackingImageRecord(imageId, {
       analysis_status: 'ai_ready',
       ai_result_json: aiResult,
@@ -333,7 +376,7 @@ export async function calculateAreaSummary(sessionId: string, areaKey: ScalpAnal
 export async function removeScalpImage(imageId: string) {
   const image = await getTrackingImageById(imageId)
   if (!image) throw new Error('missing_image: Scalp analysis image not found.')
-  const adapter = await getScalpStorageAdapter()
+  const adapter = await getScalpStorageAdapter(image.storage_provider)
   const deleted = await deleteTrackingImageRecord(imageId)
   await deleteStorageBestEffort({
     adapter,
@@ -343,6 +386,28 @@ export async function removeScalpImage(imageId: string) {
   await calculateAreaSummary(deleted.session_id, deleted.area_key).catch(async () => {
     await deleteTrackingAreaSummary(deleted.session_id, deleted.area_key)
   })
+  return deleted
+}
+
+export async function removeScalpSession(sessionId: string) {
+  const session = await getTrackingSession(sessionId)
+  if (!session) throw new Error('missing_image: Scalp analysis session not found.')
+  const images = await listTrackingImagesForSession(sessionId)
+  const cleanupPlans = await Promise.all(
+    images.map(async (image) => ({ image, adapter: await getScalpStorageAdapter(image.storage_provider) })),
+  )
+  const deleted = await deleteTrackingSessionRecord(sessionId)
+
+  await Promise.all(
+    cleanupPlans.map(({ image, adapter }) =>
+      deleteStorageBestEffort({
+        adapter,
+        target: { fileId: image.drive_file_id, objectKey: image.storage_object_key },
+        context: 'deleted tracking session image',
+      }),
+    ),
+  )
+  await touchCustomerInSupabase(deleted.customer_id, new Date().toISOString())
   return deleted
 }
 
@@ -359,7 +424,11 @@ export function toScalpAnalysisError(error: unknown) {
   const message = error instanceof Error ? error.message : 'Unknown scalp analysis error'
   const lowered = message.toLowerCase()
   if (lowered.includes('google drive auth failed')) return 'google_drive_auth_failed'
-  if (lowered.includes('google drive upload failed') || lowered.includes('permission failed')) return 'upload_failed'
+  if (
+    lowered.includes('google drive upload failed') ||
+    lowered.includes('google drive download failed') ||
+    lowered.includes('permission failed')
+  ) return 'upload_failed'
   if (lowered.includes('ai_analysis_failed')) return 'ai_analysis_failed'
   if (lowered.includes('missing_image')) return message.split(':')[0]
   if (lowered.includes('supabase_env_missing')) return 'supabase_env_missing'

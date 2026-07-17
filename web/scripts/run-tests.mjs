@@ -25,6 +25,7 @@ const tests = spawnSync(
     '.test-dist/lib/auth/public-paths.test.js',
     '.test-dist/lib/auth/session.test.js',
     '.test-dist/lib/config/scalp-analysis-ai.test.js',
+    '.test-dist/lib/config/google-drive.test.js',
     '.test-dist/lib/config/supabase.test.js',
     '.test-dist/lib/customers/workspace.test.js',
     '.test-dist/lib/scalp/ai.test.js',

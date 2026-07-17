@@ -24,6 +24,7 @@ const uploaded: ScalpStorageUploadResult = {
   fileId: 'new-file',
   objectKey: 'customer/session/area/1.jpg',
   url: 'https://example.test/new-file',
+  publicAccess: false,
 }
 
 test('commitUploadedStorageRecord keeps storage when database write succeeds', async () => {

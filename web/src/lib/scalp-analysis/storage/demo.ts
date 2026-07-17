@@ -43,6 +43,7 @@ export const demoStorageAdapter: ScalpStorageAdapter = {
       fileId: `demo-${randomUUID()}`,
       url: buildDemoImageUrl(input),
       objectKey: input.objectKey,
+      publicAccess: true,
     }
   },
   async delete() {

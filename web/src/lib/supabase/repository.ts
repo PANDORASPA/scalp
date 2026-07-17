@@ -2,6 +2,7 @@ import 'server-only'
 
 import { explainSupabaseErrorMessage } from '@/lib/config/supabase'
 import type { MockDb } from '@/lib/mockdb/store'
+import type { TrackingAreaProgress } from '@/lib/customers/workspace'
 import type {
   Customer,
   ScalpAiPointAnalysis,
@@ -266,25 +267,45 @@ function mapAiPointAnalysis(row: ScalpAiPointAnalysisRow, byId: Map<string, stri
   }
 }
 
-export async function getWorkspaceSnapshot(): Promise<Pick<MockDb, 'customers' | 'sessions' | 'pointSummaries'>> {
+export async function getWorkspaceSnapshot(): Promise<
+  Pick<MockDb, 'customers' | 'sessions' | 'pointSummaries'> & {
+    trackingSessions: ScalpSession[]
+    trackingCompletedAreas: TrackingAreaProgress[]
+  }
+> {
   const { byId } = await getCapturePointMaps()
-  const [customers, sessions, pointSummaryRows] = await Promise.all([
+  const [customers, sessionResult, pointSummaryRows, trackingAreaResult] = await Promise.all([
     queryMany<Customer>('customers'),
     getSupabaseAdminClient()
       .from('scalp_sessions')
       .select('*')
-      .eq('workflow_type', 'legacy_capture')
       .then(({ data, error }) => {
         if (error) throw new Error(`scalp_sessions: ${error.message}`)
         return (data ?? []) as ScalpSession[]
       }),
     queryMany<ScalpPointSummaryRow>('scalp_point_summaries'),
+    getSupabaseAdminClient()
+      .from('scalp_area_summaries')
+      .select('customer_id,session_id')
+      .then(({ data, error }) => {
+        if (error) throw new Error(`scalp_area_summaries: ${error.message}`)
+        return (data ?? []) as TrackingAreaProgress[]
+      }),
   ])
+
+  const sessions = sessionResult.filter(
+    (session) => (session as ScalpSession & { workflow_type?: string }).workflow_type !== 'scalp_analysis_tracking',
+  )
+  const trackingSessions = sessionResult.filter(
+    (session) => (session as ScalpSession & { workflow_type?: string }).workflow_type === 'scalp_analysis_tracking',
+  )
 
   return {
     customers,
     sessions,
     pointSummaries: pointSummaryRows.map((row) => mapPointSummary(row, byId)),
+    trackingSessions,
+    trackingCompletedAreas: trackingAreaResult,
   }
 }
 

@@ -317,7 +317,7 @@ export default function CaptureClient() {
                   </div>
                 </div>
                 <div className="text-xs text-slate-500">
-                  Storage: {`scalp-images/${customerId}/${data.session.id}/${point}/{1..3}.jpg`} (local public folder)
+                  Storage: metadata in Supabase; source images use the configured storage adapter (Google Drive or demo).
                 </div>
               </div>
 

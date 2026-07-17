@@ -82,6 +82,7 @@ function getModeClass(item: IntegrationStatus) {
 export function SettingsClient({ initialIntegrations }: Props) {
   const [integrations, setIntegrations] = useState(initialIntegrations)
   const initialStorageMode = initialIntegrations.find((item) => item.key === 'google-drive')?.mode
+  const initialPublicAccess = initialIntegrations.find((item) => item.key === 'google-drive')?.publicAccess ?? false
   const initialAiMode = initialIntegrations.find((item) => item.key === 'scalp-ai')?.mode
   const [storageProvider, setStorageProvider] = useState<'google-drive' | 'demo'>(
     initialStorageMode === 'demo' ? 'demo' : 'google-drive',
@@ -89,6 +90,7 @@ export function SettingsClient({ initialIntegrations }: Props) {
   const [clientEmail, setClientEmail] = useState('')
   const [privateKey, setPrivateKey] = useState('')
   const [folderId, setFolderId] = useState('')
+  const [publicAccess, setPublicAccess] = useState(initialPublicAccess)
   const [provider, setProvider] = useState<'mock' | 'openai-5.5'>(
     initialAiMode === 'official' || initialAiMode === 'missing' ? 'openai-5.5' : 'mock',
   )
@@ -112,6 +114,7 @@ export function SettingsClient({ initialIntegrations }: Props) {
       const next = await fetchHealth()
       setHealth(next)
       setIntegrations(next.integrations)
+      setPublicAccess(next.integrations.find((item) => item.key === 'google-drive')?.publicAccess ?? false)
     } catch (err) {
       setError(err instanceof Error ? err.message : '讀取 production health 失敗')
     } finally {
@@ -148,6 +151,7 @@ export function SettingsClient({ initialIntegrations }: Props) {
           clientEmail,
           privateKey,
           folderId,
+          publicAccess,
         },
       })
       setIntegrations(next)
@@ -363,6 +367,20 @@ export function SettingsClient({ initialIntegrations }: Props) {
             <Label>Google Drive folder id</Label>
             <Input value={folderId} onChange={(event) => setFolderId(event.target.value)} placeholder="Drive folder ID" />
           </div>
+          <label className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={publicAccess}
+              onChange={(event) => setPublicAccess(event.target.checked)}
+            />
+            <span>
+              <span className="font-medium">允許圖片公開連結</span>
+              <span className="mt-1 block text-xs text-amber-800">
+                不建議用於客人資料。關閉後圖片會以登入後的 server proxy 顯示，OpenAI 分析會使用 server-side image bytes。
+              </span>
+            </span>
+          </label>
           <Button onClick={() => void handleSaveGoogleDrive()} disabled={saving === 'google-drive'}>
             {saving === 'google-drive' ? '保存中...' : '保存 Google Drive 設定'}
           </Button>

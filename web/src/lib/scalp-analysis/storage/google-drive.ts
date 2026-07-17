@@ -183,24 +183,26 @@ export const googleDriveStorageAdapter: ScalpStorageAdapter = {
     }
     if (!uploaded.id) throw new Error('Google Drive upload failed: missing file id')
 
-    const permissionRes = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${uploaded.id}/permissions?supportsAllDrives=true`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+    if (env.publicAccess) {
+      const permissionRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${uploaded.id}/permissions?supportsAllDrives=true`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            role: 'reader',
+            type: 'anyone',
+          }),
         },
-        body: JSON.stringify({
-          role: 'reader',
-          type: 'anyone',
-        }),
-      },
-    )
+      )
 
-    if (!permissionRes.ok) {
-      const text = await permissionRes.text()
-      throw new Error(`Google Drive permission failed: ${permissionRes.status} ${text}`)
+      if (!permissionRes.ok) {
+        const text = await permissionRes.text()
+        throw new Error(`Google Drive permission failed: ${permissionRes.status} ${text}`)
+      }
     }
 
     return {
@@ -208,6 +210,7 @@ export const googleDriveStorageAdapter: ScalpStorageAdapter = {
       fileId: uploaded.id,
       url: `https://drive.google.com/uc?export=view&id=${uploaded.id}`,
       objectKey: input.objectKey,
+      publicAccess: env.publicAccess,
     }
   },
   async delete(fileId: string | null) {
@@ -223,6 +226,28 @@ export const googleDriveStorageAdapter: ScalpStorageAdapter = {
     if (!res.ok && res.status !== 404) {
       const text = await res.text()
       throw new Error(`Google Drive delete failed: ${res.status} ${text}`)
+    }
+  },
+  async download(fileId) {
+    const env = await getConfiguredGoogleDriveEnv()
+    const accessToken = await getAccessToken(env)
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    )
+
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(`Google Drive download failed: ${res.status} ${text}`)
+    }
+
+    return {
+      bytes: Buffer.from(await res.arrayBuffer()),
+      contentType: res.headers.get('content-type')?.split(';')[0] || 'image/jpeg',
     }
   },
 }

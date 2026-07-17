@@ -10,10 +10,17 @@ export type ScalpStorageUploadResult = {
   fileId: string | null
   url: string
   objectKey: string
+  publicAccess: boolean
+}
+
+export type ScalpStorageDownloadResult = {
+  bytes: Buffer
+  contentType: string
 }
 
 export type ScalpStorageAdapter = {
   provider: string
   upload(input: ScalpStorageUploadInput): Promise<ScalpStorageUploadResult>
   delete(fileId: string | null, objectKey: string | null): Promise<void>
+  download?(fileId: string): Promise<ScalpStorageDownloadResult>
 }

@@ -25,6 +25,9 @@ type CustomerRow = {
   needs_capture: boolean
   ready_compare: boolean
   stale_follow_up: boolean
+  tracking_session_count: number
+  latest_tracking_check_date: string | null
+  latest_tracking_completed_areas: number
 }
 
 type WorkspaceResponse = {
@@ -35,6 +38,8 @@ type WorkspaceResponse = {
     needs_capture: number
     ready_compare: number
     stale_follow_up: number
+    tracking_active: number
+    tracking_incomplete: number
   }
 }
 
@@ -196,6 +201,8 @@ export default function CustomersClient({
     needs_capture: 0,
     ready_compare: 0,
     stale_follow_up: 0,
+    tracking_active: 0,
+    tracking_incomplete: 0,
   })
   const [filter, setFilter] = useState<FilterKey>('all')
   const [loading, setLoading] = useState(true)
@@ -227,7 +234,7 @@ export default function CustomersClient({
 
   const filterCards: Array<{ key: FilterKey; label: string; count: number; help: string }> = [
     { key: 'all', label: '全部客人', count: summary.total, help: '完整工作清單' },
-    { key: 'needs_session', label: '未有 session', count: summary.needs_session, help: '尚未建立檢查紀錄' },
+    { key: 'needs_session', label: '未有一般檢查', count: summary.needs_session, help: '尚未建立一般檢查紀錄' },
     { key: 'needs_capture', label: '待拍攝', count: summary.needs_capture, help: '最新 session 尚未完成' },
     { key: 'ready_compare', label: '可比較', count: summary.ready_compare, help: '已有 2 次 session 並完成最新評分' },
     { key: 'stale_follow_up', label: '應跟進', count: summary.stale_follow_up, help: '最近到訪已超過 30 日' },
@@ -335,19 +342,20 @@ export default function CustomersClient({
                 <th className="px-3 py-2">電話</th>
                 <th className="px-3 py-2">最近 session</th>
                 <th className="px-3 py-2">Session 數量</th>
+                <th className="px-3 py-2">放大追蹤</th>
                 <th className="px-3 py-2">操作</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td className="px-3 py-4 text-slate-500" colSpan={5}>
+                  <td className="px-3 py-4 text-slate-500" colSpan={6}>
                     正在載入...
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td className="px-3 py-4 text-slate-500" colSpan={5}>
+                  <td className="px-3 py-4 text-slate-500" colSpan={6}>
                     <div className="space-y-3">
                       <div>暫時未有客人資料。</div>
                       {role === 'admin' ? <DemoSeedButton onSeeded={() => void fetchRows(q)} /> : null}
@@ -363,6 +371,13 @@ export default function CustomersClient({
                     <td className="px-3 py-3">
                       <div>{c.session_count}</div>
                       <div className="text-xs text-slate-500">最新完成 {c.latest_completed_points}/5 個部位</div>
+                    </td>
+                    <td className="px-3 py-3">
+                      <div>{c.tracking_session_count} 次</div>
+                      <div className="text-xs text-slate-500">
+                        {c.latest_tracking_check_date ? `${formatDate(c.latest_tracking_check_date)} | ` : ''}
+                        已完成 {c.latest_tracking_completed_areas}/6 部位
+                      </div>
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex flex-wrap gap-3">

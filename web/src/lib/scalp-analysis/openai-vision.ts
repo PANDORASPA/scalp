@@ -6,6 +6,11 @@ import { getAppSettings, hasOpenAiApiKey } from '@/lib/settings/repository'
 import { normalizeAnnotations } from './logic'
 import type { ScalpAnalysisAnnotations } from './types'
 
+export type ScalpVisionImageSource = {
+  bytes?: Buffer
+  contentType?: string
+}
+
 const markerPointSchema = {
   type: 'object',
   additionalProperties: false,
@@ -92,7 +97,10 @@ function extractOutputText(payload: unknown) {
   throw new Error('OpenAI Vision analysis failed: missing structured output text.')
 }
 
-export async function analyzeScalpImageWithOpenAi(imageUrl: string): Promise<ScalpAnalysisAnnotations> {
+export async function analyzeScalpImageWithOpenAi(
+  imageUrl: string,
+  source?: ScalpVisionImageSource,
+): Promise<ScalpAnalysisAnnotations> {
   const settings = await getAppSettings()
   const env = hasOpenAiApiKey(settings.openAi)
     ? getOpenAiVisionEnvFromSettings(settings.openAi)
@@ -131,7 +139,9 @@ export async function analyzeScalpImageWithOpenAi(imageUrl: string): Promise<Sca
               },
               {
                 type: 'input_image',
-                image_url: imageUrl,
+                image_url: source?.bytes
+                  ? `data:${source.contentType ?? 'image/jpeg'};base64,${source.bytes.toString('base64')}`
+                  : imageUrl,
                 detail: 'high',
               },
             ],
