@@ -27,3 +27,4 @@ Thumbs.db
 .trae/
 
 .vercel/
+.playwright-cli/
