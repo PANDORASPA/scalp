@@ -14,6 +14,10 @@ In Vercel Project Settings:
 
 If Root Directory is left as the repository root, Vercel will not deploy the Next.js app correctly.
 
+Before enabling Supabase mode, run migrations `0001` through `0006` and then
+`20260717195041_harden_scalp_data_access.sql` in order. The final migration makes the
+`scalp-images` bucket private and requires the app's authenticated image proxy for legacy images.
+
 ## Required Environment Variables
 
 Production and Preview should include:
@@ -22,6 +26,9 @@ Production and Preview should include:
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 SUPABASE_STORAGE_BUCKET=scalp-images
+
+AUTH_USERS_JSON=
+AUTH_SESSION_SECRET=
 
 SCALP_ANALYSIS_STORAGE_PROVIDER=google-drive
 GOOGLE_DRIVE_CLIENT_EMAIL=

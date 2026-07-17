@@ -40,6 +40,9 @@ export async function POST(req: Request) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: 'file_required' }, { status: 400 })
   }
+  if (file.size === 0) {
+    return NextResponse.json({ error: 'file_empty' }, { status: 400 })
+  }
   if (!ALLOWED_MIME_TYPES.has(file.type)) {
     return NextResponse.json({ error: 'invalid_file_type' }, { status: 400 })
   }

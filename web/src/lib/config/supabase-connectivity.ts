@@ -63,6 +63,44 @@ export async function testSupabaseConnectivity(): Promise<SupabaseConnectivityRe
       const text = await res.text()
       throw new Error(`Supabase REST check failed: ${res.status} ${text}`)
     }
+
+    for (const table of ['scalp_area_summaries', 'scalp_ai_point_analyses', 'app_settings']) {
+      const tableRes = await fetch(`${env.url}/rest/v1/${table}?select=id&limit=1`, {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          apikey: env.serviceRoleKey,
+          Authorization: `Bearer ${env.serviceRoleKey}`,
+        },
+      })
+      if (!tableRes.ok) {
+        const text = await tableRes.text()
+        throw new Error(`Supabase schema check failed for ${table}: ${tableRes.status} ${text}`)
+      }
+    }
+
+    const bucketRes = await fetch(
+      `${env.url}/storage/v1/bucket/${encodeURIComponent(env.storageBucket)}`,
+      {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          apikey: env.serviceRoleKey,
+          Authorization: `Bearer ${env.serviceRoleKey}`,
+        },
+      },
+    )
+    const bucketPayload = (await bucketRes.json().catch(() => null)) as { public?: boolean; message?: string } | null
+    if (!bucketRes.ok) {
+      throw new Error(
+        `Supabase storage bucket check failed: ${bucketRes.status} ${bucketPayload?.message || 'bucket unavailable'}`,
+      )
+    }
+    if (bucketPayload?.public === true) {
+      throw new Error(
+        `Supabase storage bucket "${env.storageBucket}" is public. Run migration 20260717195041_harden_scalp_data_access.sql.`,
+      )
+    }
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error('Supabase REST check failed: timeout after 10000ms')

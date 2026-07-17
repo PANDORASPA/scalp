@@ -40,11 +40,11 @@ export function syncSessionPointDerivedData(params: {
   capturePointCode: CapturePointCode
   nowISO: string
   cascadeToNext?: boolean
-}) {
+}): string[] {
   const { db, customerId, sessionId, capturePointCode, nowISO, cascadeToNext = true } = params
 
   const currentSession = getSessionById(db, sessionId)
-  if (!currentSession) return
+  if (!currentSession) return []
 
   const imagesForPoint = db.images
     .filter((image) => image.session_id === sessionId && image.capture_point_code === capturePointCode)
@@ -179,17 +179,17 @@ export function syncSessionPointDerivedData(params: {
     )
   }
 
-  if (!cascadeToNext) return
+  if (!cascadeToNext) return [sessionId]
 
   const nextSession = getNextSession(db, customerId, currentSession.check_date, sessionId)
-  if (!nextSession) return
+  if (!nextSession) return [sessionId]
 
-  syncSessionPointDerivedData({
+  return [sessionId, ...syncSessionPointDerivedData({
     db,
     customerId,
     sessionId: nextSession.id,
     capturePointCode,
     nowISO,
     cascadeToNext: false,
-  })
+  })]
 }

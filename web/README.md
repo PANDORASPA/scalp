@@ -52,11 +52,15 @@ Run these migrations in order:
 4. `0004_scalp_tracking_analysis.sql`
 5. `0005_app_integration_settings.sql`
 6. `0006_add_tracking_image_score_columns.sql`
+7. `20260717195041_harden_scalp_data_access.sql`
 
 `0003` creates the AI analysis tables and the `scalp-images` storage bucket.
 `0004` adds the scalp-analysis tracking columns, tracking workflow type, and `scalp_area_summaries`.
 `0005` stores app-level integration settings, including Google Drive and AI provider settings.
 `0006` adds image-level score columns used by the scalp-analysis tracking report.
+The hardening migration backfills legacy Supabase image paths, makes the `scalp-images` bucket private,
+and restricts all application tables to the server-side service role. Existing image URLs are returned
+through the authenticated `/api/scalp-images/file` proxy.
 
 ### Verification flow
 
@@ -215,6 +219,10 @@ Important: share that folder with the service account `client_email` as Editor b
 7. Delete one image and confirm the area summary is removed until 3 confirmed images are available again.
 8. With private Drive mode enabled, confirm a newly saved `image_url` uses the authenticated image proxy and that
    an unauthenticated request cannot read the image.
+9. Edit or delete a tracking session date and verify later session comparisons are recalculated rather than retaining
+   a deleted or outdated previous-session reference.
+10. For legacy capture images after the hardening migration, verify the image still loads through
+    `/api/scalp-images/file` and that a direct public Storage URL is no longer usable.
 
 ### Live smoke test
 

@@ -7,9 +7,8 @@ import { getSupabaseAdminClient } from './client'
 
 export { buildScalpImageStoragePath }
 
-export function getScalpImagePublicUrl(path: string) {
-  const env = getSupabaseServerEnv()
-  return `${env.url}/storage/v1/object/public/${env.storageBucket}/${path}`
+export function getScalpImageUrl(path: string) {
+  return `/api/scalp-images/file?path=${encodeURIComponent(path)}`
 }
 
 export async function uploadScalpImage(params: {
@@ -29,7 +28,22 @@ export async function uploadScalpImage(params: {
     throw new Error(`Failed to upload image to storage: ${error.message}`)
   }
 
-  return getScalpImagePublicUrl(params.path)
+  return getScalpImageUrl(params.path)
+}
+
+export async function downloadScalpImage(path: string) {
+  const client = getSupabaseAdminClient()
+  const env = getSupabaseServerEnv()
+  const { data, error } = await client.storage.from(env.storageBucket).download(path)
+
+  if (error || !data) {
+    throw new Error(`Failed to download image from storage: ${error?.message || 'empty response'}`)
+  }
+
+  return {
+    bytes: Buffer.from(await data.arrayBuffer()),
+    contentType: data.type || 'image/jpeg',
+  }
 }
 
 export async function deleteScalpImages(paths: string[]) {

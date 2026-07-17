@@ -11,6 +11,7 @@ export function getHumanErrorMessage(error: string) {
     return '檢查日期格式不正確，請重新選擇。'
   }
   if (error.includes('file_required')) return '請先選擇圖片。'
+  if (error.includes('file_empty')) return '圖片檔案是空的，請重新選擇圖片。'
   if (error.includes('invalid_file_type')) return '只接受 JPG、PNG 或 WebP 圖片。'
   if (error.includes('file_too_large')) return '圖片不可大於 8MB，請壓縮後再上傳。'
   if (error.includes('missing_required_fields')) return '圖片資料不完整，請重新選擇部位及圖片編號。'

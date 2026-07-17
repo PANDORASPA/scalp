@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js'
 import dns from 'node:dns/promises'
 
 const baseUrl = process.env.APP_BASE_URL?.trim() || process.env.BASE_URL?.trim() || ''
+const username = process.env.SMOKE_USERNAME?.trim() || 'admin'
+const password = process.env.SMOKE_PASSWORD?.trim() || 'admin123'
 const supabaseUrl = process.env.SUPABASE_URL?.trim() || ''
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || ''
 const bucket = process.env.SUPABASE_STORAGE_BUCKET?.trim() || 'scalp-images'
@@ -85,6 +87,8 @@ async function main() {
     ['scalp_comparisons', 'scalp_comparisons'],
     ['scalp_ai_shot_analyses', 'scalp_ai_shot_analyses'],
     ['scalp_ai_point_analyses', 'scalp_ai_point_analyses'],
+    ['scalp_area_summaries', 'scalp_area_summaries'],
+    ['app_settings', 'app_settings'],
     ['scalp_capture_points', 'scalp_capture_points'],
   ]
 
@@ -96,12 +100,13 @@ async function main() {
   const { data: bucketInfo, error: bucketError } = await client.storage.getBucket(bucket)
   if (bucketError) fail(`storage bucket "${bucket}" is unavailable: ${bucketError.message}`)
   if (!bucketInfo) fail(`storage bucket "${bucket}" was not found`)
+  if (bucketInfo.public) fail(`storage bucket "${bucket}" is public; run the hardening migration 20260717195041_harden_scalp_data_access.sql`)
 
   const { data: capturePoints, error: capturePointError } = await client
     .from('scalp_capture_points')
     .select('code')
   if (capturePointError) fail(`capture point query failed: ${capturePointError.message}`)
-  if (!capturePoints || capturePoints.length < 5) fail('capture points are missing; run migrations 0001-0003')
+  if (!capturePoints || capturePoints.length < 5) fail('capture points are missing; run migrations 0001-0007')
 
   console.log('Supabase schema and storage checks passed.')
 
@@ -113,7 +118,7 @@ async function main() {
   const login = await fetchJson(`${baseUrl}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: 'admin', password: 'admin123' }),
+    body: JSON.stringify({ username, password }),
   })
   const cookie = login.res.headers.get('set-cookie')
   if (!cookie) fail('login succeeded but no auth cookie was returned')

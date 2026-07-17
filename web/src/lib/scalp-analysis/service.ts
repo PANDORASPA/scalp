@@ -79,6 +79,7 @@ export async function createScalpSession(customerId: string, input?: { sessionDa
     nowISO: now,
   })
   await touchCustomerInSupabase(customerId, now)
+  await recomputeCustomerTrackingSummaries(customerId)
   return created
 }
 
@@ -95,6 +96,7 @@ export async function updateScalpSession(
     nowISO: now,
   })
   await touchCustomerInSupabase(updated.customer_id, now)
+  await recomputeCustomerTrackingSummaries(updated.customer_id)
   return updated
 }
 
@@ -285,21 +287,25 @@ async function findReferenceSummary(params: {
   ])
   if (!currentSession) return null
 
-  const ordered = [...sessions].sort((a, b) => a.check_date.localeCompare(b.check_date))
+  const ordered = [...sessions].sort(
+    (a, b) =>
+      a.check_date.localeCompare(b.check_date) ||
+      a.created_at.localeCompare(b.created_at) ||
+      a.id.localeCompare(b.id),
+  )
   const currentIndex = ordered.findIndex((session) => session.id === params.sessionId)
   if (currentIndex === -1) return null
 
+  const priorSessions = ordered.slice(0, currentIndex)
   const referenceSession =
     params.mode === 'baseline'
-      ? ordered[0] ?? null
-      : currentIndex > 0
-        ? ordered[currentIndex - 1]
-        : null
+      ? priorSessions.find((session) =>
+          summaries.some((item) => item.session_id === session.id && item.area_key === params.areaKey),
+        ) ?? null
+      : priorSessions.at(-1) ?? null
 
-  if (!referenceSession || referenceSession.id === params.sessionId) return null
-  const summary = summaries.find(
-    (item) => item.session_id === referenceSession.id && item.area_key === params.areaKey,
-  )
+  if (!referenceSession) return null
+  const summary = summaries.find((item) => item.session_id === referenceSession.id && item.area_key === params.areaKey)
   return summary ? { session: referenceSession, summary } : null
 }
 
@@ -373,6 +379,30 @@ export async function calculateAreaSummary(sessionId: string, areaKey: ScalpAnal
   })
 }
 
+async function recomputeCustomerTrackingSummaries(customerId: string) {
+  const [sessions, existingSummaries] = await Promise.all([
+    listTrackingSessions(customerId),
+    listTrackingAreaSummariesForCustomer(customerId),
+  ])
+  const imagesBySession = new Map(
+    await Promise.all(
+      sessions.map(async (session) => [session.id, await listTrackingImagesForSession(session.id)] as const),
+    ),
+  )
+  const targets = new Set(
+    existingSummaries.map((summary) => `${summary.session_id}:${summary.area_key}`),
+  )
+  for (const [sessionId, images] of imagesBySession) {
+    for (const image of images) targets.add(`${sessionId}:${image.area_key}`)
+  }
+
+  for (const target of targets) {
+    const separator = target.indexOf(':')
+    if (separator === -1) continue
+    await calculateAreaSummary(target.slice(0, separator), target.slice(separator + 1) as ScalpAnalysisAreaKey)
+  }
+}
+
 export async function removeScalpImage(imageId: string) {
   const image = await getTrackingImageById(imageId)
   if (!image) throw new Error('missing_image: Scalp analysis image not found.')
@@ -407,6 +437,7 @@ export async function removeScalpSession(sessionId: string) {
       }),
     ),
   )
+  await recomputeCustomerTrackingSummaries(deleted.customer_id)
   await touchCustomerInSupabase(deleted.customer_id, new Date().toISOString())
   return deleted
 }

@@ -390,13 +390,15 @@ test('syncSessionPointDerivedData keeps point analysis but clears downstream tre
     ],
   }
 
-  syncSessionPointDerivedData({
+  const affectedSessionIds = syncSessionPointDerivedData({
     db,
     customerId: 'customer-1',
     sessionId: 'session-2',
     capturePointCode: 'front',
     nowISO: '2026-03-18T10:00:00.000Z',
   })
+
+  assert.deepEqual(affectedSessionIds, ['session-2', 'session-3'])
 
   const current = db.aiPointAnalyses.find((item) => item.session_id === 'session-2' && item.capture_point_code === 'front')
   const next = db.aiPointAnalyses.find((item) => item.session_id === 'session-3' && item.capture_point_code === 'front')

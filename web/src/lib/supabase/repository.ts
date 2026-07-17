@@ -15,6 +15,7 @@ import type {
 } from '@/lib/scalp/types'
 
 import { getSupabaseAdminClient } from './client'
+import { getScalpImageUrl } from './storage'
 
 type CapturePointRow = {
   id: string
@@ -34,6 +35,8 @@ type ScalpImageRow = {
   lighting_mode: string | null
   hair_state: string | null
   image_url: string
+  storage_provider: string | null
+  storage_object_key: string | null
   created_at: string
   updated_at: string
 }
@@ -181,7 +184,10 @@ function mapImage(row: ScalpImageRow, byId: Map<string, string>): ScalpImage {
     magnification: row.magnification,
     lighting_mode: row.lighting_mode,
     hair_state: row.hair_state,
-    image_url: row.image_url,
+    image_url:
+      row.storage_provider === 'supabase' && row.storage_object_key
+        ? getScalpImageUrl(row.storage_object_key)
+        : row.image_url,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }
@@ -581,6 +587,7 @@ export async function upsertImageRecordInSupabase(input: {
   lightingMode: string | null
   hairState: string | null
   imageUrl: string | null
+  storageObjectKey?: string | null
   nowISO: string
 }) {
   const { byCode } = await getCapturePointMaps()
@@ -610,6 +617,12 @@ export async function upsertImageRecordInSupabase(input: {
         lighting_mode: input.lightingMode,
         hair_state: input.hairState,
         image_url: input.imageUrl ?? (existing.data as ScalpImageRow | null)?.image_url ?? '',
+        storage_provider:
+          input.storageObjectKey
+            ? 'supabase'
+            : (existing.data as ScalpImageRow | null)?.storage_provider ?? 'legacy_local',
+        storage_object_key:
+          input.storageObjectKey ?? (existing.data as ScalpImageRow | null)?.storage_object_key ?? null,
         updated_at: input.nowISO,
       },
       { onConflict: 'session_id,capture_point_id,shot_index' },
@@ -620,6 +633,26 @@ export async function upsertImageRecordInSupabase(input: {
   if (error) throw new Error(`upsert image: ${error.message}`)
   const { byId } = await getCapturePointMaps()
   return mapImage(data as ScalpImageRow, byId)
+}
+
+export async function getImageBySessionPointShotInSupabase(params: {
+  sessionId: string
+  capturePointCode: ScalpImage['capture_point_code']
+  shotIndex: 1 | 2 | 3
+}) {
+  const { byCode, byId } = await getCapturePointMaps()
+  const capturePointId = byCode.get(params.capturePointCode)
+  if (!capturePointId) throw new Error(`Unknown capture point code: ${params.capturePointCode}`)
+  const client = getSupabaseAdminClient()
+  const { data, error } = await client
+    .from('scalp_images')
+    .select('*')
+    .eq('session_id', params.sessionId)
+    .eq('capture_point_id', capturePointId)
+    .eq('shot_index', params.shotIndex)
+    .maybeSingle()
+  if (error) throw new Error(`load existing image: ${error.message}`)
+  return data ? mapImage(data as ScalpImageRow, byId) : null
 }
 
 export async function upsertMetricsInSupabase(input: {
@@ -719,6 +752,7 @@ export async function replaceDerivedPointDataInSupabase(params: {
   customerId: string
   capturePointCode: ScalpImage['capture_point_code']
   snapshot: MockDb
+  sessionIds?: string[]
 }) {
   const { byCode } = await getCapturePointMaps()
   const capturePointId = byCode.get(params.capturePointCode)
@@ -726,24 +760,52 @@ export async function replaceDerivedPointDataInSupabase(params: {
 
   const client = getSupabaseAdminClient()
 
+  const targetSessionIds = params.sessionIds ? new Set(params.sessionIds) : null
   const pointSummaries = params.snapshot.pointSummaries.filter(
-    (item) => item.customer_id === params.customerId && item.capture_point_code === params.capturePointCode,
+    (item) =>
+      item.customer_id === params.customerId &&
+      item.capture_point_code === params.capturePointCode &&
+      (!targetSessionIds || targetSessionIds.has(item.session_id)),
   )
   const comparisons = params.snapshot.comparisons.filter(
-    (item) => item.customer_id === params.customerId && item.capture_point_code === params.capturePointCode,
+    (item) =>
+      item.customer_id === params.customerId &&
+      item.capture_point_code === params.capturePointCode &&
+      (!targetSessionIds || targetSessionIds.has(item.current_session_id)),
   )
   const aiPointAnalyses = params.snapshot.aiPointAnalyses.filter(
-    (item) => item.customer_id === params.customerId && item.capture_point_code === params.capturePointCode,
+    (item) =>
+      item.customer_id === params.customerId &&
+      item.capture_point_code === params.capturePointCode &&
+      (!targetSessionIds || targetSessionIds.has(item.session_id)),
   )
 
-  const [
-    deletePointSummaries,
-    deleteComparisons,
-    deleteAiPoints,
-  ] = await Promise.all([
-    client.from('scalp_point_summaries').delete().eq('customer_id', params.customerId).eq('capture_point_id', capturePointId),
-    client.from('scalp_comparisons').delete().eq('customer_id', params.customerId).eq('capture_point_id', capturePointId),
-    client.from('scalp_ai_point_analyses').delete().eq('customer_id', params.customerId).eq('capture_point_id', capturePointId),
+  const pointSummaryDelete = client
+    .from('scalp_point_summaries')
+    .delete()
+    .eq('customer_id', params.customerId)
+    .eq('capture_point_id', capturePointId)
+  const comparisonDelete = client
+    .from('scalp_comparisons')
+    .delete()
+    .eq('customer_id', params.customerId)
+    .eq('capture_point_id', capturePointId)
+  const aiPointDelete = client
+    .from('scalp_ai_point_analyses')
+    .delete()
+    .eq('customer_id', params.customerId)
+    .eq('capture_point_id', capturePointId)
+
+  if (params.sessionIds && params.sessionIds.length > 0) {
+    pointSummaryDelete.in('session_id', params.sessionIds)
+    comparisonDelete.in('current_session_id', params.sessionIds)
+    aiPointDelete.in('session_id', params.sessionIds)
+  }
+
+  const [deletePointSummaries, deleteComparisons, deleteAiPoints] = await Promise.all([
+    pointSummaryDelete,
+    comparisonDelete,
+    aiPointDelete,
   ])
 
   if (deletePointSummaries.error) throw new Error(`delete point summaries: ${deletePointSummaries.error.message}`)

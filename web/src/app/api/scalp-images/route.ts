@@ -12,6 +12,7 @@ import { syncSessionPointDerivedData } from '@/lib/scalp/pipeline'
 import { runHairCountInference } from '@/lib/scalp/providers'
 import {
   deleteImageBySessionPointShotInSupabase,
+  getImageBySessionPointShotInSupabase,
   getCustomerSnapshot,
   replaceDerivedPointDataInSupabase,
   seedCapturePointsIfNeeded,
@@ -87,6 +88,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid_capture_point_code' }, { status: 400 })
   }
   if (file instanceof File) {
+    if (file.size === 0) {
+      return NextResponse.json({ error: 'file_empty' }, { status: 400 })
+    }
     if (!ALLOWED_MIME_TYPES.has(file.type)) {
       return NextResponse.json({ error: 'invalid_file_type' }, { status: 400 })
     }
@@ -113,6 +117,16 @@ export async function POST(req: Request) {
     try {
       await seedCapturePointsIfNeeded()
       const existingFile = file instanceof File ? file : null
+      if (!existingFile) {
+        const existingImage = await getImageBySessionPointShotInSupabase({
+          sessionId,
+          capturePointCode,
+          shotIndex,
+        })
+        if (!existingImage) {
+          return NextResponse.json({ error: 'file_required' }, { status: 400 })
+        }
+      }
       const storagePath = buildScalpImageStoragePath({
         customerId,
         sessionId,
@@ -136,7 +150,8 @@ export async function POST(req: Request) {
         magnification,
         lightingMode,
         hairState,
-        imageUrl: imageUrl ?? '',
+        imageUrl,
+        storageObjectKey: existingFile ? storagePath : null,
         nowISO: now,
       })
 
@@ -175,7 +190,7 @@ export async function POST(req: Request) {
       await upsertAiShotAnalysisInSupabase(shotAnalysis)
 
       const snapshot = await getCustomerSnapshot(customerId)
-      syncSessionPointDerivedData({
+      const affectedSessionIds = syncSessionPointDerivedData({
         db: snapshot,
         customerId,
         sessionId,
@@ -186,6 +201,7 @@ export async function POST(req: Request) {
         customerId,
         capturePointCode,
         snapshot,
+        sessionIds: affectedSessionIds,
       })
       await touchCustomerInSupabase(customerId, now)
 
@@ -395,7 +411,7 @@ export async function DELETE(req: Request) {
       ])
       const now = new Date().toISOString()
       const snapshot = await getCustomerSnapshot(deleted.customer_id)
-      syncSessionPointDerivedData({
+      const affectedSessionIds = syncSessionPointDerivedData({
         db: snapshot,
         customerId: deleted.customer_id,
         sessionId,
@@ -406,6 +422,7 @@ export async function DELETE(req: Request) {
         customerId: deleted.customer_id,
         capturePointCode,
         snapshot,
+        sessionIds: affectedSessionIds,
       })
       await touchCustomerInSupabase(deleted.customer_id, now)
       return NextResponse.json(deleted)
