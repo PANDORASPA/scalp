@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { jsonNoStore } from '@/lib/api/response'
 import { requireAuthRole } from '@/lib/auth/session'
 import { hasSupabaseServerEnv } from '@/lib/config/supabase'
 import { buildCustomerWorkspaceRows } from '@/lib/customers/workspace'
@@ -32,7 +33,7 @@ export async function GET(req: Request) {
         q,
         filter,
       })
-      return NextResponse.json(mode === 'workspace' ? workspace : workspace.rows)
+      return jsonNoStore(mode === 'workspace' ? workspace : workspace.rows)
     } catch (error) {
       return NextResponse.json({ error: toRepositoryError(error) }, { status: 500 })
     }
@@ -53,5 +54,5 @@ export async function GET(req: Request) {
     }
   })
 
-  return NextResponse.json(result)
+  return jsonNoStore(result)
 }

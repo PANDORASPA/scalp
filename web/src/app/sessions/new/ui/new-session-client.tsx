@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { fetchJson } from '@/lib/ui/fetch'
 
 function toDatetimeLocalValue(iso: string) {
   const d = new Date(iso)
@@ -89,7 +90,7 @@ export default function NewSessionClient() {
                   setSaving(true)
                   setError(null)
                   const iso = new Date(checkDate).toISOString()
-                  const res = await fetch('/api/sessions', {
+                  const created = await fetchJson<{ id: string }>('/api/sessions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -99,8 +100,6 @@ export default function NewSessionClient() {
                       notes: notes.trim(),
                     }),
                   })
-                  if (!res.ok) throw new Error('建立 session 失敗')
-                  const created = (await res.json()) as { id: string }
                   router.push(`/sessions/${created.id}/capture`)
                 } catch (e) {
                   setError(e instanceof Error ? e.message : '建立 session 失敗')

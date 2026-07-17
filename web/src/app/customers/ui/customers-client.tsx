@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card'
 import { DemoSeedButton } from '@/components/demo-seed-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { fetchJson } from '@/lib/ui/fetch'
 import { formatDate } from '@/lib/ui/format'
 
 type CustomerRow = {
@@ -130,8 +131,7 @@ function CustomerModal({
                     setSaving(true)
                     setError(null)
                     try {
-                      const res = await fetch(`/api/customers/${customer.id}`, { method: 'DELETE' })
-                      if (!res.ok) throw new Error('刪除客人失敗')
+                      await fetchJson(`/api/customers/${customer.id}`, { method: 'DELETE' })
                       onDeleted()
                     } catch (e) {
                       setError(e instanceof Error ? e.message : '刪除客人失敗')
@@ -158,12 +158,11 @@ function CustomerModal({
                   setSaving(true)
                   setError(null)
                   try {
-                    const res = await fetch(customer ? `/api/customers/${customer.id}` : '/api/customers', {
+                    await fetchJson(customer ? `/api/customers/${customer.id}` : '/api/customers', {
                       method: customer ? 'PATCH' : 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ name: name.trim(), phone: phone.trim(), notes: notes.trim() }),
                     })
-                    if (!res.ok) throw new Error(customer ? '更新客人失敗' : '新增客人失敗')
                     onSaved()
                     onClose()
                   } catch (e) {
@@ -200,20 +199,26 @@ export default function CustomersClient({
   })
   const [filter, setFilter] = useState<FilterKey>('all')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [openModal, setOpenModal] = useState(false)
   const [activeCustomer, setActiveCustomer] = useState<CustomerRow | null>(null)
 
   const fetchRows = useCallback(async (query: string) => {
     setLoading(true)
+    setLoadError(null)
     const url = new URL('/api/customers/overview', window.location.origin)
     url.searchParams.set('mode', 'workspace')
     url.searchParams.set('filter', filter)
     if (query.trim()) url.searchParams.set('q', query.trim())
-    const res = await fetch(url.toString())
-    const data = (await res.json()) as WorkspaceResponse
-    setRows(data.rows)
-    setSummary(data.summary)
-    setLoading(false)
+    try {
+      const data = await fetchJson<WorkspaceResponse>(url.toString())
+      setRows(data.rows)
+      setSummary(data.summary)
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : '載入客人清單失敗')
+    } finally {
+      setLoading(false)
+    }
   }, [filter])
 
   useEffect(() => {
@@ -278,6 +283,15 @@ export default function CustomersClient({
           </div>
         </div>
       </div>
+
+      {loadError ? (
+        <Card className="border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div>{loadError}</div>
+          <Button className="mt-3" variant="secondary" onClick={() => void fetchRows(q)} disabled={loading}>
+            重試載入
+          </Button>
+        </Card>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-5">
         {filterCards.map((item) => (

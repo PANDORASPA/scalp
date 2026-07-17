@@ -19,7 +19,12 @@ export async function POST(req: Request) {
   const auth = await requireAuthRole(['admin', 'staff'])
   if (!auth.ok) return auth.response
 
-  const form = await req.formData()
+  let form: FormData
+  try {
+    form = await req.formData()
+  } catch {
+    return NextResponse.json({ error: 'invalid_multipart_form' }, { status: 400 })
+  }
   const sessionId = form.get('sessionId')?.toString() ?? ''
   const customerId = form.get('customerId')?.toString() ?? ''
   const areaKey = form.get('areaKey')?.toString() ?? ''

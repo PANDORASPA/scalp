@@ -113,6 +113,9 @@ export type ScalpAreaSessionState = {
   label: string
   images: ScalpAnalysisImage[]
   summary: ScalpAreaSummary | null
+  uploaded_images: number
+  confirmed_images: number
+  pending_confirmation_images: number
   missing_images: number
   ready_for_average: boolean
 }
@@ -125,6 +128,14 @@ export type ScalpAnalysisSessionState = {
     phone: string | null
   } | null
   areas: ScalpAreaSessionState[]
+  progress: {
+    total_images: number
+    uploaded_images: number
+    confirmed_images: number
+    total_areas: number
+    ready_areas: number
+    pending_confirmation_areas: number
+  }
   report_lines: string[]
 }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { jsonNoStore } from '@/lib/api/response'
 import { requireAuthRole } from '@/lib/auth/session'
 import { getScalpAnalysisSessionState, toScalpAnalysisError } from '@/lib/scalp-analysis/service'
 
@@ -16,7 +17,7 @@ export async function GET(
   try {
     const state = await getScalpAnalysisSessionState(sessionId)
     if (!state) return NextResponse.json({ error: 'not_found' }, { status: 404 })
-    return NextResponse.json(state)
+    return jsonNoStore(state)
   } catch (error) {
     return NextResponse.json({ error: toScalpAnalysisError(error) }, { status: 500 })
   }

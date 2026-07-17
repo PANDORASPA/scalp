@@ -404,15 +404,23 @@ export async function getTrackingSessionStateRecord(sessionId: string): Promise<
   const areas = SCALP_ANALYSIS_AREA_KEYS.map((areaKey) => {
     const areaImages = images.filter((image) => image.area_key === areaKey)
     const summary = summaries.find((item) => item.area_key === areaKey) ?? null
+    const confirmedImages = areaImages.filter((image) => image.analysis_status === 'confirmed')
     return {
       area_key: areaKey,
       label: SCALP_ANALYSIS_AREA_LABELS[areaKey],
       images: areaImages,
       summary,
+      uploaded_images: areaImages.length,
+      confirmed_images: confirmedImages.length,
+      pending_confirmation_images: areaImages.filter((image) => image.analysis_status !== 'confirmed').length,
       missing_images: Math.max(0, 3 - areaImages.length),
       ready_for_average: areaImages.length === 3 && areaImages.every((image) => image.analysis_status === 'confirmed'),
     }
   })
+
+  const readyAreas = areas.filter((area) => area.ready_for_average).length
+  const uploadedImages = areas.reduce((total, area) => total + area.uploaded_images, 0)
+  const confirmedImages = areas.reduce((total, area) => total + area.confirmed_images, 0)
 
   return {
     session,
@@ -424,6 +432,16 @@ export async function getTrackingSessionStateRecord(sessionId: string): Promise<
         }
       : null,
     areas,
+    progress: {
+      total_images: SCALP_ANALYSIS_AREA_KEYS.length * 3,
+      uploaded_images: uploadedImages,
+      confirmed_images: confirmedImages,
+      total_areas: SCALP_ANALYSIS_AREA_KEYS.length,
+      ready_areas: readyAreas,
+      pending_confirmation_areas: areas.filter(
+        (area) => area.uploaded_images > 0 && !area.ready_for_average,
+      ).length,
+    },
     report_lines: summaries
       .sort((a, b) => a.area_key.localeCompare(b.area_key))
       .map((summary) => summary.report_summary)

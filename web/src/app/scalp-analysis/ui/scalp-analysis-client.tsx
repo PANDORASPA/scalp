@@ -51,6 +51,21 @@ function formatMetric(value: number | null, suffix = '') {
   return `${Math.round(value * 10) / 10}${suffix}`
 }
 
+function toDatetimeLocalValue(iso: string) {
+  const date = new Date(iso)
+  const pad = (value: number) => value.toString().padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function getImageStatusLabel(status: ScalpAnalysisImage['analysis_status'] | null) {
+  if (!status) return '未上傳'
+  if (status === 'uploaded') return '已上傳，等待分析'
+  if (status === 'ai_ready') return 'AI 已完成，待確認'
+  if (status === 'ai_failed') return 'AI 失敗，可重試或人手標記'
+  if (status === 'confirmed') return '已確認，已計入統計'
+  return '處理中'
+}
+
 function SummaryPanel({ summary }: { summary: ScalpAreaSummary | null }) {
   if (!summary) {
     return <div className="text-sm text-slate-500">需要 3 張已確認圖片，才會產生平均值、上次比較和 baseline 比較。</div>
@@ -107,6 +122,7 @@ export default function ScalpAnalysisClient() {
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [createNotes, setCreateNotes] = useState('')
+  const [createDate, setCreateDate] = useState(() => toDatetimeLocalValue(new Date().toISOString()))
   const [integrations, setIntegrations] = useState<IntegrationStatus[]>([])
 
   useEffect(() => {
@@ -242,6 +258,11 @@ export default function ScalpAnalysisClient() {
             <div className="mt-4 grid gap-2">
               <Label>建立新的頭皮檢查</Label>
               <Input
+                type="datetime-local"
+                value={createDate}
+                onChange={(e) => setCreateDate(e.target.value)}
+              />
+              <Input
                 value={createNotes}
                 onChange={(e) => setCreateNotes(e.target.value)}
                 placeholder="可輸入今次檢查備註"
@@ -258,13 +279,14 @@ export default function ScalpAnalysisClient() {
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
                         customerId,
-                        sessionDate: new Date().toISOString(),
+                        sessionDate: new Date(createDate).toISOString(),
                         notes: createNotes || null,
                       }),
                     })
                     await loadSessions(customerId)
                     setSessionId(created.id)
                     setCreateNotes('')
+                    setCreateDate(toDatetimeLocalValue(new Date().toISOString()))
                   } catch (e) {
                     setError(e instanceof Error ? e.message : '建立 session 失敗')
                   } finally {
@@ -350,8 +372,25 @@ export default function ScalpAnalysisClient() {
                     <div className="mt-1 text-sm text-slate-600">{sessionState.session.notes || '未有 session 備註。'}</div>
                   </div>
                   <div className="text-xs text-slate-500">
-                    {sessionState.areas.filter((area) => area.ready_for_average).length}/{sessionState.areas.length} 個部位可產生平均
+                    {sessionState.progress.ready_areas}/{sessionState.progress.total_areas} 個部位可產生平均
                   </div>
+                </div>
+                <div className="mt-4">
+                  <div className="flex justify-between text-xs text-slate-500">
+                    <span>圖片進度：{sessionState.progress.confirmed_images}/{sessionState.progress.total_images} 已確認</span>
+                    <span>{sessionState.progress.uploaded_images}/{sessionState.progress.total_images} 已上傳</span>
+                  </div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-full rounded-full bg-blue-600 transition-all"
+                      style={{ width: `${Math.round((sessionState.progress.confirmed_images / sessionState.progress.total_images) * 100)}%` }}
+                    />
+                  </div>
+                  {sessionState.progress.pending_confirmation_areas > 0 ? (
+                    <div className="mt-2 text-xs text-amber-700">
+                      有 {sessionState.progress.pending_confirmation_areas} 個部位已上傳圖片，但仍有標記未確認。
+                    </div>
+                  ) : null}
                 </div>
               </Card>
 
@@ -372,7 +411,12 @@ export default function ScalpAnalysisClient() {
                     <div>
                       <div className="text-lg font-semibold text-slate-900">{area.label}</div>
                       <div className="mt-1 text-sm text-slate-600">
-                        已上傳 {area.images.length}/3 張 {area.ready_for_average ? '| 已產生平均' : '| 等待 3 張已確認圖片'}
+                        已上傳 {area.uploaded_images}/3 張，已確認 {area.confirmed_images}/3 張{' '}
+                        {area.ready_for_average
+                          ? '| 已產生平均'
+                          : area.missing_images > 0
+                            ? `| 尚欠 ${area.missing_images} 張圖片`
+                            : `| 尚有 ${area.pending_confirmation_images} 張待確認`}
                       </div>
                     </div>
                   </div>
@@ -386,7 +430,7 @@ export default function ScalpAnalysisClient() {
                         <Card key={fileKey} className="p-3">
                           <div className="flex items-center justify-between">
                             <div className="text-sm font-medium">圖片 {imageIndex}</div>
-                            <div className="text-xs text-slate-500">{image?.analysis_status ?? '未上傳'}</div>
+                            <div className="text-xs text-slate-500">{getImageStatusLabel(image?.analysis_status ?? null)}</div>
                           </div>
 
                           <div className="mt-3 grid gap-2">
@@ -431,6 +475,26 @@ export default function ScalpAnalysisClient() {
                               >
                                 {busyKey === `upload:${fileKey}` ? '上傳中...' : image ? '更換圖片' : '上傳圖片'}
                               </Button>
+                              {image?.analysis_status === 'ai_failed' ? (
+                                <Button
+                                  variant="secondary"
+                                  disabled={busyKey === `retry:${image.id}`}
+                                  onClick={async () => {
+                                    setBusyKey(`retry:${image.id}`)
+                                    setError(null)
+                                    try {
+                                      await fetchJSON(`/api/scalp-analysis/images/${image.id}`, { method: 'POST' })
+                                      await refreshCurrentSession()
+                                    } catch (e) {
+                                      setError(e instanceof Error ? e.message : 'AI 重新分析失敗')
+                                    } finally {
+                                      setBusyKey(null)
+                                    }
+                                  }}
+                                >
+                                  {busyKey === `retry:${image.id}` ? '重試中...' : '重試 AI'}
+                                </Button>
+                              ) : null}
                               {image ? (
                                 <Button
                                   variant="danger"

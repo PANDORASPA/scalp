@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { readJsonBody } from '@/lib/api/json'
+import { jsonNoStore } from '@/lib/api/response'
 import { requireAuthRole } from '@/lib/auth/session'
 import { createScalpSession, toScalpAnalysisError } from '@/lib/scalp-analysis/service'
 import { listTrackingSessions } from '@/lib/scalp-analysis/repository'
@@ -22,7 +23,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    return NextResponse.json(await listTrackingSessions(customerId))
+    return jsonNoStore(await listTrackingSessions(customerId))
   } catch (error) {
     return NextResponse.json({ error: toScalpAnalysisError(error) }, { status: 500 })
   }

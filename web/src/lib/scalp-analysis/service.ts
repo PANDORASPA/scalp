@@ -85,10 +85,8 @@ function buildObjectKey(params: {
   sessionId: string
   areaKey: ScalpAnalysisAreaKey
   imageIndex: 1 | 2 | 3
-  fileName: string
 }) {
-  const safeName = params.fileName.replace(/[^a-zA-Z0-9._-]+/g, '-')
-  return `${params.customerId}/${params.sessionId}/${params.areaKey}/${params.imageIndex}-${safeName}`
+  return `${params.customerId}/${params.sessionId}/${params.areaKey}/${params.imageIndex}.jpg`
 }
 
 export async function uploadScalpImage(input: UploadInput) {
@@ -110,7 +108,6 @@ export async function uploadScalpImage(input: UploadInput) {
     sessionId: input.sessionId,
     areaKey: input.areaKey,
     imageIndex: input.imageIndex,
-    fileName: input.file.name || `shot-${input.imageIndex}.jpg`,
   })
   const bytes = Buffer.from(await input.file.arrayBuffer())
   const uploaded = await adapter.upload({
@@ -166,6 +163,32 @@ export async function uploadScalpImage(input: UploadInput) {
   await calculateAreaSummary(input.sessionId, input.areaKey)
   await touchCustomerInSupabase(input.customerId, now)
   return image
+}
+
+export async function retryScalpImageAnalysis(imageId: string) {
+  const image = await getTrackingImageById(imageId)
+  if (!image) throw new Error('missing_image: Scalp analysis image not found.')
+  if (image.analysis_status === 'confirmed') {
+    throw new Error('ai_retry_not_allowed: Confirmed images should be edited through annotations.')
+  }
+
+  const now = new Date().toISOString()
+  try {
+    const aiResult = await analyzeScalpImage(image.image_url)
+    return updateTrackingImageRecord(imageId, {
+      analysis_status: 'ai_ready',
+      ai_result_json: aiResult,
+      analysis_notes: aiResult.notes,
+      updated_at: now,
+    })
+  } catch (error) {
+    await updateTrackingImageRecord(imageId, {
+      analysis_status: 'ai_failed',
+      analysis_notes: error instanceof Error ? error.message : 'AI analysis failed',
+      updated_at: now,
+    })
+    throw error
+  }
 }
 
 export async function saveConfirmedAnnotations(imageId: string, annotationsJson: unknown) {

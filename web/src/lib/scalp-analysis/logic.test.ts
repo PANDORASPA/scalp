@@ -1,7 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { calculateAreaAverages, calculateStatsFromAnnotations, compareAreaSummaries, createEmptyAnnotations } from './logic'
+import {
+  calculateAreaAverages,
+  calculateStatsFromAnnotations,
+  compareAreaSummaries,
+  createEmptyAnnotations,
+  normalizeAnnotations,
+} from './logic'
 import type { ScalpAnalysisImage } from './types'
 
 test('calculateStatsFromAnnotations derives counts and keeps score overrides', () => {
@@ -29,6 +35,27 @@ test('calculateStatsFromAnnotations derives counts and keeps score overrides', (
   assert.equal(stats.oiliness_score, 5)
   assert.equal(stats.scalp_empty_ratio, 28)
   assert.equal(stats.density_score, 66)
+})
+
+test('normalizeAnnotations prevents invalid or out-of-range manual values from polluting stats', () => {
+  const normalized = normalizeAnnotations({
+    baby_hairs: [{ x: 20, y: 30, confidence: 4 }],
+    blockages: [{ x: 40, y: 50, radius: -20, severity: 99 }],
+    scores: {
+      scalp_empty_ratio: 140,
+      redness_score: 'not-a-number',
+      oiliness_score: -4,
+      density_score: 101,
+    },
+  })
+
+  assert.equal(normalized.baby_hairs[0]?.confidence, 1)
+  assert.equal(normalized.blockages[0]?.radius, 1)
+  assert.equal(normalized.blockages[0]?.severity, 5)
+  assert.equal(normalized.scores.scalp_empty_ratio, 100)
+  assert.equal(normalized.scores.redness_score, null)
+  assert.equal(normalized.scores.oiliness_score, 0)
+  assert.equal(normalized.scores.density_score, 100)
 })
 
 test('compareAreaSummaries produces deltas and readable summary lines', () => {

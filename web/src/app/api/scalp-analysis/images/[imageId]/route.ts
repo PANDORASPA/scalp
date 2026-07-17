@@ -1,9 +1,24 @@
 import { NextResponse } from 'next/server'
 
 import { requireAuthRole } from '@/lib/auth/session'
-import { removeScalpImage, toScalpAnalysisError } from '@/lib/scalp-analysis/service'
+import { removeScalpImage, retryScalpImageAnalysis, toScalpAnalysisError } from '@/lib/scalp-analysis/service'
 
 export const runtime = 'nodejs'
+
+export async function POST(
+  _req: Request,
+  { params }: { params: Promise<{ imageId: string }> },
+) {
+  const auth = await requireAuthRole(['admin', 'staff'])
+  if (!auth.ok) return auth.response
+
+  const { imageId } = await params
+  try {
+    return NextResponse.json(await retryScalpImageAnalysis(imageId))
+  } catch (error) {
+    return NextResponse.json({ error: toScalpAnalysisError(error) }, { status: 500 })
+  }
+}
 
 export async function DELETE(
   _req: Request,

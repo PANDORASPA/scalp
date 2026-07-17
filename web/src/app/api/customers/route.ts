@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { readJsonBody } from '@/lib/api/json'
+import { jsonNoStore } from '@/lib/api/response'
 import { requireAuthRole } from '@/lib/auth/session'
 import { hasSupabaseServerEnv } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
@@ -27,7 +28,7 @@ export async function GET(req: Request) {
 
   if (hasSupabaseServerEnv()) {
     try {
-      return NextResponse.json(await listCustomersFromSupabase(q))
+      return jsonNoStore(await listCustomersFromSupabase(q))
     } catch (error) {
       return NextResponse.json({ error: toRepositoryError(error) }, { status: 500 })
     }
@@ -47,7 +48,7 @@ export async function GET(req: Request) {
     return { db, result: customers }
   })
 
-  return NextResponse.json(result)
+  return jsonNoStore(result)
 }
 
 export async function POST(req: Request) {

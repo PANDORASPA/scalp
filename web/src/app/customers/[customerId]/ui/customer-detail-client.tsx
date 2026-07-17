@@ -12,6 +12,7 @@ import { CAPTURE_POINT_CODES } from '@/lib/scalp/constants'
 import { getCapturePointLabel } from '@/lib/scalp/display'
 import type { ScalpAnalysisSessionState } from '@/lib/scalp-analysis/types'
 import type { ScalpPointSummary, ScalpSession } from '@/lib/scalp/types'
+import { fetchJson } from '@/lib/ui/fetch'
 import { formatDate } from '@/lib/ui/format'
 
 type CustomerRecord = {
@@ -182,8 +183,7 @@ function CustomerEditorModal({
                 setSaving(true)
                 setError(null)
                 try {
-                  const res = await fetch(`/api/customers/${customer.id}`, { method: 'DELETE' })
-                  if (!res.ok) throw new Error('刪除客人失敗')
+                  await fetchJson(`/api/customers/${customer.id}`, { method: 'DELETE' })
                   onDeleted()
                 } catch (e) {
                   setError(e instanceof Error ? e.message : '刪除客人失敗')
@@ -210,7 +210,7 @@ function CustomerEditorModal({
                 setSaving(true)
                 setError(null)
                 try {
-                  const res = await fetch(`/api/customers/${customer.id}`, {
+                  await fetchJson(`/api/customers/${customer.id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -219,7 +219,6 @@ function CustomerEditorModal({
                       notes: notes.trim(),
                     }),
                   })
-                  if (!res.ok) throw new Error('更新客人資料失敗')
                   onSaved()
                   onClose()
                 } catch (e) {
@@ -306,8 +305,7 @@ function SessionEditorModal({
                   setSaving(true)
                   setError(null)
                   try {
-                    const res = await fetch(`/api/sessions/${session.id}`, { method: 'DELETE' })
-                    if (!res.ok) throw new Error('刪除 session 失敗')
+                    await fetchJson(`/api/sessions/${session.id}`, { method: 'DELETE' })
                     onDeleted()
                   } catch (e) {
                     setError(e instanceof Error ? e.message : '刪除 session 失敗')
@@ -334,7 +332,7 @@ function SessionEditorModal({
                   setSaving(true)
                   setError(null)
                   try {
-                    const res = await fetch(`/api/sessions/${session.id}`, {
+                    await fetchJson(`/api/sessions/${session.id}`, {
                       method: 'PATCH',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
@@ -343,7 +341,6 @@ function SessionEditorModal({
                         notes: notes.trim(),
                       }),
                     })
-                    if (!res.ok) throw new Error('更新 session 失敗')
                     onSaved()
                     onClose()
                   } catch (e) {
@@ -383,21 +380,15 @@ export default function CustomerDetailClient({
     setError(null)
     setTrackingError(null)
     try {
-      const res = await fetch(`/api/customers/${customerId}/overview`)
-      if (!res.ok) throw new Error('找不到客人資料')
-      const json = (await res.json()) as OverviewResponse
+      const json = await fetchJson<OverviewResponse>(`/api/customers/${customerId}/overview`)
       setData(json)
 
-      const trackingRes = await fetch(`/api/scalp-analysis/sessions?customerId=${customerId}`)
-      if (!trackingRes.ok) throw new Error('載入頭皮追蹤 session 失敗')
-      const trackingList = (await trackingRes.json()) as ScalpSession[]
+      const trackingList = await fetchJson<ScalpSession[]>(`/api/scalp-analysis/sessions?customerId=${customerId}`)
       setTrackingSessions(trackingList)
 
       const latestTracking = trackingList[0] ?? null
       if (latestTracking) {
-        const stateRes = await fetch(`/api/scalp-analysis/sessions/${latestTracking.id}`)
-        if (!stateRes.ok) throw new Error('載入最近頭皮追蹤狀態失敗')
-        setLatestTrackingState((await stateRes.json()) as ScalpAnalysisSessionState)
+        setLatestTrackingState(await fetchJson<ScalpAnalysisSessionState>(`/api/scalp-analysis/sessions/${latestTracking.id}`))
       } else {
         setLatestTrackingState(null)
       }

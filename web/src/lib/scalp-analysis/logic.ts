@@ -31,6 +31,16 @@ export function normalizeAnnotations(input: unknown): ScalpAnalysisAnnotations {
   const source = input as Record<string, unknown>
   const fallback = createEmptyAnnotations()
 
+  function finiteOrNull(value: unknown) {
+    const number = Number(value)
+    return Number.isFinite(number) ? number : null
+  }
+
+  function boundedNumber(value: unknown, min: number, max: number) {
+    const number = finiteOrNull(value)
+    return number === null ? null : Math.max(min, Math.min(max, number))
+  }
+
   function normalizePointArray(key: string) {
     const value = source[key]
     if (!Array.isArray(value)) return []
@@ -45,7 +55,7 @@ export function normalizeAnnotations(input: unknown): ScalpAnalysisAnnotations {
           confidence:
             marker.confidence === null || marker.confidence === undefined
               ? null
-              : Number(marker.confidence),
+              : boundedNumber(marker.confidence, 0, 1),
         }
       })
       .filter((marker) => Number.isFinite(marker.x) && Number.isFinite(marker.y))
@@ -62,15 +72,15 @@ export function normalizeAnnotations(input: unknown): ScalpAnalysisAnnotations {
           id: typeof marker.id === 'string' ? marker.id : `${key}-${index + 1}`,
           x: Number(marker.x ?? 0),
           y: Number(marker.y ?? 0),
-          radius: Number(marker.radius ?? 12),
+          radius: boundedNumber(marker.radius ?? 12, 1, 200) ?? 12,
           confidence:
             marker.confidence === null || marker.confidence === undefined
               ? null
-              : Number(marker.confidence),
+              : boundedNumber(marker.confidence, 0, 1),
           severity:
             marker.severity === null || marker.severity === undefined
               ? null
-              : Number(marker.severity),
+              : boundedNumber(marker.severity, 1, 5),
         }
       })
       .filter(
@@ -91,27 +101,27 @@ export function normalizeAnnotations(input: unknown): ScalpAnalysisAnnotations {
       scalp_empty_ratio:
         scores.scalp_empty_ratio === null || scores.scalp_empty_ratio === undefined
           ? fallback.scores.scalp_empty_ratio
-          : Number(scores.scalp_empty_ratio),
+          : boundedNumber(scores.scalp_empty_ratio, 0, 100),
       redness_score:
         scores.redness_score === null || scores.redness_score === undefined
           ? fallback.scores.redness_score
-          : Number(scores.redness_score),
+          : boundedNumber(scores.redness_score, 0, 10),
       oiliness_score:
         scores.oiliness_score === null || scores.oiliness_score === undefined
           ? fallback.scores.oiliness_score
-          : Number(scores.oiliness_score),
+          : boundedNumber(scores.oiliness_score, 0, 10),
       blockage_score:
         scores.blockage_score === null || scores.blockage_score === undefined
           ? fallback.scores.blockage_score
-          : Number(scores.blockage_score),
+          : boundedNumber(scores.blockage_score, 0, 10),
       density_score:
         scores.density_score === null || scores.density_score === undefined
           ? fallback.scores.density_score
-          : Number(scores.density_score),
+          : boundedNumber(scores.density_score, 0, 100),
     },
     notes: typeof source.notes === 'string' ? source.notes : '',
-    image_width: source.image_width === undefined || source.image_width === null ? null : Number(source.image_width),
-    image_height: source.image_height === undefined || source.image_height === null ? null : Number(source.image_height),
+    image_width: source.image_width === undefined || source.image_width === null ? null : boundedNumber(source.image_width, 1, 10000),
+    image_height: source.image_height === undefined || source.image_height === null ? null : boundedNumber(source.image_height, 1, 10000),
   }
 }
 

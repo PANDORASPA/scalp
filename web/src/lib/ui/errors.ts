@@ -1,4 +1,23 @@
 export function getHumanErrorMessage(error: string) {
+  if (error.includes('invalid_json')) return '送出的資料格式不正確，請重新嘗試。'
+  if (error.includes('not_found')) return '找不到相關資料，可能已被刪除；請重新整理頁面。'
+  if (error.includes('customer_id_required') || error.includes('customer_id_and_check_date_required')) {
+    return '請先選擇客人及檢查日期。'
+  }
+  if (error.includes('customer_not_found')) return '找不到這位客人，請重新選擇客人。'
+  if (error.includes('name_required')) return '請輸入至少 2 個字元的客人姓名。'
+  if (error.includes('invalid_phone')) return '電話格式不正確，請只輸入數字、空格或 +()- 符號。'
+  if (error.includes('invalid_check_date') || error.includes('invalid_session_date')) {
+    return '檢查日期格式不正確，請重新選擇。'
+  }
+  if (error.includes('file_required')) return '請先選擇圖片。'
+  if (error.includes('invalid_file_type')) return '只接受 JPG、PNG 或 WebP 圖片。'
+  if (error.includes('file_too_large')) return '圖片不可大於 8MB，請壓縮後再上傳。'
+  if (error.includes('missing_required_fields')) return '圖片資料不完整，請重新選擇部位及圖片編號。'
+  if (error.includes('invalid_multipart_form')) return '圖片表單格式不正確，請重新選擇圖片後再試。'
+  if (error.includes('capture_points_missing')) return '固定拍攝部位尚未完成設定，請先執行 Supabase migration。'
+  if (error.includes('incomplete_images')) return '此部位需要 3 張圖片，而且每張都要確認標記後才可計算平均。'
+  if (error.includes('storage_provider')) return '圖片儲存設定不完整，請到系統設定檢查 Google Drive。'
   if (error.includes('supabase_env_missing')) {
     return 'Supabase 尚未設定完成，暫時不能儲存資料。請到系統設定檢查環境變數。'
   }
@@ -17,5 +36,6 @@ export function getHumanErrorMessage(error: string) {
   if (error.includes('annotations_required')) {
     return '請先確認或新增標記，然後再儲存。'
   }
+  if (error.includes('ai_retry_not_allowed')) return '這張圖片目前不需要重新分析，請先完成或重新上傳。'
   return error || '操作失敗，請稍後再試。'
 }
