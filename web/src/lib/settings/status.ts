@@ -1,16 +1,18 @@
 import { hasGoogleDriveEnv } from '@/lib/config/google-drive'
 import { normalizeScalpAnalysisAiProvider } from '@/lib/config/scalp-analysis-ai'
 import { explainSupabaseConnectivityError, testSupabaseConnectivity } from '@/lib/config/supabase-connectivity'
+import { getSupabaseServerEnvIssue } from '@/lib/config/supabase'
 import { getAuthReadinessStatus } from '@/lib/auth/users'
 import { getScalpStorageProviderName } from '@/lib/scalp-analysis/storage'
 import { getAppSettings, hasCompleteGoogleDriveSettings, hasOpenAiApiKey } from '@/lib/settings/repository'
+import { getSupabaseIntegrationMode } from './integration-mode'
 
 export type IntegrationStatus = {
   key: string
   label: string
   ready: boolean
   officialReady: boolean
-  mode: 'official' | 'demo' | 'mock' | 'missing'
+  mode: 'official' | 'demo' | 'mock' | 'missing' | 'unavailable'
   requiredFor: string
   details: string
   nextAction?: string
@@ -18,10 +20,12 @@ export type IntegrationStatus = {
 }
 
 async function getSupabaseConnectionStatus() {
+  const envIssue = getSupabaseServerEnvIssue()
   try {
     await testSupabaseConnectivity()
     return {
       ready: true,
+      mode: getSupabaseIntegrationMode({ ready: true, envIssue }),
       details: '已連接正式 Supabase 資料庫。',
     }
   } catch (error) {
@@ -31,6 +35,7 @@ async function getSupabaseConnectionStatus() {
     }
     return {
       ready: false,
+      mode: getSupabaseIntegrationMode({ ready: false, envIssue }),
       details: `Supabase connection is not ready: ${explained}`,
     }
   }
@@ -54,7 +59,7 @@ export async function getSystemStatus(): Promise<IntegrationStatus[]> {
       label: 'Supabase 資料庫',
       ready: supabase.ready,
       officialReady: supabase.ready,
-      mode: supabase.ready ? 'official' : 'missing',
+      mode: supabase.mode,
       requiredFor: '客戶、session、分析結果與報告長期儲存',
       details: supabase.details,
       nextAction: supabase.ready

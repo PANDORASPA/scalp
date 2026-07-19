@@ -70,6 +70,7 @@ function getModeLabel(item: IntegrationStatus) {
   if (item.mode === 'official') return '正式可用'
   if (item.mode === 'demo') return 'Demo 可測'
   if (item.mode === 'mock') return 'Mock 可測'
+  if (item.mode === 'unavailable') return '連線失敗'
   return '未完成'
 }
 

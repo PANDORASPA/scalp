@@ -71,6 +71,8 @@
     "src/lib/ui/workspace-load.test.ts",
     "src/lib/settings/health.ts",
     "src/lib/settings/health.test.ts",
+    "src/lib/settings/integration-mode.ts",
+    "src/lib/settings/integration-mode.test.ts",
     "src/lib/settings/secret-merge.ts",
     "src/lib/settings/secret-merge.test.ts",
     "src/lib/settings/status.ts",
