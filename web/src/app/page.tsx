@@ -6,14 +6,51 @@ import { Card } from '@/components/ui/card'
 import { getAuthSession } from '@/lib/auth/session'
 import { hasSupabaseServerEnv, isDeployedRuntime } from '@/lib/config/supabase'
 import { buildCustomerWorkspaceRows } from '@/lib/customers/workspace'
-import { readDb } from '@/lib/mockdb/store'
+import { readDb, type MockDb } from '@/lib/mockdb/store'
 import { getWorkspaceSnapshot } from '@/lib/supabase/repository'
+import { getWorkspaceLoadError } from '@/lib/ui/home-status'
+import { withWorkspaceLoadTimeout } from '@/lib/ui/workspace-load'
 
 export default async function HomePage() {
   const session = await getAuthSession()
-  const db = hasSupabaseServerEnv()
-    ? await getWorkspaceSnapshot()
-    : await readDb()
+  let db: Pick<MockDb, 'customers' | 'sessions' | 'pointSummaries'> | null = null
+  let loadError: ReturnType<typeof getWorkspaceLoadError> | null = null
+
+  try {
+    db = hasSupabaseServerEnv()
+      ? await withWorkspaceLoadTimeout(() => getWorkspaceSnapshot())
+      : await readDb()
+  } catch (error) {
+    loadError = getWorkspaceLoadError(error)
+  }
+
+  if (loadError || !db) {
+    return (
+      <AppShell>
+        <div className="mx-auto max-w-3xl space-y-4 p-6">
+          <Card className="border-red-200 bg-red-50 p-6">
+            <div className="text-xs font-medium uppercase tracking-wide text-red-700">工作台資料暫時不可用</div>
+            <h1 className="mt-2 text-xl font-semibold text-red-950">{loadError?.message ?? '工作台未能載入。'}</h1>
+            <p className="mt-3 text-sm text-red-900">
+              系統沒有顯示空白統計，避免將連線故障誤當成沒有客人資料。
+            </p>
+            <div className="mt-4 rounded-md border border-red-200 bg-white/70 p-3 text-xs text-red-800">
+              {loadError?.detail ?? '請到設定頁檢查系統狀態。'}
+            </div>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700" href="/settings">
+                檢查系統設定
+              </Link>
+              <Link className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-50" href="/">
+                重新載入
+              </Link>
+            </div>
+          </Card>
+        </div>
+      </AppShell>
+    )
+  }
+
   const { summary } = buildCustomerWorkspaceRows({
     customers: db.customers,
     sessions: db.sessions,
