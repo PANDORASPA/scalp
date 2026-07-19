@@ -56,6 +56,60 @@ export type ScalpAnalysisReport = {
   warnings: string[]
 }
 
+function csvCell(value: string | number | null | undefined) {
+  const text = value === null || value === undefined ? '' : String(value)
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
+}
+
+function exportMetric(value: number | null) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : ''
+}
+
+function exportComparison(comparison: ScalpSessionComparison | null) {
+  return comparison?.summary_lines.join('；') ?? ''
+}
+
+export function buildScalpAnalysisCsv(report: ScalpAnalysisReport) {
+  const header = [
+    '部位',
+    '狀態',
+    '已上傳圖片',
+    '已確認圖片',
+    '一致性分數',
+    '幼毛',
+    '粗髮',
+    '空毛囊',
+    '堵塞',
+    '空白頭皮比例',
+    '紅腫',
+    '出油',
+    '密度分數',
+    '今次摘要',
+    '上次比較',
+    'Baseline 比較',
+  ]
+  const rows = report.areas.map((area) => [
+    area.label,
+    area.status === 'complete' ? '已完成' : '未完成',
+    area.uploaded_images,
+    area.confirmed_images,
+    exportMetric(area.consistency_score),
+    exportMetric(area.metrics.average_baby_hair_count),
+    exportMetric(area.metrics.average_coarse_hair_count),
+    exportMetric(area.metrics.average_empty_follicle_count),
+    exportMetric(area.metrics.average_blockage_count),
+    exportMetric(area.metrics.average_scalp_empty_ratio),
+    exportMetric(area.metrics.average_redness_score),
+    exportMetric(area.metrics.average_oiliness_score),
+    exportMetric(area.metrics.average_density_score),
+    area.report_summary ?? '',
+    exportComparison(area.compared_to_previous),
+    exportComparison(area.compared_to_baseline),
+  ])
+
+  return `\uFEFF${[header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n')}\r\n`
+}
+
 function emptyMetrics(): Record<ScalpReportMetricKey, number | null> {
   return Object.fromEntries(SCALP_REPORT_METRIC_KEYS.map((key) => [key, null])) as Record<
     ScalpReportMetricKey,

@@ -62,6 +62,8 @@
     "src/lib/scalp-analysis/storage/types.ts",
     "src/lib/scalp-analysis/storage/google-drive-http.ts",
     "src/lib/scalp-analysis/storage/google-drive-http.test.ts",
+    "src/lib/scalp-analysis/storage/google-drive.ts",
+    "src/lib/scalp-analysis/storage/google-drive.test.ts",
     "src/lib/scalp-analysis/storage-cleanup-plan.ts",
     "src/lib/scalp-analysis/storage-cleanup-plan.test.ts",
     "src/lib/scalp-analysis/storage-consistency.ts",

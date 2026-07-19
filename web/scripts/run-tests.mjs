@@ -38,6 +38,7 @@ const tests = spawnSync(
     '.test-dist/lib/config/scalp-analysis-ai.test.js',
     '.test-dist/lib/config/google-drive.test.js',
     '.test-dist/lib/scalp-analysis/storage/google-drive-http.test.js',
+    '.test-dist/lib/scalp-analysis/storage/google-drive.test.js',
     '.test-dist/lib/config/supabase.test.js',
     '.test-dist/lib/customers/workspace.test.js',
     '.test-dist/lib/scalp/ai.test.js',

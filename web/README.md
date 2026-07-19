@@ -216,7 +216,8 @@ Important: share that folder with the service account `client_email` as Editor b
 8. Replacing or deleting an existing image asks for confirmation because it changes confirmed annotations and derived summaries.
 9. Manual annotation edits show an unsaved warning and the browser warns before refresh/close until the annotations are confirmed.
 10. Use the structured report view to review completed and incomplete areas, current averages, previous/baseline comparisons,
-    and capture consistency before printing or saving the report as PDF.
+    and capture consistency before printing or saving the report as PDF. You can also export the same report as CSV for
+    spreadsheet follow-up or JSON for an internal archive.
 11. On a phone, use the upload controls to open the rear camera directly; desktop users can continue selecting files.
 
 ### Manual checklist

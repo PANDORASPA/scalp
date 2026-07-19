@@ -63,6 +63,34 @@ async function getAccessToken(env: GoogleDriveEnv) {
   return json.access_token
 }
 
+async function deleteDriveFileWithToken(accessToken: string, env: GoogleDriveEnv, fileId: string) {
+  const res = await fetchWithGoogleDriveTimeout(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?supportsAllDrives=true`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    env.timeoutMs,
+  )
+  if (!res.ok && res.status !== 404) {
+    const text = await res.text()
+    throw new Error(`Google Drive delete failed: ${res.status} ${text}`)
+  }
+}
+
+async function rollbackUploadedDriveFile(accessToken: string, env: GoogleDriveEnv, fileId: string) {
+  try {
+    await deleteDriveFileWithToken(accessToken, env, fileId)
+  } catch (error) {
+    console.warn(
+      `Google Drive upload rollback failed for ${fileId}`,
+      error instanceof Error ? error.message : String(error),
+    )
+  }
+}
+
 export async function testGoogleDriveConnection() {
   const env = await getConfiguredGoogleDriveEnv()
   const accessToken = await getAccessToken(env)
@@ -189,25 +217,30 @@ export const googleDriveStorageAdapter: ScalpStorageAdapter = {
     if (!uploaded.id) throw new Error('Google Drive upload failed: missing file id')
 
     if (env.publicAccess) {
-      const permissionRes = await fetchWithGoogleDriveTimeout(
-        `https://www.googleapis.com/drive/v3/files/${uploaded.id}/permissions?supportsAllDrives=true`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
+      try {
+        const permissionRes = await fetchWithGoogleDriveTimeout(
+          `https://www.googleapis.com/drive/v3/files/${uploaded.id}/permissions?supportsAllDrives=true`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              role: 'reader',
+              type: 'anyone',
+            }),
           },
-          body: JSON.stringify({
-            role: 'reader',
-            type: 'anyone',
-          }),
-        },
-        env.timeoutMs,
-      )
+          env.timeoutMs,
+        )
 
-      if (!permissionRes.ok) {
-        const text = await permissionRes.text()
-        throw new Error(`Google Drive permission failed: ${permissionRes.status} ${text}`)
+        if (!permissionRes.ok) {
+          const text = await permissionRes.text()
+          throw new Error(`Google Drive permission failed: ${permissionRes.status} ${text}`)
+        }
+      } catch (error) {
+        await rollbackUploadedDriveFile(accessToken, env, uploaded.id)
+        throw error
       }
     }
 
@@ -223,20 +256,7 @@ export const googleDriveStorageAdapter: ScalpStorageAdapter = {
     if (!fileId) return
     const env = await getConfiguredGoogleDriveEnv()
     const accessToken = await getAccessToken(env)
-    const res = await fetchWithGoogleDriveTimeout(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`,
-      {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      },
-      env.timeoutMs,
-    )
-    if (!res.ok && res.status !== 404) {
-      const text = await res.text()
-      throw new Error(`Google Drive delete failed: ${res.status} ${text}`)
-    }
+    await deleteDriveFileWithToken(accessToken, env, fileId)
   },
   async download(fileId) {
     const env = await getConfiguredGoogleDriveEnv()

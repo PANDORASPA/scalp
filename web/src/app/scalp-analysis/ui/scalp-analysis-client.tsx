@@ -22,6 +22,7 @@ import {
 import { calculateCaptureConsistencyScore } from '@/lib/scalp-analysis/logic'
 import { buildScalpAnalysisHref, pickTrackingSessionId } from '@/lib/scalp-analysis/navigation'
 import {
+  buildScalpAnalysisCsv,
   buildScalpAnalysisReport,
   SCALP_REPORT_METRIC_KEYS,
   SCALP_REPORT_METRIC_LABELS,
@@ -61,6 +62,24 @@ type SettingsStatusResponse = {
 function formatMetric(value: number | null, suffix = '') {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '-'
   return `${Math.round(value * 10) / 10}${suffix}`
+}
+
+function downloadReportFile(report: ScalpAnalysisReport, extension: 'csv' | 'json') {
+  const date = report.session_date.slice(0, 10) || 'session'
+  const customer = report.customer_name.replace(/[^\p{L}\p{N}_-]+/gu, '-').replace(/^-+|-+$/g, '') || 'customer'
+  const content = extension === 'csv' ? buildScalpAnalysisCsv(report) : JSON.stringify(report, null, 2)
+  const blob = new Blob([content], {
+    type: extension === 'csv' ? 'text/csv;charset=utf-8' : 'application/json;charset=utf-8',
+  })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `scalp-report-${customer}-${date}.${extension}`
+  anchor.style.display = 'none'
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 function toDatetimeLocalValue(iso: string) {
@@ -526,6 +545,22 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
             </Button>
             <Button variant="secondary" onClick={() => window.print()} disabled={!sessionState}>
               列印報告
+            </Button>
+            <Button
+              className="print:hidden"
+              variant="secondary"
+              onClick={() => report && downloadReportFile(report, 'csv')}
+              disabled={!report}
+            >
+              匯出 CSV
+            </Button>
+            <Button
+              className="print:hidden"
+              variant="secondary"
+              onClick={() => report && downloadReportFile(report, 'json')}
+              disabled={!report}
+            >
+              匯出 JSON
             </Button>
           </div>
         </div>

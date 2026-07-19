@@ -9,12 +9,13 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div>
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur print:hidden">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:flex-nowrap sm:px-6">
+          <div className="flex shrink-0 items-center gap-3">
             <Link className="text-sm font-semibold" href="/">
               頭皮追蹤系統
             </Link>
-            <nav className="flex items-center gap-2 text-sm text-slate-600">
+          </div>
+          <nav className="order-3 flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-600 sm:order-none sm:w-auto">
               <Link className="hover:text-slate-900" href="/customers">
                 客戶
               </Link>
@@ -30,9 +31,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
               <Link className="hover:text-slate-900" href="/settings">
                 設定
               </Link>
-            </nav>
-          </div>
-          <div className="flex items-center gap-3">
+          </nav>
+          <div className="ml-auto flex shrink-0 items-center gap-3">
             {session ? (
               <div className="text-right">
                 <div className="text-sm font-medium text-slate-900">{session.name}</div>

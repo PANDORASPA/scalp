@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 
 import { SCALP_ANALYSIS_AREA_KEYS, SCALP_ANALYSIS_AREA_LABELS } from './constants'
 import { createEmptyAnnotations } from './logic'
-import { buildScalpAnalysisReport } from './report'
+import { buildScalpAnalysisReport, buildScalpAnalysisCsv } from './report'
 import type { ScalpAnalysisSessionState } from './types'
 
 function buildState(overrides: Partial<ScalpAnalysisSessionState['areas'][number]> = {}) {
@@ -141,4 +141,21 @@ test('structured report flags completed areas with low capture consistency for r
   assert.equal(reportedArea?.status, 'complete')
   assert.equal(reportedArea?.consistency_warning, true)
   assert.ok(report.warnings.some((warning) => warning.includes('一致性') && warning.includes('M 字左')))
+})
+
+test('CSV report export keeps incomplete areas visible and escapes cell content', () => {
+  const report = buildScalpAnalysisReport(buildState())
+  const csv = buildScalpAnalysisCsv({
+    ...report,
+    areas: report.areas.map((area) =>
+      area.area_key === 'm_left'
+        ? { ...area, report_summary: '需要覆核，備註："重拍"\n第二行' }
+        : area,
+    ),
+  })
+
+  assert.ok(csv.startsWith('\uFEFF部位,狀態'))
+  assert.ok(csv.includes('M 字左,已完成'))
+  assert.ok(csv.includes('M 字右,未完成'))
+  assert.ok(csv.includes('"需要覆核，備註：""重拍""\n第二行"'))
 })
