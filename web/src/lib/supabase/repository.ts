@@ -3,6 +3,7 @@ import 'server-only'
 import { explainSupabaseErrorMessage } from '@/lib/config/supabase'
 import type { MockDb } from '@/lib/mockdb/store'
 import type { TrackingAreaProgress } from '@/lib/customers/workspace'
+import { mergeCustomerSearchResults } from '@/lib/customers/search'
 import type {
   Customer,
   ScalpAiPointAnalysis,
@@ -407,16 +408,24 @@ export async function getCustomerOverviewFromSupabase(customerId: string) {
 
 export async function listCustomersFromSupabase(q: string) {
   const client = getSupabaseAdminClient()
-  const { data, error } = q
-    ? await client
-        .from('customers')
-        .select('*')
-        .or(`name.ilike.%${q}%,phone.ilike.%${q}%`)
-        .order('updated_at', { ascending: false })
-    : await client.from('customers').select('*').order('updated_at', { ascending: false })
+  if (!q) {
+    const { data, error } = await client.from('customers').select('*').order('updated_at', { ascending: false })
+    if (error) throw new Error(`customers: ${error.message}`)
+    return (data ?? []) as Customer[]
+  }
 
-  if (error) throw new Error(`customers: ${error.message}`)
-  return (data ?? []) as Customer[]
+  const pattern = `%${q}%`
+  const [nameResult, phoneResult] = await Promise.all([
+    client.from('customers').select('*').ilike('name', pattern),
+    client.from('customers').select('*').ilike('phone', pattern),
+  ])
+  if (nameResult.error) throw new Error(`customers by name: ${nameResult.error.message}`)
+  if (phoneResult.error) throw new Error(`customers by phone: ${phoneResult.error.message}`)
+
+  return mergeCustomerSearchResults([
+    (nameResult.data ?? []) as Customer[],
+    (phoneResult.data ?? []) as Customer[],
+  ])
 }
 
 export async function createCustomerInSupabase(input: {

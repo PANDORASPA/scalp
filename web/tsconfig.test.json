@@ -36,6 +36,8 @@
     "src/lib/config/supabase.test.ts",
     "src/lib/customers/workspace.ts",
     "src/lib/customers/workspace.test.ts",
+    "src/lib/customers/search.ts",
+    "src/lib/customers/search.test.ts",
     "src/lib/scalp/ai.ts",
     "src/lib/scalp/ai.test.ts",
     "src/lib/scalp/logic.ts",
