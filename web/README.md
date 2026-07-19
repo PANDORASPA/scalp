@@ -47,6 +47,8 @@ Copy the printed JSON into Vercel as `AUTH_USERS_JSON`, copy the printed secret 
 
 Run these migrations in order:
 
+The SQL files live in the repository root at `../supabase/migrations` when this README is opened from `web/`.
+
 1. `0001_init_scalp_tool.sql`
 2. `0002_seed_scalp_capture_points.sql`
 3. `0003_add_ai_analysis_and_storage.sql`
@@ -63,7 +65,7 @@ Run these migrations in order:
 The hardening migration backfills legacy Supabase image paths, makes the `scalp-images` bucket private,
 and restricts all application tables to the server-side service role. Existing image URLs are returned
 through the authenticated `/api/scalp-images/file` proxy.
-`0008` enforces customer/session ownership for new image and area-summary writes while leaving existing
+`20260719133000_enforce_customer_session_ownership.sql` enforces customer/session ownership for new image and area-summary writes while leaving existing
 historical rows available for review.
 
 ### Verification flow
