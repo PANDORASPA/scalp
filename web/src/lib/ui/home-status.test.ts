@@ -1,7 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { getWorkspaceLoadError } from './home-status'
+import { getWorkspaceLoadError, shouldUseSupabaseWorkspace } from './home-status'
+
+test('deployed workspace never falls back to local mock data when Supabase env is missing', () => {
+  assert.equal(shouldUseSupabaseWorkspace({ VERCEL: '1' } as NodeJS.ProcessEnv), true)
+})
 
 test('workspace load error explains Supabase connectivity failure without hiding the cause', () => {
   const result = getWorkspaceLoadError(

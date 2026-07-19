@@ -4,6 +4,10 @@ import { getHumanErrorMessage } from './errors'
 
 export const DEFAULT_UI_REQUEST_TIMEOUT_MS = 30000
 
+export function isAbortError(error: unknown) {
+  return error instanceof Error && error.name === 'AbortError'
+}
+
 export async function fetchJson<T>(
   url: string,
   init: RequestInit = {},

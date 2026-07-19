@@ -1,14 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { DemoSeedButton } from '@/components/demo-seed-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { fetchJson } from '@/lib/ui/fetch'
+import { fetchJson, isAbortError } from '@/lib/ui/fetch'
 import { formatDate } from '@/lib/ui/format'
 
 type CustomerRow = {
@@ -211,8 +211,12 @@ export default function CustomersClient({
   const [loadError, setLoadError] = useState<string | null>(null)
   const [openModal, setOpenModal] = useState(false)
   const [activeCustomer, setActiveCustomer] = useState<CustomerRow | null>(null)
+  const listRequestRef = useRef<AbortController | null>(null)
 
   const fetchRows = useCallback(async (query: string) => {
+    listRequestRef.current?.abort()
+    const controller = new AbortController()
+    listRequestRef.current = controller
     setLoading(true)
     setLoadError(null)
     const url = new URL('/api/customers/overview', window.location.origin)
@@ -220,15 +224,22 @@ export default function CustomersClient({
     url.searchParams.set('filter', filter)
     if (query.trim()) url.searchParams.set('q', query.trim())
     try {
-      const data = await fetchJson<WorkspaceResponse>(url.toString())
+      const data = await fetchJson<WorkspaceResponse>(url.toString(), { signal: controller.signal })
+      if (controller.signal.aborted) return
       setRows(data.rows)
       setSummary(data.summary)
     } catch (error) {
+      if (controller.signal.aborted || isAbortError(error)) return
       setLoadError(error instanceof Error ? error.message : '載入客人清單失敗')
     } finally {
-      setLoading(false)
+      if (listRequestRef.current === controller) {
+        listRequestRef.current = null
+        setLoading(false)
+      }
     }
   }, [filter])
+
+  useEffect(() => () => listRequestRef.current?.abort(), [])
 
   useEffect(() => {
     void fetchRows(q)

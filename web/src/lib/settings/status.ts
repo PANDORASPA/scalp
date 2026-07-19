@@ -42,11 +42,24 @@ async function getSupabaseConnectionStatus() {
 }
 
 export async function getSystemStatus(): Promise<IntegrationStatus[]> {
-  const settings = await getAppSettings()
+  let settings: Awaited<ReturnType<typeof getAppSettings>> = {
+    googleDrive: {},
+    openAi: {},
+  }
+  try {
+    settings = await getAppSettings()
+  } catch (error) {
+    console.error('Unable to read persisted integration settings', error)
+  }
   const supabase = await getSupabaseConnectionStatus()
   const auth = getAuthReadinessStatus()
   const aiProvider = settings.openAi.provider ?? normalizeScalpAnalysisAiProvider(process.env.SCALP_ANALYSIS_AI_PROVIDER)
-  const storageProvider = await getScalpStorageProviderName()
+  let storageProvider = process.env.SCALP_ANALYSIS_STORAGE_PROVIDER?.trim() || 'google-drive'
+  try {
+    storageProvider = await getScalpStorageProviderName()
+  } catch (error) {
+    console.error('Unable to read persisted storage provider setting', error)
+  }
   const demoStorageReady = storageProvider === 'demo'
   const officialGoogleDriveReady = hasCompleteGoogleDriveSettings(settings.googleDrive) || hasGoogleDriveEnv()
   const googleDriveReady = demoStorageReady || officialGoogleDriveReady

@@ -1,8 +1,9 @@
 import 'server-only'
 
-import { hasSupabaseServerEnv } from '@/lib/config/supabase'
+import { getSupabaseServerEnvIssue, hasSupabaseServerEnv } from '@/lib/config/supabase'
 import { getSupabaseAdminClient } from '@/lib/supabase/client'
 import { keepExistingSecretUnlessReplacement } from '@/lib/settings/secret-merge'
+import { canUseLocalSettingsFallback } from './integration-mode'
 
 export type GoogleDriveSettings = {
   storageProvider?: 'google-drive' | 'demo'
@@ -71,7 +72,10 @@ export function hasOpenAiApiKey(settings: OpenAiSettings) {
 }
 
 export async function getAppSettings(): Promise<AppSettings> {
-  if (!hasSupabaseServerEnv()) return DEFAULT_SETTINGS
+  if (!hasSupabaseServerEnv()) {
+    if (canUseLocalSettingsFallback()) return DEFAULT_SETTINGS
+    throw new Error(`supabase_env_missing: ${getSupabaseServerEnvIssue() ?? 'Supabase server env is not configured.'}`)
+  }
 
   try {
     const client = getSupabaseAdminClient()
@@ -83,7 +87,11 @@ export async function getAppSettings(): Promise<AppSettings> {
       googleDrive: normalizeGoogleDriveSettings(byKey.get('google_drive')),
       openAi: normalizeOpenAiSettings(byKey.get('openai')),
     }
-  } catch {
+  } catch (error) {
+    if (!canUseLocalSettingsFallback()) {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`supabase_settings_unavailable: ${message}`)
+    }
     return DEFAULT_SETTINGS
   }
 }

@@ -2,7 +2,16 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 
-import { fetchJson } from './fetch'
+import { fetchJson, isAbortError } from './fetch'
+
+test('isAbortError identifies cancelled browser requests without swallowing other errors', () => {
+  const abortError = new Error('The operation was aborted')
+  abortError.name = 'AbortError'
+
+  assert.equal(isAbortError(abortError), true)
+  assert.equal(isAbortError(new Error('network failed')), false)
+  assert.equal(isAbortError('AbortError'), false)
+})
 
 test('fetchJson turns a hanging request into an actionable timeout error', async () => {
   const server = createServer((_request, _response) => {

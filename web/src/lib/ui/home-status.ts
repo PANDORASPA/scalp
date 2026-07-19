@@ -1,9 +1,13 @@
-import { explainSupabaseErrorMessage } from '@/lib/config/supabase'
+import { explainSupabaseErrorMessage, shouldUseSupabaseDataSource } from '@/lib/config/supabase'
 
 export type WorkspaceLoadError = {
   kind: 'supabase' | 'unknown'
   message: string
   detail: string
+}
+
+export function shouldUseSupabaseWorkspace(env: NodeJS.ProcessEnv = process.env) {
+  return shouldUseSupabaseDataSource(env)
 }
 
 function getErrorMessage(error: unknown) {

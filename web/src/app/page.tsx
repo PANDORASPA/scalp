@@ -4,20 +4,29 @@ import { AppShell } from '@/components/app-shell'
 import { DemoSeedButton } from '@/components/demo-seed-button'
 import { Card } from '@/components/ui/card'
 import { getAuthSession } from '@/lib/auth/session'
-import { hasSupabaseServerEnv, isDeployedRuntime } from '@/lib/config/supabase'
+import { isDeployedRuntime } from '@/lib/config/supabase'
 import { buildCustomerWorkspaceRows } from '@/lib/customers/workspace'
 import { readDb, type MockDb } from '@/lib/mockdb/store'
 import { getWorkspaceSnapshot } from '@/lib/supabase/repository'
-import { getWorkspaceLoadError } from '@/lib/ui/home-status'
+import { getWorkspaceLoadError, shouldUseSupabaseWorkspace } from '@/lib/ui/home-status'
 import { withWorkspaceLoadTimeout } from '@/lib/ui/workspace-load'
+import type { TrackingAreaProgress } from '@/lib/customers/workspace'
+import type { ScalpAreaSummary } from '@/lib/scalp-analysis/types'
+import type { ScalpSession } from '@/lib/scalp/types'
+
+type HomeWorkspaceData = Pick<MockDb, 'customers' | 'sessions' | 'pointSummaries'> & {
+  trackingSessions?: ScalpSession[]
+  trackingCompletedAreas?: TrackingAreaProgress[]
+  trackingAreaSummaries?: ScalpAreaSummary[]
+}
 
 export default async function HomePage() {
   const session = await getAuthSession()
-  let db: Pick<MockDb, 'customers' | 'sessions' | 'pointSummaries'> | null = null
+  let db: HomeWorkspaceData | null = null
   let loadError: ReturnType<typeof getWorkspaceLoadError> | null = null
 
   try {
-    db = hasSupabaseServerEnv()
+    db = shouldUseSupabaseWorkspace()
       ? await withWorkspaceLoadTimeout(() => getWorkspaceSnapshot())
       : await readDb()
   } catch (error) {
@@ -55,6 +64,10 @@ export default async function HomePage() {
     customers: db.customers,
     sessions: db.sessions,
     pointSummaries: db.pointSummaries,
+    trackingSessions: db.trackingSessions,
+    trackingCompletedAreas:
+      db.trackingCompletedAreas ??
+      db.trackingAreaSummaries?.map(({ customer_id, session_id }) => ({ customer_id, session_id })),
   })
   const canLoadDemoData =
     !isDeployedRuntime() &&
