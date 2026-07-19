@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import { Button } from '@/components/ui/button'
@@ -20,6 +20,7 @@ import {
   type ScalpHistoryMetric,
 } from '@/lib/scalp-analysis/history'
 import { calculateCaptureConsistencyScore } from '@/lib/scalp-analysis/logic'
+import { filterScalpAnalysisCustomers } from '@/lib/scalp-analysis/customer-picker'
 import { buildScalpAnalysisHref, pickTrackingSessionId } from '@/lib/scalp-analysis/navigation'
 import {
   buildScalpAnalysisCsv,
@@ -32,7 +33,7 @@ import {
 import type { ScalpAnalysisAnnotations, ScalpAnalysisImage, ScalpAnalysisSessionState, ScalpAreaSummary } from '@/lib/scalp-analysis/types'
 import type { ScalpSession } from '@/lib/scalp/types'
 import { getHumanErrorMessage } from '@/lib/ui/errors'
-import { fetchJson as fetchJSON } from '@/lib/ui/fetch'
+import { fetchJson as fetchJSON, isAbortError } from '@/lib/ui/fetch'
 import { formatDate } from '@/lib/ui/format'
 
 import { AnnotationEditor } from './annotation-editor'
@@ -390,6 +391,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
   const searchParams = useSearchParams()
   const [customers, setCustomers] = useState<CustomerRow[]>([])
   const [customerId, setCustomerId] = useState('')
+  const [customerSearch, setCustomerSearch] = useState('')
   const [sessions, setSessions] = useState<ScalpSession[]>([])
   const [sessionId, setSessionId] = useState('')
   const [sessionState, setSessionState] = useState<ScalpAnalysisSessionState | null>(null)
@@ -405,6 +407,9 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
   const [integrations, setIntegrations] = useState<IntegrationStatus[]>([])
   const [history, setHistory] = useState<ScalpAnalysisHistoryPoint[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const sessionsRequestRef = useRef<AbortController | null>(null)
+  const historyRequestRef = useRef<AbortController | null>(null)
+  const sessionStateRequestRef = useRef<AbortController | null>(null)
   const report = useMemo(
     () => (sessionState ? buildScalpAnalysisReport(sessionState) : null),
     [sessionState],
@@ -412,10 +417,13 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
 
   useEffect(() => {
     let cancelled = false
+    const controller = new AbortController()
     ;(async () => {
       try {
-        const data = await fetchJSON<CustomerRow[]>('/api/customers/overview')
-        const status = await fetchJSON<SettingsStatusResponse>('/api/settings/status')
+        const [data, status] = await Promise.all([
+          fetchJSON<CustomerRow[]>('/api/customers/overview', { signal: controller.signal }),
+          fetchJSON<SettingsStatusResponse>('/api/settings/status', { signal: controller.signal }),
+        ])
         const requestedCustomerId = searchParams.get('customerId')
         if (!cancelled) {
           setCustomers(data)
@@ -432,58 +440,98 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
     })()
     return () => {
       cancelled = true
+      controller.abort()
     }
   }, [searchParams])
 
   const loadSessions = useCallback(async (nextCustomerId: string) => {
+    sessionsRequestRef.current?.abort()
+    const controller = new AbortController()
+    sessionsRequestRef.current = controller
     if (!nextCustomerId) {
       setSessions([])
       setSessionId('')
+      sessionsRequestRef.current = null
       return
     }
-    const list = await fetchJSON<ScalpSession[]>(`/api/scalp-analysis/sessions?customerId=${nextCustomerId}`)
-    setSessions(list)
-    const requestedSessionId = nextCustomerId === customerId ? searchParams.get('sessionId') : null
-    const selectedSessionId = pickTrackingSessionId(list, requestedSessionId, sessionId)
-    setSessionId(selectedSessionId)
-    router.replace(buildScalpAnalysisHref(nextCustomerId, selectedSessionId || null))
+    try {
+      const list = await fetchJSON<ScalpSession[]>(
+        `/api/scalp-analysis/sessions?customerId=${encodeURIComponent(nextCustomerId)}`,
+        { signal: controller.signal },
+      )
+      if (controller.signal.aborted) return
+      setSessions(list)
+      const requestedSessionId = nextCustomerId === customerId ? searchParams.get('sessionId') : null
+      const selectedSessionId = pickTrackingSessionId(list, requestedSessionId, sessionId)
+      setSessionId(selectedSessionId)
+      router.replace(buildScalpAnalysisHref(nextCustomerId, selectedSessionId || null))
+    } finally {
+      if (sessionsRequestRef.current === controller) sessionsRequestRef.current = null
+    }
   }, [customerId, router, searchParams, sessionId])
 
   const loadHistory = useCallback(async (nextCustomerId: string) => {
+    historyRequestRef.current?.abort()
+    const controller = new AbortController()
+    historyRequestRef.current = controller
     if (!nextCustomerId) {
       setHistory([])
+      historyRequestRef.current = null
       return
     }
     setHistoryLoading(true)
     try {
-      setHistory(await fetchJSON<ScalpAnalysisHistoryPoint[]>(`/api/scalp-analysis/history?customerId=${nextCustomerId}`))
+      const nextHistory = await fetchJSON<ScalpAnalysisHistoryPoint[]>(
+        `/api/scalp-analysis/history?customerId=${encodeURIComponent(nextCustomerId)}`,
+        { signal: controller.signal },
+      )
+      if (!controller.signal.aborted) setHistory(nextHistory)
     } finally {
-      setHistoryLoading(false)
+      if (historyRequestRef.current === controller) {
+        historyRequestRef.current = null
+        setHistoryLoading(false)
+      }
     }
   }, [])
 
   useEffect(() => {
     if (!customerId) return
-    void loadSessions(customerId).catch((e) => setError(e instanceof Error ? e.message : '載入檢查紀錄失敗'))
+    void loadSessions(customerId).catch((e) => {
+      if (!isAbortError(e)) setError(e instanceof Error ? e.message : '載入檢查紀錄失敗')
+    })
   }, [customerId, loadSessions])
 
   useEffect(() => {
     if (!customerId) return
-    void loadHistory(customerId).catch((e) =>
-      setError(e instanceof Error ? e.message : 'Failed to load tracking history'),
-    )
+    void loadHistory(customerId).catch((e) => {
+      if (!isAbortError(e)) setError(e instanceof Error ? e.message : 'Failed to load tracking history')
+    })
   }, [customerId, loadHistory])
 
   useEffect(() => {
+    return () => {
+      sessionsRequestRef.current?.abort()
+      historyRequestRef.current?.abort()
+      sessionStateRequestRef.current?.abort()
+    }
+  }, [])
+
+  useEffect(() => {
+    sessionStateRequestRef.current?.abort()
     if (!sessionId) {
       setSessionState(null)
       return
     }
+    const controller = new AbortController()
+    sessionStateRequestRef.current = controller
     let cancelled = false
     ;(async () => {
       setBusyKey('load-session')
       try {
-        const data = await fetchJSON<ScalpAnalysisSessionState>(`/api/scalp-analysis/sessions/${sessionId}`)
+        const data = await fetchJSON<ScalpAnalysisSessionState>(
+          `/api/scalp-analysis/sessions/${encodeURIComponent(sessionId)}`,
+          { signal: controller.signal },
+        )
         if (!cancelled) setSessionState(data)
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : '載入 session 狀態失敗')
@@ -493,12 +541,18 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
     })()
     return () => {
       cancelled = true
+      controller.abort()
+      if (sessionStateRequestRef.current === controller) sessionStateRequestRef.current = null
     }
   }, [sessionId])
 
   const selectedCustomer = useMemo(
     () => customers.find((item) => item.id === customerId) ?? null,
     [customerId, customers],
+  )
+  const customerOptions = useMemo(
+    () => filterScalpAnalysisCustomers(customers, customerSearch, customerId),
+    [customerId, customerSearch, customers],
   )
   const storageStatus = integrations.find((item) => item.key === 'google-drive')
   const googleDriveReady = storageStatus?.ready ?? false
@@ -571,6 +625,12 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
           <Card className="p-4">
             <div className="grid gap-2">
               <Label>選擇客人</Label>
+              <Input
+                value={customerSearch}
+                onChange={(event) => setCustomerSearch(event.target.value)}
+                placeholder="按姓名或電話搜尋"
+                aria-label="搜尋客人"
+              />
               <select
                 className="rounded-md border border-slate-300 px-3 py-2 text-sm"
                 value={customerId}
@@ -584,7 +644,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                 }}
               >
                 <option value="">請選擇客人</option>
-                {customers.map((customer) => (
+                {customerOptions.map((customer) => (
                   <option key={customer.id} value={customer.id}>
                     {customer.name}
                   </option>
