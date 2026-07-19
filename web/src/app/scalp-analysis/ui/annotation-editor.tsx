@@ -16,7 +16,22 @@ import {
   getAnnotationEditorAiResetAnnotations,
   getAnnotationEditorInitialAnnotations,
   shouldCreateMarkerFromCanvasClick,
+  type ScalpAnalysisScoreKey,
+  updateAnnotationScore,
 } from './annotation-editor-logic'
+
+const SCORE_FIELDS: Array<{
+  key: ScalpAnalysisScoreKey
+  label: string
+  min: number
+  max: number
+}> = [
+  { key: 'scalp_empty_ratio', label: '空白頭皮比例', min: 0, max: 100 },
+  { key: 'redness_score', label: '紅腫分數', min: 0, max: 10 },
+  { key: 'oiliness_score', label: '出油分數', min: 0, max: 10 },
+  { key: 'blockage_score', label: '堵塞分數', min: 0, max: 10 },
+  { key: 'density_score', label: '密度分數', min: 0, max: 100 },
+]
 
 function flattenMarkers(annotations: ScalpAnalysisAnnotations): ScalpEditorMarker[] {
   return [
@@ -80,11 +95,13 @@ export function AnnotationEditor({
     [image.ai_result_json, image.confirmed_annotations_json],
   )
 
+  const [scores, setScores] = useState(baseAnnotations.scores)
   const width = baseAnnotations.image_width ?? 360
   const height = baseAnnotations.image_height ?? 240
 
   useEffect(() => {
     setNotes(baseAnnotations.notes)
+    setScores(baseAnnotations.scores)
     setMarkers(flattenMarkers(baseAnnotations))
     setHasUnsavedChanges(false)
   }, [baseAnnotations])
@@ -118,6 +135,7 @@ export function AnnotationEditor({
       const next = inflateMarkers(markers, {
         ...baseAnnotations,
         notes,
+        scores,
         image_width: width,
         image_height: height,
       })
@@ -153,6 +171,7 @@ export function AnnotationEditor({
                 const next = getAnnotationEditorAiResetAnnotations(image)
                 setMarkers(flattenMarkers(next))
                 setNotes(next.notes)
+                setScores(next.scores)
                 setHasUnsavedChanges(true)
               }}
             >
@@ -240,6 +259,33 @@ export function AnnotationEditor({
               )
             })}
           </svg>
+        </div>
+
+        <div className="grid gap-2">
+          <div className="text-sm font-medium text-slate-700">確認後正式採用分數</div>
+          <div className="text-xs text-slate-500">
+            可按 AI 結果修改；空白會由可用標記推算，無法推算時保持未提供。
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {SCORE_FIELDS.map((field) => (
+              <label key={field.key} htmlFor={`annotation-${image.id}-${field.key}`} className="grid gap-1 text-xs text-slate-600">
+                {field.label} ({field.min}-{field.max})
+                <input
+                  id={`annotation-${image.id}-${field.key}`}
+                  type="number"
+                  min={field.min}
+                  max={field.max}
+                  step="0.1"
+                  value={scores[field.key] ?? ''}
+                  onChange={(event) => {
+                    setScores((previous) => updateAnnotationScore(previous, field.key, event.target.value))
+                    setHasUnsavedChanges(true)
+                  }}
+                  className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+                />
+              </label>
+            ))}
+          </div>
         </div>
 
         <div className="grid gap-2">

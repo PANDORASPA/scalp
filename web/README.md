@@ -210,7 +210,7 @@ Important: share that folder with the service account `client_email` as Editor b
 2. Select a customer.
 3. Create a tracking session.
 4. Upload 3 images for each of the 6 fixed areas.
-5. Review AI markers, edit them, then click `Confirm annotations`.
+5. Review AI markers and scores, edit/add/delete markers or correct the 0-10 / 0-100 score fields, then click `Confirm annotations`.
 6. After 3 confirmed images in one area, the area average and previous/baseline comparison appear automatically.
 7. The tracking URL keeps `customerId` and `sessionId`, so refreshing or reopening a copied link returns to the same work.
 8. Replacing or deleting an existing image asks for confirmation because it changes confirmed annotations and derived summaries.
@@ -223,13 +223,14 @@ Important: share that folder with the service account `client_email` as Editor b
 1. Create a new tracking session and verify it appears only in `/scalp-analysis` session list.
 2. Upload one image and confirm `drive_file_id`, `image_url`, and `analysis_status` are saved in `scalp_images`.
 3. Confirm annotations for one image and verify the image stats columns are updated.
-4. Confirm 3 images in the same area and verify one `scalp_area_summaries` row is created.
-5. Create a second tracking session for the same customer, complete the same area, and verify `compared_to_previous_json` updates.
-6. Verify the earliest completed tracking session becomes the baseline for `compared_to_baseline_json`.
-7. Delete one image and confirm the area summary is removed until 3 confirmed images are available again.
-8. With private Drive mode enabled, confirm a newly saved `image_url` uses the authenticated image proxy and that
+4. Correct one AI score manually, confirm annotations, and verify the corrected score is used by image and area statistics.
+5. Confirm 3 images in the same area and verify one `scalp_area_summaries` row is created.
+6. Create a second tracking session for the same customer, complete the same area, and verify `compared_to_previous_json` updates.
+7. Verify the earliest completed tracking session becomes the baseline for `compared_to_baseline_json`.
+8. Delete one image and confirm the area summary is removed until 3 confirmed images are available again.
+9. With private Drive mode enabled, confirm a newly saved `image_url` uses the authenticated image proxy and that
    an unauthenticated request cannot read the image.
-9. Edit or delete a tracking session date and verify later session comparisons are recalculated rather than retaining
+10. Edit or delete a tracking session date and verify later session comparisons are recalculated rather than retaining
    a deleted or outdated previous-session reference.
 11. Open the tracking history panel, switch between areas and metrics, and verify it only includes complete
     three-image summaries in chronological order.
