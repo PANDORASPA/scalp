@@ -1,4 +1,6 @@
 export function getHumanErrorMessage(error: string) {
+  if (error.includes('request_timeout')) return '連線逾時，請檢查 Supabase / 網絡後再試。'
+  if (error.includes('request_network_failed')) return '連線失敗，請檢查網絡或 Supabase 設定後再試。'
   if (error.includes('session_not_found')) return 'Session not found for this customer. Re-select the customer and session.'
   if (error.includes('invalid_json')) return '送出的資料格式不正確，請重新嘗試。'
   if (error.includes('not_found')) return '找不到相關資料，可能已被刪除；請重新整理頁面。'

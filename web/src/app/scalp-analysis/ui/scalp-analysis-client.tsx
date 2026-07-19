@@ -31,6 +31,7 @@ import {
 import type { ScalpAnalysisAnnotations, ScalpAnalysisImage, ScalpAnalysisSessionState, ScalpAreaSummary } from '@/lib/scalp-analysis/types'
 import type { ScalpSession } from '@/lib/scalp/types'
 import { getHumanErrorMessage } from '@/lib/ui/errors'
+import { fetchJson as fetchJSON } from '@/lib/ui/fetch'
 import { formatDate } from '@/lib/ui/format'
 
 import { AnnotationEditor } from './annotation-editor'
@@ -55,15 +56,6 @@ type IntegrationStatus = {
 
 type SettingsStatusResponse = {
   integrations: IntegrationStatus[]
-}
-
-async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init)
-  if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { error?: string } | null
-    throw new Error(getHumanErrorMessage(body?.error ?? 'Request failed'))
-  }
-  return (await res.json()) as T
 }
 
 function formatMetric(value: number | null, suffix = '') {
@@ -96,7 +88,11 @@ function SummaryPanel({ summary, consistencyScore }: { summary: ScalpAreaSummary
       {consistencyScore !== null ? (
         <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 p-2 text-xs text-slate-600">
           <div className="font-medium text-slate-800">Capture consistency: {consistencyScore}%</div>
-          <div className="mt-1">Below 70%: review the three images or retake them.</div>
+          <div className="mt-1">
+            {consistencyScore < 70
+              ? '低於 70%，請覆核三張圖片或重拍；不要將細微變化直接當成改善。'
+              : '三張圖片的統計差異在可接受範圍內。'}
+          </div>
         </div>
       ) : null}
       <div className="grid gap-4 md:grid-cols-3">
@@ -181,7 +177,11 @@ function ReportView({ report }: { report: ScalpAnalysisReport }) {
                 </div>
               </div>
               <span className={`rounded-full px-2 py-1 text-xs font-medium ${area.status === 'complete' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-                {area.status === 'complete' ? '已納入統計' : '未納入統計'}
+                {area.status === 'complete'
+                  ? area.consistency_warning
+                    ? '已完成，需覆核'
+                    : '已納入統計'
+                  : '未納入統計'}
               </span>
             </div>
 

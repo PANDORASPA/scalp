@@ -112,3 +112,33 @@ test('structured report marks a fully confirmed six-area session complete', () =
   assert.equal(report.session_complete, true)
   assert.equal(report.warnings.length, 0)
 })
+
+test('structured report flags completed areas with low capture consistency for review', () => {
+  const state = buildState()
+  const area = state.areas[0]
+  area.images = area.images.map((image, index) =>
+    index === 2
+      ? {
+          ...image,
+          stats: {
+            ...image.stats,
+            coarse_hair_count: 100,
+            baby_hair_count: 60,
+            empty_follicle_count: 50,
+            blockage_count: 20,
+            scalp_empty_ratio: 95,
+            redness_score: 10,
+            oiliness_score: 10,
+            density_score: 5,
+          },
+        }
+      : image,
+  )
+
+  const report = buildScalpAnalysisReport(state)
+  const reportedArea = report.areas.find((item) => item.area_key === 'm_left')
+
+  assert.equal(reportedArea?.status, 'complete')
+  assert.equal(reportedArea?.consistency_warning, true)
+  assert.ok(report.warnings.some((warning) => warning.includes('一致性') && warning.includes('M 字左')))
+})

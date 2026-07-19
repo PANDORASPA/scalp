@@ -69,6 +69,8 @@
     "src/lib/supabase/storage-path.ts",
     "src/lib/supabase/storage-path.test.ts",
     "src/lib/ui/errors.test.ts",
+    "src/lib/ui/fetch.ts",
+    "src/lib/ui/fetch.test.ts",
     "src/lib/ui/home-status.ts",
     "src/lib/ui/home-status.test.ts",
     "src/lib/ui/workspace-load.ts",

@@ -37,6 +37,7 @@ export type ScalpReportArea = {
   uploaded_images: number
   confirmed_images: number
   consistency_score: number | null
+  consistency_warning: boolean
   metrics: Record<ScalpReportMetricKey, number | null>
   compared_to_previous: ScalpSessionComparison | null
   compared_to_baseline: ScalpSessionComparison | null
@@ -82,13 +83,15 @@ export function buildScalpAnalysisReport(
   const areas = state.areas.map((area) => {
     const complete = area.ready_for_average && Boolean(area.summary)
     const summary = complete ? area.summary : null
+    const consistencyScore = complete ? calculateCaptureConsistencyScore(area.images) : null
     return {
       area_key: area.area_key,
       label: area.label || SCALP_ANALYSIS_AREA_LABELS[area.area_key],
       status: complete ? 'complete' : 'incomplete',
       uploaded_images: area.uploaded_images,
       confirmed_images: area.confirmed_images,
-      consistency_score: complete ? calculateCaptureConsistencyScore(area.images) : null,
+      consistency_score: consistencyScore,
+      consistency_warning: consistencyScore !== null && consistencyScore < 70,
       metrics: summaryMetrics(summary),
       compared_to_previous: summary?.compared_to_previous_json ?? null,
       compared_to_baseline: summary?.compared_to_baseline_json ?? null,
@@ -107,11 +110,19 @@ export function buildScalpAnalysisReport(
     completed_areas: completedAreas,
     incomplete_areas: incompleteAreas,
     areas,
-    warnings: areas
-      .filter((area) => area.status === 'incomplete')
-      .map(
-        (area) =>
-          `${area.label} 尚未完成 3 張 confirmed 圖片，暫不納入正式平均及前後比較。`,
-      ),
+    warnings: [
+      ...areas
+        .filter((area) => area.status === 'incomplete')
+        .map(
+          (area) =>
+            `${area.label} 尚未完成 3 張 confirmed 圖片，暫不納入正式平均及前後比較。`,
+        ),
+      ...areas
+        .filter((area) => area.consistency_warning)
+        .map(
+          (area) =>
+            `${area.label} 三張圖片一致性（capture consistency）低於 70%，正式解讀前請覆核或重拍。`,
+        ),
+    ],
   }
 }
