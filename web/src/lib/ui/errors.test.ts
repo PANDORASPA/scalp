@@ -10,3 +10,10 @@ test('getHumanErrorMessage explains wrapped Supabase environment errors', () => 
   assert.match(message, /Supabase/)
   assert.doesNotMatch(message, /SUPABASE_SERVICE_ROLE_KEY is required/)
 })
+
+test('getHumanErrorMessage explains settings save connectivity failures', () => {
+  const message = getHumanErrorMessage('save_google_drive_settings_failed: TypeError: fetch failed')
+
+  assert.match(message, /Supabase/)
+  assert.doesNotMatch(message, /save_google_drive_settings_failed/)
+})

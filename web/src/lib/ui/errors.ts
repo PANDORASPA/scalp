@@ -21,6 +21,15 @@ export function getHumanErrorMessage(error: string) {
   if (error.includes('storage_provider')) return '圖片儲存設定不完整，請到系統設定檢查 Google Drive。'
   if (error.includes('private_image_proxy_unavailable')) return '私有圖片 proxy 尚未啟用，請檢查 storage adapter 設定。'
   if (
+    error.includes('save_google_drive_settings_failed') ||
+    error.includes('save_openai_settings_failed')
+  ) {
+    if (error.includes('fetch failed') || error.includes('getaddrinfo') || error.includes('timeout')) {
+      return 'Supabase connection failed while saving settings. Check the Supabase Project URL and service role key, then redeploy.'
+    }
+    return '設定保存失敗，請檢查 Supabase 資料庫連線後再試。'
+  }
+  if (
     error.includes('supabase_env_missing') ||
     error.includes('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required') ||
     error.includes('Supabase server env is not configured')
