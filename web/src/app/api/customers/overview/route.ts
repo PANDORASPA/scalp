@@ -3,7 +3,10 @@ import { NextResponse } from 'next/server'
 import { jsonNoStore } from '@/lib/api/response'
 import { requireAuthRole } from '@/lib/auth/session'
 import { shouldUseSupabaseDataSource } from '@/lib/config/supabase'
-import { buildCustomerWorkspaceRows } from '@/lib/customers/workspace'
+import {
+  buildCustomerWorkspaceRows,
+  buildCustomerWorkspaceRowsFromLocalSnapshot,
+} from '@/lib/customers/workspace'
 import { updateDb } from '@/lib/mockdb/store'
 import { getWorkspaceSnapshot, toRepositoryError } from '@/lib/supabase/repository'
 import { withWorkspaceLoadTimeout } from '@/lib/ui/workspace-load'
@@ -43,10 +46,14 @@ export async function GET(req: Request) {
   }
 
   const result = await updateDb(async (db) => {
-    const workspace = buildCustomerWorkspaceRows({
+    const workspace = buildCustomerWorkspaceRowsFromLocalSnapshot({
       customers: db.customers,
       sessions: db.sessions,
       pointSummaries: db.pointSummaries,
+      trackingCompletedAreas: db.trackingAreaSummaries?.map(({ customer_id, session_id }) => ({
+        customer_id,
+        session_id,
+      })),
       q,
       filter,
     })

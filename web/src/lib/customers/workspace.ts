@@ -127,3 +127,16 @@ export function buildCustomerWorkspaceRows(params: {
 
   return { rows, summary }
 }
+
+export function buildCustomerWorkspaceRowsFromLocalSnapshot(params: {
+  customers: Customer[]
+  sessions: ScalpSession[]
+  pointSummaries: ScalpPointSummary[]
+  trackingCompletedAreas?: TrackingAreaProgress[]
+  q?: string
+  filter?: CustomerWorkspaceFilter
+}) {
+  // Local snapshots keep tracking sessions in the shared sessions array. Pass only
+  // the completed-area index here so tracking sessions are not counted twice.
+  return buildCustomerWorkspaceRows(params)
+}
