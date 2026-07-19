@@ -29,6 +29,7 @@ type TrackingImagePatch = Partial<{
   analysis_status: ScalpAnalysisImage['analysis_status']
   ai_result_json: unknown
   confirmed_annotations_json: unknown
+  analysis_notes: string | null
   coarse_hair_count: number | null
   baby_hair_count: number | null
   empty_follicle_count: number | null
@@ -178,6 +179,7 @@ export async function updateTrackingImageRecord(imageId: string, patch: Tracking
       ...(patch.analysis_status === undefined ? {} : { analysis_status: patch.analysis_status }),
       ...(patch.ai_result_json === undefined ? {} : { ai_result_json: patch.ai_result_json ? normalizeAnnotations(patch.ai_result_json) : null }),
       ...(patch.confirmed_annotations_json === undefined ? {} : { confirmed_annotations_json: patch.confirmed_annotations_json ? normalizeAnnotations(patch.confirmed_annotations_json) : null }),
+      ...(patch.analysis_notes === undefined ? {} : { analysis_notes: patch.analysis_notes }),
       stats: {
         coarse_hair_count: patch.coarse_hair_count === undefined ? current.stats.coarse_hair_count : patch.coarse_hair_count,
         baby_hair_count: patch.baby_hair_count === undefined ? current.stats.baby_hair_count : patch.baby_hair_count,

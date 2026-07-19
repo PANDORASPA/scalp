@@ -47,6 +47,8 @@
     "src/lib/scalp-analysis/logic.test.ts",
     "src/lib/scalp-analysis/mock-repository.ts",
     "src/lib/scalp-analysis/mock-repository.test.ts",
+    "src/lib/scalp-analysis/service.ts",
+    "src/lib/scalp-analysis/service.test.ts",
     "src/lib/scalp-analysis/storage/types.ts",
     "src/lib/scalp-analysis/storage-cleanup-plan.ts",
     "src/lib/scalp-analysis/storage-cleanup-plan.test.ts",

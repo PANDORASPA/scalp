@@ -1,5 +1,6 @@
-import { rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
+import path from 'node:path'
 
 rmSync('.test-dist', { recursive: true, force: true })
 
@@ -14,6 +15,14 @@ if (tsc.status !== 0) {
 }
 
 writeFileSync('.test-dist/package.json', JSON.stringify({ type: 'commonjs' }))
+mkdirSync('.test-dist/node_modules/@', { recursive: true })
+symlinkSync(
+  path.resolve('.test-dist/lib'),
+  path.resolve('.test-dist/node_modules/@/lib'),
+  'junction',
+)
+mkdirSync('.test-dist/node_modules/server-only', { recursive: true })
+writeFileSync('.test-dist/node_modules/server-only/index.js', '')
 
 const tests = spawnSync(
   process.execPath,
@@ -34,6 +43,7 @@ const tests = spawnSync(
     '.test-dist/lib/scalp/pipeline.test.js',
     '.test-dist/lib/scalp-analysis/logic.test.js',
     '.test-dist/lib/scalp-analysis/mock-repository.test.js',
+    '.test-dist/lib/scalp-analysis/service.test.js',
     '.test-dist/lib/scalp-analysis/storage-cleanup-plan.test.js',
     '.test-dist/lib/scalp-analysis/storage-consistency.test.js',
     '.test-dist/lib/settings/health.test.js',

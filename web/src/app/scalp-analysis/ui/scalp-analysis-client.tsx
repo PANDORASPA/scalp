@@ -609,6 +609,12 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
 
                           {image ? (
                             <div className="mt-4 space-y-4">
+                              {image.analysis_status === 'ai_failed' && image.analysis_notes ? (
+                                <Card className="border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                                  <div className="font-medium">AI 初步分析未完成</div>
+                                  <div className="mt-1">{getHumanErrorMessage(image.analysis_notes)}</div>
+                                </Card>
+                              ) : null}
                               <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
                                 <div>儲存方式：{image.storage_provider}</div>
                                 <div>Google Drive file id：{image.drive_file_id || '-'}</div>

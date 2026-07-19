@@ -203,7 +203,8 @@ export async function uploadScalpImage(input: UploadInput) {
     })
   }
 
-  await calculateAreaSummary(input.sessionId, input.areaKey)
+  // A changed earlier session can affect later comparisons for this area.
+  await recomputeCustomerTrackingSummaries(input.customerId, input.areaKey)
   await touchCustomer(input.customerId, now)
   return image
 }
@@ -246,7 +247,8 @@ export async function saveConfirmedAnnotations(imageId: string, annotationsJson:
     updated_at: now,
   })
   const stats = await calculateImageStats(imageId)
-  const summary = await calculateAreaSummary(updated.session_id, updated.area_key)
+  await recomputeCustomerTrackingSummaries(updated.customer_id, updated.area_key)
+  const summary = await getTrackingAreaSummary(updated.session_id, updated.area_key)
   await touchCustomer(updated.customer_id, now)
   return { image: stats, summary }
 }
@@ -377,18 +379,28 @@ export async function calculateAreaSummary(sessionId: string, areaKey: ScalpAnal
   })
 }
 
-async function recomputeCustomerTrackingSummaries(customerId: string) {
+async function recomputeCustomerTrackingSummaries(
+  customerId: string,
+  areaKey?: ScalpAnalysisAreaKey,
+) {
   const [sessions, existingSummaries] = await Promise.all([
     listTrackingSessions(customerId),
     listTrackingAreaSummariesForCustomer(customerId),
   ])
   const imagesBySession = new Map(
     await Promise.all(
-      sessions.map(async (session) => [session.id, await listTrackingImagesForSession(session.id)] as const),
+      sessions.map(async (session) => [
+        session.id,
+        (await listTrackingImagesForSession(session.id)).filter(
+          (image) => !areaKey || image.area_key === areaKey,
+        ),
+      ] as const),
     ),
   )
   const targets = new Set(
-    existingSummaries.map((summary) => `${summary.session_id}:${summary.area_key}`),
+    existingSummaries
+      .filter((summary) => !areaKey || summary.area_key === areaKey)
+      .map((summary) => `${summary.session_id}:${summary.area_key}`),
   )
   for (const [sessionId, images] of imagesBySession) {
     for (const image of images) targets.add(`${sessionId}:${image.area_key}`)
@@ -411,9 +423,7 @@ export async function removeScalpImage(imageId: string) {
     target: { fileId: image.drive_file_id, objectKey: image.storage_object_key },
     context: 'deleted image',
   })
-  await calculateAreaSummary(deleted.session_id, deleted.area_key).catch(async () => {
-    await deleteTrackingAreaSummary(deleted.session_id, deleted.area_key)
-  })
+  await recomputeCustomerTrackingSummaries(deleted.customer_id, deleted.area_key)
   return deleted
 }
 

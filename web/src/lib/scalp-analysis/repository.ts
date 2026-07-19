@@ -31,6 +31,7 @@ type ScalpImageTrackingRow = {
   analysis_status: ScalpAnalysisImage['analysis_status']
   ai_result_json: unknown
   confirmed_annotations_json: unknown
+  analysis_notes: string | null
   coarse_hair_count: number | null
   baby_hair_count: number | null
   empty_follicle_count: number | null
@@ -96,6 +97,7 @@ function mapImage(row: ScalpImageTrackingRow, byId: Map<string, string>): ScalpA
     analysis_status: row.analysis_status,
     ai_result_json: row.ai_result_json ? normalizeAnnotations(row.ai_result_json) : null,
     confirmed_annotations_json: row.confirmed_annotations_json ? normalizeAnnotations(row.confirmed_annotations_json) : null,
+    analysis_notes: row.analysis_notes,
     stats: {
       coarse_hair_count: row.coarse_hair_count,
       baby_hair_count: row.baby_hair_count,
@@ -277,6 +279,15 @@ export async function upsertTrackingImageRecord(input: {
         analysis_status: input.analysisStatus,
         ai_result_json: input.aiResultJson ?? null,
         confirmed_annotations_json: input.confirmedAnnotationsJson ?? null,
+        coarse_hair_count: null,
+        baby_hair_count: null,
+        empty_follicle_count: null,
+        blockage_count: null,
+        scalp_empty_ratio: null,
+        redness_score: null,
+        oiliness_score: null,
+        density_score: null,
+        analysis_notes: null,
         updated_at: input.nowISO,
       },
       { onConflict: 'session_id,capture_point_id,shot_index' },

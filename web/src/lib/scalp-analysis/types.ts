@@ -83,6 +83,7 @@ export type ScalpAnalysisImage = {
   analysis_status: 'pending' | 'uploaded' | 'ai_ready' | 'ai_failed' | 'confirmed'
   ai_result_json: ScalpAnalysisAnnotations | null
   confirmed_annotations_json: ScalpAnalysisAnnotations | null
+  analysis_notes?: string | null
   stats: ScalpImageStats
   created_at: string
   updated_at: string
