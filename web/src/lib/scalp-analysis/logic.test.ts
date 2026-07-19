@@ -154,8 +154,8 @@ test('only complete confirmed images are eligible for an area average', () => {
       empty_follicle_count: 0,
       blockage_count: 0,
       scalp_empty_ratio: 40,
-      redness_score: null,
-      oiliness_score: null,
+      redness_score: 0,
+      oiliness_score: 0,
       density_score: 50,
     },
   } as ScalpAnalysisImage
@@ -163,9 +163,19 @@ test('only complete confirmed images are eligible for an area average', () => {
     ...complete,
     stats: { ...complete.stats, density_score: null },
   }
+  const missingRedness = {
+    ...complete,
+    stats: { ...complete.stats, redness_score: null },
+  }
+  const missingOiliness = {
+    ...complete,
+    stats: { ...complete.stats, oiliness_score: null },
+  }
 
   assert.equal(isConfirmedScalpAnalysisImage(complete), true)
   assert.equal(isConfirmedScalpAnalysisImage(incomplete), false)
+  assert.equal(isConfirmedScalpAnalysisImage(missingRedness), false)
+  assert.equal(isConfirmedScalpAnalysisImage(missingOiliness), false)
 })
 
 test('dragging an annotation does not create a second marker on pointer release', () => {

@@ -170,6 +170,8 @@ export function isConfirmedScalpAnalysisImage(
     image.stats.empty_follicle_count,
     image.stats.blockage_count,
     image.stats.scalp_empty_ratio,
+    image.stats.redness_score,
+    image.stats.oiliness_score,
     image.stats.density_score,
   ]
   return requiredStats.every((value) => typeof value === 'number' && Number.isFinite(value))

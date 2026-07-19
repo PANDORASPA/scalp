@@ -27,6 +27,8 @@ function annotations(babyCount: number) {
   }))
   result.scores.density_score = 60
   result.scores.scalp_empty_ratio = 35
+  result.scores.redness_score = 0
+  result.scores.oiliness_score = 0
   return result
 }
 
