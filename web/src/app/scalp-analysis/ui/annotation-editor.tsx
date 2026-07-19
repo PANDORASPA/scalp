@@ -10,10 +10,13 @@ import {
   SCALP_ANALYSIS_ANNOTATION_TYPES,
   type ScalpAnnotationType,
 } from '@/lib/scalp-analysis/constants'
-import { createEmptyAnnotations, normalizeAnnotations } from '@/lib/scalp-analysis/logic'
 import type { ScalpAnalysisAnnotations, ScalpAnalysisImage, ScalpEditorMarker } from '@/lib/scalp-analysis/types'
 
-import { shouldCreateMarkerFromCanvasClick } from './annotation-editor-logic'
+import {
+  getAnnotationEditorAiResetAnnotations,
+  getAnnotationEditorInitialAnnotations,
+  shouldCreateMarkerFromCanvasClick,
+} from './annotation-editor-logic'
 
 function flattenMarkers(annotations: ScalpAnalysisAnnotations): ScalpEditorMarker[] {
   return [
@@ -64,11 +67,16 @@ export function AnnotationEditor({
   const [notes, setNotes] = useState('')
   const [markers, setMarkers] = useState<ScalpEditorMarker[]>([])
   const [localError, setLocalError] = useState<string | null>(null)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
   const dragMovedRef = useRef(false)
 
   const baseAnnotations = useMemo(
-    () => normalizeAnnotations(image.confirmed_annotations_json ?? image.ai_result_json ?? createEmptyAnnotations()),
+    () =>
+      getAnnotationEditorInitialAnnotations({
+        ai_result_json: image.ai_result_json,
+        confirmed_annotations_json: image.confirmed_annotations_json,
+      }),
     [image.ai_result_json, image.confirmed_annotations_json],
   )
 
@@ -78,7 +86,18 @@ export function AnnotationEditor({
   useEffect(() => {
     setNotes(baseAnnotations.notes)
     setMarkers(flattenMarkers(baseAnnotations))
+    setHasUnsavedChanges(false)
   }, [baseAnnotations])
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return
+    function warnBeforeLeaving(event: BeforeUnloadEvent) {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warnBeforeLeaving)
+    return () => window.removeEventListener('beforeunload', warnBeforeLeaving)
+  }, [hasUnsavedChanges])
 
   function pointFromEvent(
     event: React.PointerEvent<SVGSVGElement> | React.MouseEvent<SVGSVGElement>,
@@ -103,6 +122,7 @@ export function AnnotationEditor({
         image_height: height,
       })
       await onConfirm(next)
+      setHasUnsavedChanges(false)
     } catch (error) {
       setLocalError(error instanceof Error ? error.message : '保存標記失敗')
     }
@@ -125,7 +145,17 @@ export function AnnotationEditor({
                 </option>
               ))}
             </select>
-            <Button variant="secondary" type="button" onClick={() => setMarkers(flattenMarkers(baseAnnotations))}>
+            <Button
+              variant="secondary"
+              type="button"
+              disabled={!image.ai_result_json || busy}
+              onClick={() => {
+                const next = getAnnotationEditorAiResetAnnotations(image)
+                setMarkers(flattenMarkers(next))
+                setNotes(next.notes)
+                setHasUnsavedChanges(true)
+              }}
+            >
               還原 AI 標記
             </Button>
             <Button type="button" disabled={busy} onClick={() => void handleConfirm()}>
@@ -133,6 +163,12 @@ export function AnnotationEditor({
             </Button>
           </div>
         </div>
+
+        {hasUnsavedChanges ? (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+            有未保存的標記或備註。離開或刷新頁面前，請先按「確認標記」。
+          </div>
+        ) : null}
 
         <div className="text-xs text-slate-500">
           點擊圖片可新增標記；拖動標記可調整位置；下方清單可更改類型或刪除。最終統計以確認後的標記為準。
@@ -150,6 +186,7 @@ export function AnnotationEditor({
               const point = pointFromEvent(event)
               if (!point) return
               dragMovedRef.current = true
+              setHasUnsavedChanges(true)
               setMarkers((prev) => prev.map((item) => (item.id === dragId ? { ...item, ...point } : item)))
             }}
             onPointerUp={() => setDragId(null)}
@@ -173,6 +210,7 @@ export function AnnotationEditor({
                   confidence: null,
                 },
               ])
+              setHasUnsavedChanges(true)
             }}
           >
             {markers.map((marker) => {
@@ -209,7 +247,10 @@ export function AnnotationEditor({
           <textarea
             className="min-h-20 rounded-md border border-slate-300 px-3 py-2 text-sm"
             value={notes}
-            onChange={(event) => setNotes(event.target.value)}
+            onChange={(event) => {
+              setNotes(event.target.value)
+              setHasUnsavedChanges(true)
+            }}
             placeholder="輸入這張圖片的人手確認備註..."
           />
         </div>
@@ -226,13 +267,14 @@ export function AnnotationEditor({
                 <select
                   className="rounded-md border border-slate-300 px-2 py-1 text-sm"
                   value={marker.type}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    setHasUnsavedChanges(true)
                     setMarkers((prev) =>
                       prev.map((item) =>
                         item.id === marker.id ? { ...item, type: event.target.value as ScalpAnnotationType } : item,
                       ),
                     )
-                  }
+                  }}
                 >
                   {SCALP_ANALYSIS_ANNOTATION_TYPES.map((type) => (
                     <option key={type} value={type}>
@@ -243,7 +285,10 @@ export function AnnotationEditor({
                 <Button
                   variant="danger"
                   type="button"
-                  onClick={() => setMarkers((prev) => prev.filter((item) => item.id !== marker.id))}
+                  onClick={() => {
+                    setHasUnsavedChanges(true)
+                    setMarkers((prev) => prev.filter((item) => item.id !== marker.id))
+                  }}
                 >
                   刪除
                 </Button>

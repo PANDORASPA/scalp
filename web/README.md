@@ -208,6 +208,9 @@ Important: share that folder with the service account `client_email` as Editor b
 4. Upload 3 images for each of the 6 fixed areas.
 5. Review AI markers, edit them, then click `Confirm annotations`.
 6. After 3 confirmed images in one area, the area average and previous/baseline comparison appear automatically.
+7. The tracking URL keeps `customerId` and `sessionId`, so refreshing or reopening a copied link returns to the same work.
+8. Replacing or deleting an existing image asks for confirmation because it changes confirmed annotations and derived summaries.
+9. Manual annotation edits show an unsaved warning and the browser warns before refresh/close until the annotations are confirmed.
 
 ### Manual checklist
 

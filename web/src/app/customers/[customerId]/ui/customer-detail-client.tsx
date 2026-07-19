@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CAPTURE_POINT_CODES } from '@/lib/scalp/constants'
 import { getCapturePointLabel } from '@/lib/scalp/display'
+import { buildScalpAnalysisHref } from '@/lib/scalp-analysis/navigation'
 import type { ScalpAnalysisSessionState } from '@/lib/scalp-analysis/types'
 import type { ScalpPointSummary, ScalpSession } from '@/lib/scalp/types'
 import { getHumanErrorMessage } from '@/lib/ui/errors'
@@ -462,7 +463,9 @@ export default function CustomerDetailClient({
             <Button onClick={() => router.push(`/sessions/new?customerId=${data.customer.id}`)}>
               建立 session
             </Button>
-            <Button onClick={() => router.push(`/scalp-analysis?customerId=${data.customer.id}`)}>
+            <Button
+              onClick={() => router.push(buildScalpAnalysisHref(data.customer.id, trackingSessions[0]?.id))}
+            >
               頭皮追蹤
             </Button>
           </div>

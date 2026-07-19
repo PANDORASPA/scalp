@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SCALP_ANALYSIS_AREA_KEYS, SCALP_ANALYSIS_AREA_LABELS } from '@/lib/scalp-analysis/constants'
 import { calculateCaptureConsistencyScore } from '@/lib/scalp-analysis/logic'
+import { buildScalpAnalysisHref, pickTrackingSessionId } from '@/lib/scalp-analysis/navigation'
 import type { ScalpAnalysisAnnotations, ScalpAnalysisImage, ScalpAnalysisSessionState, ScalpAreaSummary } from '@/lib/scalp-analysis/types'
 import type { ScalpSession } from '@/lib/scalp/types'
 import { getHumanErrorMessage } from '@/lib/ui/errors'
@@ -120,6 +121,7 @@ function SummaryPanel({ summary, consistencyScore }: { summary: ScalpAreaSummary
 }
 
 export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' }) {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [customers, setCustomers] = useState<CustomerRow[]>([])
   const [customerId, setCustomerId] = useState('')
@@ -162,7 +164,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
     }
   }, [searchParams])
 
-  async function loadSessions(nextCustomerId: string) {
+  const loadSessions = useCallback(async (nextCustomerId: string) => {
     if (!nextCustomerId) {
       setSessions([])
       setSessionId('')
@@ -170,13 +172,16 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
     }
     const list = await fetchJSON<ScalpSession[]>(`/api/scalp-analysis/sessions?customerId=${nextCustomerId}`)
     setSessions(list)
-    setSessionId((prev) => (prev && list.some((item) => item.id === prev) ? prev : list[0]?.id ?? ''))
-  }
+    const requestedSessionId = nextCustomerId === customerId ? searchParams.get('sessionId') : null
+    const selectedSessionId = pickTrackingSessionId(list, requestedSessionId, sessionId)
+    setSessionId(selectedSessionId)
+    router.replace(buildScalpAnalysisHref(nextCustomerId, selectedSessionId || null))
+  }, [customerId, router, searchParams, sessionId])
 
   useEffect(() => {
     if (!customerId) return
     void loadSessions(customerId).catch((e) => setError(e instanceof Error ? e.message : '載入檢查紀錄失敗'))
-  }, [customerId])
+  }, [customerId, loadSessions])
 
   useEffect(() => {
     if (!sessionId) {
@@ -257,7 +262,11 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                 className="rounded-md border border-slate-300 px-3 py-2 text-sm"
                 value={customerId}
                 onChange={(e) => {
-                  setCustomerId(e.target.value)
+                  const nextCustomerId = e.target.value
+                  setCustomerId(nextCustomerId)
+                  setSessionId('')
+                  if (nextCustomerId) router.replace(buildScalpAnalysisHref(nextCustomerId))
+                  else router.replace('/scalp-analysis')
                   setError(null)
                 }}
               >
@@ -307,6 +316,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                     })
                     await loadSessions(customerId)
                     setSessionId(created.id)
+                    router.replace(buildScalpAnalysisHref(customerId, created.id))
                     setCreateNotes('')
                     setCreateDate(toDatetimeLocalValue(new Date().toISOString()))
                   } catch (e) {
@@ -336,7 +346,14 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    <button type="button" className="w-full text-left" onClick={() => setSessionId(session.id)}>
+                    <button
+                      type="button"
+                      className="w-full text-left"
+                      onClick={() => {
+                        setSessionId(session.id)
+                        router.replace(buildScalpAnalysisHref(customerId, session.id))
+                      }}
+                    >
                       <div className="font-medium">{formatDate(session.check_date)}</div>
                       <div className="mt-1 text-xs text-slate-500">{session.notes || '沒有備註'}</div>
                     </button>
@@ -549,6 +566,14 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                                 onClick={async () => {
                                   const file = files[fileKey]
                                   if (!file) return
+                                  if (
+                                    image &&
+                                    !window.confirm(
+                                      '這個位置已有圖片。覆寫後會重新分析，並清除這張圖目前的確認標記和統計，確定繼續嗎？',
+                                    )
+                                  ) {
+                                    return
+                                  }
                                   setBusyKey(`upload:${fileKey}`)
                                   setError(null)
                                   try {
@@ -598,6 +623,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                                   variant="danger"
                                   disabled={busyKey === `delete:${image.id}`}
                                   onClick={async () => {
+                                    if (!window.confirm('確定刪除這張放大圖及其確認標記、統計和比較結果嗎？')) return
                                     setBusyKey(`delete:${image.id}`)
                                     setError(null)
                                     try {
