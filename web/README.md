@@ -91,13 +91,13 @@ The diagnose script checks:
 - `SUPABASE_URL` format
 - `SUPABASE_SERVICE_ROLE_KEY` JWT shape without printing the secret
 - DNS resolution for the Supabase API host
-- a direct REST query to `scalp_capture_points`
+- every production table used by the app
+- all six fixed `scalp_capture_points` codes
+- that the configured storage bucket exists and remains private
 
 The smoke script checks:
 
-- required tables exist
-- storage bucket exists
-- capture points are seeded
+- the same required schema, capture points, and private bucket readiness checks
 - optional API flow if `APP_BASE_URL` is set:
   - login
   - seed or create customer/session

@@ -34,6 +34,8 @@
     "src/lib/config/google-drive.test.ts",
     "src/lib/config/supabase.ts",
     "src/lib/config/supabase.test.ts",
+    "src/lib/config/supabase-connectivity.ts",
+    "src/lib/config/supabase-connectivity.test.ts",
     "src/lib/customers/workspace.ts",
     "src/lib/customers/workspace.test.ts",
     "src/lib/customers/search.ts",

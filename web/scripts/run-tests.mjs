@@ -44,6 +44,7 @@ const tests = spawnSync(
     testPath('lib/scalp-analysis/storage/google-drive-http.test.js'),
     testPath('lib/scalp-analysis/storage/google-drive.test.js'),
     testPath('lib/config/supabase.test.js'),
+    testPath('lib/config/supabase-connectivity.test.js'),
     testPath('lib/customers/workspace.test.js'),
     testPath('lib/customers/search.test.js'),
     testPath('lib/scalp/ai.test.js'),

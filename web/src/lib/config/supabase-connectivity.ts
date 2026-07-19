@@ -3,6 +3,26 @@ import 'server-only'
 import dns from 'node:dns/promises'
 
 import { getSupabaseServerEnv, getSupabaseServerEnvIssue } from '@/lib/config/supabase'
+import { SCALP_ANALYSIS_AREA_KEYS } from '@/lib/scalp-analysis/constants'
+
+export const SUPABASE_REQUIRED_TABLES = [
+  'customers',
+  'scalp_sessions',
+  'scalp_capture_points',
+  'scalp_images',
+  'scalp_image_metrics',
+  'scalp_point_summaries',
+  'scalp_comparisons',
+  'scalp_ai_shot_analyses',
+  'scalp_ai_point_analyses',
+  'scalp_area_summaries',
+  'app_settings',
+] as const
+
+export function getMissingCapturePointCodes(codes: readonly string[]) {
+  const present = new Set(codes)
+  return SCALP_ANALYSIS_AREA_KEYS.filter((code) => !present.has(code))
+}
 
 export type SupabaseConnectivityResult = {
   ok: true
@@ -48,49 +68,62 @@ export async function testSupabaseConnectivity(): Promise<SupabaseConnectivityRe
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 10000)
+  const headers = {
+    apikey: env.serviceRoleKey,
+    Authorization: `Bearer ${env.serviceRoleKey}`,
+  }
 
   try {
-    const res = await fetch(`${env.url}/rest/v1/scalp_capture_points?select=id&limit=1`, {
-      method: 'GET',
-      signal: controller.signal,
-      headers: {
-        apikey: env.serviceRoleKey,
-        Authorization: `Bearer ${env.serviceRoleKey}`,
-      },
-    })
-
-    if (!res.ok) {
-      const text = await res.text()
-      throw new Error(`Supabase REST check failed: ${res.status} ${text}`)
-    }
-
-    for (const table of ['scalp_area_summaries', 'scalp_ai_point_analyses', 'app_settings']) {
-      const tableRes = await fetch(`${env.url}/rest/v1/${table}?select=id&limit=1`, {
+    const capturePointsRes = await fetch(
+      `${env.url}/rest/v1/scalp_capture_points?select=code&limit=100`,
+      {
         method: 'GET',
         signal: controller.signal,
-        headers: {
-          apikey: env.serviceRoleKey,
-          Authorization: `Bearer ${env.serviceRoleKey}`,
-        },
-      })
-      if (!tableRes.ok) {
-        const text = await tableRes.text()
-        throw new Error(`Supabase schema check failed for ${table}: ${tableRes.status} ${text}`)
-      }
+        headers,
+      },
+    )
+
+    if (!capturePointsRes.ok) {
+      const text = await capturePointsRes.text()
+      throw new Error(`Supabase REST check failed: ${capturePointsRes.status} ${text}`)
     }
+
+    const capturePoints = (await capturePointsRes.json()) as Array<{ code?: string }>
+    const missingCapturePointCodes = getMissingCapturePointCodes(
+      capturePoints.map((point) => point.code).filter((code): code is string => Boolean(code)),
+    )
+    if (missingCapturePointCodes.length > 0) {
+      throw new Error(
+        `Supabase schema check failed: missing scalp capture points: ${missingCapturePointCodes.join(', ')}`,
+      )
+    }
+
+    await Promise.all(
+      SUPABASE_REQUIRED_TABLES.filter((table) => table !== 'scalp_capture_points').map(async (table) => {
+        const tableRes = await fetch(`${env.url}/rest/v1/${table}?select=id&limit=1`, {
+          method: 'GET',
+          signal: controller.signal,
+          headers,
+        })
+        if (!tableRes.ok) {
+          const text = await tableRes.text()
+          throw new Error(`Supabase schema check failed for ${table}: ${tableRes.status} ${text}`)
+        }
+      }),
+    )
 
     const bucketRes = await fetch(
       `${env.url}/storage/v1/bucket/${encodeURIComponent(env.storageBucket)}`,
       {
         method: 'GET',
         signal: controller.signal,
-        headers: {
-          apikey: env.serviceRoleKey,
-          Authorization: `Bearer ${env.serviceRoleKey}`,
-        },
+        headers,
       },
     )
-    const bucketPayload = (await bucketRes.json().catch(() => null)) as { public?: boolean; message?: string } | null
+    const bucketPayload = (await bucketRes.json().catch(() => null)) as {
+      public?: boolean
+      message?: string
+    } | null
     if (!bucketRes.ok) {
       throw new Error(
         `Supabase storage bucket check failed: ${bucketRes.status} ${bucketPayload?.message || 'bucket unavailable'}`,
