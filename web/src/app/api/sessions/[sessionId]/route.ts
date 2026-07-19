@@ -7,11 +7,12 @@ import { readJsonBody } from '@/lib/api/json'
 import { requireAuthRole } from '@/lib/auth/session'
 import { shouldUseSupabaseDataSource } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
+import { hasSessionWorkflow } from '@/lib/scalp/ownership'
 import { cleanupScalpImageStorageRefs } from '@/lib/scalp-analysis/storage-cleanup'
 import {
   deleteSessionInSupabase,
   getImageStorageRefsForSessionFromSupabase,
-  getSessionFromSupabase,
+  getLegacySessionFromSupabase,
   toRepositoryError,
   touchCustomerInSupabase,
   updateSessionInSupabase,
@@ -35,7 +36,7 @@ export async function GET(
 
   if (shouldUseSupabaseDataSource()) {
     try {
-      const result = await getSessionFromSupabase(sessionId)
+      const result = await getLegacySessionFromSupabase(sessionId)
       if (!result) {
         return NextResponse.json({ error: 'not_found' }, { status: 404 })
       }
@@ -46,7 +47,7 @@ export async function GET(
   }
 
   const result = await updateDb(async (db) => {
-    const session = db.sessions.find((s) => s.id === sessionId) ?? null
+    const session = db.sessions.find((s) => s.id === sessionId && hasSessionWorkflow(s, 'legacy_capture')) ?? null
     return { db, result: session }
   })
 
@@ -77,7 +78,7 @@ export async function PATCH(
 
   if (shouldUseSupabaseDataSource()) {
     try {
-      const current = await getSessionFromSupabase(sessionId)
+      const current = await getLegacySessionFromSupabase(sessionId)
       if (!current) {
         return NextResponse.json({ error: 'not_found' }, { status: 404 })
       }
@@ -106,6 +107,7 @@ export async function PATCH(
     if (idx === -1) return { db, result: null as ScalpSession | null }
 
     const current = db.sessions[idx]
+    if (!hasSessionWorkflow(current, 'legacy_capture')) return { db, result: null as ScalpSession | null }
     const now = new Date().toISOString()
     const next: ScalpSession = {
       ...current,
@@ -147,7 +149,7 @@ export async function DELETE(
 
   if (shouldUseSupabaseDataSource()) {
     try {
-      const session = await getSessionFromSupabase(sessionId)
+      const session = await getLegacySessionFromSupabase(sessionId)
       if (!session) {
         return NextResponse.json({ error: 'not_found' }, { status: 404 })
       }
@@ -162,7 +164,7 @@ export async function DELETE(
   }
 
   const deleted = await updateDb(async (db) => {
-    const session = db.sessions.find((s) => s.id === sessionId) ?? null
+    const session = db.sessions.find((s) => s.id === sessionId && hasSessionWorkflow(s, 'legacy_capture')) ?? null
     if (!session) return { db, result: null as ScalpSession | null }
 
     const now = new Date().toISOString()

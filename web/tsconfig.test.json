@@ -90,6 +90,8 @@
     "src/lib/settings/integration-mode.test.ts",
     "src/lib/settings/secret-merge.ts",
     "src/lib/settings/secret-merge.test.ts",
+    "src/lib/settings/repository.ts",
+    "src/lib/settings/repository.test.ts",
     "src/lib/settings/status.ts",
     "src/lib/scalp/types.ts",
     "src/lib/scalp/constants.ts",

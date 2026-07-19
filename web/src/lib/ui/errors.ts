@@ -24,6 +24,13 @@ export function getHumanErrorMessage(error: string) {
   if (error.includes('incomplete_images')) return '此部位需要 3 張圖片，而且每張都要確認標記後才可計算平均。'
   if (error.includes('storage_provider')) return '圖片儲存設定不完整，請到系統設定檢查 Google Drive。'
   if (error.includes('private_image_proxy_unavailable')) return '私有圖片 proxy 尚未啟用，請檢查 storage adapter 設定。'
+  if (
+    error.includes('GOOGLE_DRIVE_CLIENT_EMAIL') ||
+    error.includes('GOOGLE_DRIVE_PRIVATE_KEY') ||
+    error.includes('GOOGLE_DRIVE_FOLDER_ID')
+  ) {
+    return 'Google Drive settings are incomplete. Provide the service account email, private key, and folder id.'
+  }
   if (error.includes('Google Drive request timed out') || error.includes('google_drive_request_timeout')) {
     return 'Google Drive request timeout，請檢查網絡或稍後再試。'
   }
@@ -45,6 +52,9 @@ export function getHumanErrorMessage(error: string) {
   }
   if (error.includes('supabase_connection_failed')) {
     return 'Supabase 連線失敗，暫時不能儲存客人或紀錄。請到 Supabase Project Settings > API 複製正確 Project URL 和 service_role key，更新 Vercel env 後重新部署。'
+  }
+  if (error.includes('supabase_settings_unavailable')) {
+    return 'Supabase settings could not be read. Check the Project URL, service role key, and migrations, then try again.'
   }
   if (error.includes('mock_db_corrupt')) {
     return 'Local mock database is corrupted. Stop the local server and restore or remove .data/mock-db.json; deployed environments never use local mock data.'

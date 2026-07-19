@@ -92,6 +92,9 @@ export async function PATCH(
         notes: body.notes === undefined ? undefined : body.notes?.toString().trim() || null,
         updated_at: now,
       })
+      if (!updated) {
+        return NextResponse.json({ error: 'not_found' }, { status: 404 })
+      }
       return NextResponse.json(updated)
     } catch (error) {
       return NextResponse.json({ error: toRepositoryError(error) }, { status: 500 })
@@ -139,6 +142,9 @@ export async function DELETE(
       const imageStorageRefs = await getImageStorageRefsForCustomerFromSupabase(customerId)
       await cleanupScalpImageStorageRefs(imageStorageRefs)
       const deleted = await deleteCustomerInSupabase(customerId)
+      if (!deleted) {
+        return NextResponse.json({ error: 'not_found' }, { status: 404 })
+      }
       return NextResponse.json(deleted)
     } catch (error) {
       return NextResponse.json({ error: toRepositoryError(error) }, { status: 500 })

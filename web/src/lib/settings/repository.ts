@@ -34,6 +34,21 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }
 
+export function formatSettingsError(error: unknown) {
+  if (error instanceof Error) return error.message
+  if (isObject(error)) {
+    const code = typeof error.code === 'string' ? error.code.trim() : ''
+    const parts = ['message', 'details', 'hint']
+      .map((key) => error[key])
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      .map((value) => value.trim())
+    if (code && parts.length > 0) return `${code}: ${parts.join(' | ')}`
+    if (code) return code
+    if (parts.length > 0) return parts.join(' | ')
+  }
+  return String(error)
+}
+
 function normalizeGoogleDriveSettings(value: unknown): GoogleDriveSettings {
   if (!isObject(value)) return {}
   const storageProvider =
@@ -89,8 +104,7 @@ export async function getAppSettings(): Promise<AppSettings> {
     }
   } catch (error) {
     if (!canUseLocalSettingsFallback()) {
-      const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`supabase_settings_unavailable: ${message}`)
+      throw new Error(`supabase_settings_unavailable: ${formatSettingsError(error)}`)
     }
     return DEFAULT_SETTINGS
   }
@@ -111,7 +125,7 @@ export async function saveGoogleDriveSettings(input: GoogleDriveSettings) {
     key: 'google_drive',
     value: next,
   })
-  if (error) throw new Error(`save_google_drive_settings_failed: ${error.message}`)
+  if (error) throw new Error(`save_google_drive_settings_failed: ${formatSettingsError(error)}`)
   return next
 }
 
@@ -129,6 +143,6 @@ export async function saveOpenAiSettings(input: OpenAiSettings) {
     key: 'openai',
     value: next,
   })
-  if (error) throw new Error(`save_openai_settings_failed: ${error.message}`)
+  if (error) throw new Error(`save_openai_settings_failed: ${formatSettingsError(error)}`)
   return next
 }

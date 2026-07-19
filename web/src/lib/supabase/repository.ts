@@ -14,7 +14,7 @@ import type {
   ScalpPointSummary,
   ScalpSession,
 } from '@/lib/scalp/types'
-import { belongsToSessionOwner } from '@/lib/scalp/ownership'
+import { belongsToSessionOwner, hasSessionWorkflow } from '@/lib/scalp/ownership'
 
 import { getSupabaseAdminClient } from './client'
 import { getScalpImageUrl } from './storage'
@@ -352,7 +352,7 @@ export async function getCustomerSnapshot(customerId: string): Promise<MockDb> {
 
 export async function getSessionStateFromSupabase(sessionId: string) {
   const session = await querySingle<ScalpSession>('scalp_sessions', 'id', sessionId)
-  if (!session) return null
+  if (!session || !hasSessionWorkflow(session, 'legacy_capture')) return null
 
   const snapshot = await getCustomerSnapshot(session.customer_id)
   const customer = snapshot.customers.find((item) => item.id === session.customer_id) ?? null
@@ -462,17 +462,17 @@ export async function updateCustomerInSupabase(customerId: string, patch: Partia
     .update(patch)
     .eq('id', customerId)
     .select('*')
-    .single()
+    .maybeSingle()
 
   if (error) throw new Error(`update customer: ${error.message}`)
-  return data as Customer
+  return (data as Customer | null) ?? null
 }
 
 export async function deleteCustomerInSupabase(customerId: string) {
   const client = getSupabaseAdminClient()
-  const { data, error } = await client.from('customers').delete().eq('id', customerId).select('*').single()
+  const { data, error } = await client.from('customers').delete().eq('id', customerId).select('*').maybeSingle()
   if (error) throw new Error(`delete customer: ${error.message}`)
-  return data as Customer
+  return (data as Customer | null) ?? null
 }
 
 export async function listSessionsFromSupabase(customerId?: string | null) {
@@ -514,6 +514,11 @@ export async function createSessionInSupabase(input: {
 
 export async function getSessionFromSupabase(sessionId: string) {
   return querySingle<ScalpSession>('scalp_sessions', 'id', sessionId)
+}
+
+export async function getLegacySessionFromSupabase(sessionId: string) {
+  const session = await getSessionFromSupabase(sessionId)
+  return hasSessionWorkflow(session, 'legacy_capture') ? session : null
 }
 
 export async function getSessionForCustomerFromSupabase(

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { requireAuthRole } from '@/lib/auth/session'
 import { shouldUseSupabaseDataSource } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
+import { hasSessionWorkflow } from '@/lib/scalp/ownership'
 import { getSessionStateFromSupabase, toRepositoryError } from '@/lib/supabase/repository'
 
 export const runtime = 'nodejs'
@@ -29,7 +30,7 @@ export async function GET(
   }
 
   const result = await updateDb(async (db) => {
-    const session = db.sessions.find((s) => s.id === sessionId) ?? null
+    const session = db.sessions.find((s) => s.id === sessionId && hasSessionWorkflow(s, 'legacy_capture')) ?? null
     if (!session) return { db, result: null }
     const customer = db.customers.find((c) => c.id === session.customer_id) ?? null
     const images = db.images.filter((img) => img.session_id === sessionId)

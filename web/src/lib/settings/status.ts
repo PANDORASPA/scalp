@@ -3,7 +3,6 @@ import { normalizeScalpAnalysisAiProvider } from '@/lib/config/scalp-analysis-ai
 import { explainSupabaseConnectivityError, testSupabaseConnectivity } from '@/lib/config/supabase-connectivity'
 import { getSupabaseServerEnvIssue } from '@/lib/config/supabase'
 import { getAuthReadinessStatus } from '@/lib/auth/users'
-import { getScalpStorageProviderName } from '@/lib/scalp-analysis/storage'
 import { getAppSettings, hasCompleteGoogleDriveSettings, hasOpenAiApiKey } from '@/lib/settings/repository'
 import { getSupabaseIntegrationMode } from './integration-mode'
 
@@ -54,12 +53,8 @@ export async function getSystemStatus(): Promise<IntegrationStatus[]> {
   const supabase = await getSupabaseConnectionStatus()
   const auth = getAuthReadinessStatus()
   const aiProvider = settings.openAi.provider ?? normalizeScalpAnalysisAiProvider(process.env.SCALP_ANALYSIS_AI_PROVIDER)
-  let storageProvider = process.env.SCALP_ANALYSIS_STORAGE_PROVIDER?.trim() || 'google-drive'
-  try {
-    storageProvider = await getScalpStorageProviderName()
-  } catch (error) {
-    console.error('Unable to read persisted storage provider setting', error)
-  }
+  const storageProvider =
+    settings.googleDrive.storageProvider ?? process.env.SCALP_ANALYSIS_STORAGE_PROVIDER?.trim() ?? 'google-drive'
   const demoStorageReady = storageProvider === 'demo'
   const officialGoogleDriveReady = hasCompleteGoogleDriveSettings(settings.googleDrive) || hasGoogleDriveEnv()
   const googleDriveReady = demoStorageReady || officialGoogleDriveReady

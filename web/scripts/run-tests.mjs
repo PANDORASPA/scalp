@@ -64,6 +64,7 @@ const tests = spawnSync(
     testPath('lib/settings/health.test.js'),
     testPath('lib/settings/integration-mode.test.js'),
     testPath('lib/settings/secret-merge.test.js'),
+    testPath('lib/settings/repository.test.js'),
     testPath('lib/supabase/storage-path.test.js'),
     testPath('lib/ui/errors.test.js'),
     testPath('lib/ui/fetch.test.js'),
