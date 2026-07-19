@@ -404,6 +404,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
   const [loading, setLoading] = useState(true)
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null)
   const [createNotes, setCreateNotes] = useState('')
   const [createDate, setCreateDate] = useState(() => toDatetimeLocalValue(new Date().toISOString()))
   const [editingSession, setEditingSession] = useState<ScalpSession | null>(null)
@@ -523,6 +524,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
 
   useEffect(() => {
     sessionStateRequestRef.current?.abort()
+    setRecoveryNotice(null)
     if (!sessionId) {
       setSessionState(null)
       return
@@ -604,6 +606,38 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
             <Button variant="secondary" onClick={() => void refreshCurrentSession()} disabled={!sessionId || busyKey === 'load-session'}>
               重新整理
             </Button>
+            {sessionState && sessionState.progress.ai_retryable_images > 0 ? (
+              <Button
+                className="print:hidden"
+                variant="secondary"
+                disabled={!supabaseReady || busyKey === 'retry-session'}
+                onClick={async () => {
+                  setBusyKey('retry-session')
+                  setError(null)
+                  setRecoveryNotice(null)
+                  try {
+                    const result = await fetchJSON<{
+                      attempted: number
+                      succeeded: number
+                      failed: number
+                      skipped: number
+                    }>(`/api/scalp-analysis/sessions/${encodeURIComponent(sessionId)}/retry`, { method: 'POST' })
+                    setRecoveryNotice(
+                      `AI recovery finished: ${result.succeeded} succeeded, ${result.failed} failed, ${result.skipped} skipped.`,
+                    )
+                    await refreshCurrentSession()
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : 'AI recovery failed')
+                  } finally {
+                    setBusyKey(null)
+                  }
+                }}
+              >
+                {busyKey === 'retry-session'
+                  ? 'Retrying AI...'
+                  : `Retry ${sessionState.progress.ai_retryable_images} AI image(s)`}
+              </Button>
+            ) : null}
             <Button variant="secondary" onClick={() => window.print()} disabled={!sessionState}>
               列印報告
             </Button>
@@ -913,6 +947,11 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                   {sessionState.progress.pending_confirmation_areas > 0 ? (
                     <div className="mt-2 text-xs text-amber-700">
                       有 {sessionState.progress.pending_confirmation_areas} 個部位已上傳圖片，但仍有標記未確認。
+                    </div>
+                  ) : null}
+                  {recoveryNotice ? (
+                    <div className="mt-3 rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800">
+                      {recoveryNotice}
                     </div>
                   ) : null}
                 </div>

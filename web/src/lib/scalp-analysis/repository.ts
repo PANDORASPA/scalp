@@ -510,6 +510,9 @@ export async function getTrackingSessionStateRecord(sessionId: string): Promise<
   const readyAreas = areas.filter((area) => area.ready_for_average).length
   const uploadedImages = areas.reduce((total, area) => total + area.uploaded_images, 0)
   const confirmedImages = areas.reduce((total, area) => total + area.confirmed_images, 0)
+  const retryableImages = images.filter(
+    (image) => image.analysis_status === 'uploaded' || image.analysis_status === 'ai_failed',
+  )
 
   return {
     session,
@@ -530,6 +533,8 @@ export async function getTrackingSessionStateRecord(sessionId: string): Promise<
       pending_confirmation_areas: areas.filter(
         (area) => area.uploaded_images > 0 && !area.ready_for_average,
       ).length,
+      ai_retryable_images: retryableImages.length,
+      ai_failed_images: retryableImages.filter((image) => image.analysis_status === 'ai_failed').length,
     },
     report_lines: summaries
       .sort((a, b) => a.area_key.localeCompare(b.area_key))

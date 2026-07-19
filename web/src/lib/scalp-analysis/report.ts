@@ -53,6 +53,8 @@ export type ScalpAnalysisReport = {
   customer_name: string
   session_date: string
   staff_name: string | null
+  ai_retryable_images: number
+  ai_failed_images: number
   session_complete: boolean
   completed_areas: number
   incomplete_areas: number
@@ -136,7 +138,9 @@ function summaryMetrics(summary: ScalpAreaSummary | null) {
 }
 
 export function buildScalpAnalysisReport(
-  state: Pick<ScalpAnalysisSessionState, 'session' | 'customer' | 'areas'>,
+  state: Pick<ScalpAnalysisSessionState, 'session' | 'customer' | 'areas'> & {
+    progress?: ScalpAnalysisSessionState['progress']
+  },
 ): ScalpAnalysisReport {
   const areas = state.areas.map((area) => {
     const complete = area.ready_for_average && Boolean(area.summary)
@@ -160,6 +164,8 @@ export function buildScalpAnalysisReport(
   })
   const completedAreas = areas.filter((area) => area.status === 'complete').length
   const incompleteAreas = areas.length - completedAreas
+  const aiRetryableImages = state.progress?.ai_retryable_images ?? 0
+  const aiFailedImages = state.progress?.ai_failed_images ?? 0
 
   return {
     session_id: state.session.id,
@@ -167,11 +173,18 @@ export function buildScalpAnalysisReport(
     customer_name: state.customer?.name ?? '未命名客人',
     session_date: state.session.check_date,
     staff_name: state.session.staff_name,
+    ai_retryable_images: aiRetryableImages,
+    ai_failed_images: aiFailedImages,
     session_complete: areas.length > 0 && incompleteAreas === 0,
     completed_areas: completedAreas,
     incomplete_areas: incompleteAreas,
     areas,
     warnings: [
+      ...(aiFailedImages > 0
+        ? [`AI recovery pending: ${aiFailedImages} image(s) failed. Please retry before finalizing the report.`]
+        : aiRetryableImages > 0
+          ? [`AI recovery pending: ${aiRetryableImages} image(s) still need analysis.`]
+          : []),
       ...areas
         .filter((area) => area.status === 'incomplete')
         .map(

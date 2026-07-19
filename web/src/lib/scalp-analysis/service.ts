@@ -53,7 +53,7 @@ import {
   deleteStorageRequired,
   shouldRollbackUploadedStorageOnRecordFailure,
 } from './storage-consistency'
-import type { ScalpAnalysisAnnotations } from './types'
+import type { ScalpAnalysisAnnotations, ScalpAnalysisImage } from './types'
 
 type UploadInput = {
   sessionId: string
@@ -260,6 +260,59 @@ export async function retryScalpImageAnalysis(imageId: string) {
       updated_at: now,
     })
     throw error
+  }
+}
+
+type RetryImageAnalysis = (imageId: string) => Promise<ScalpAnalysisImage>
+
+function isRetryableAnalysisStatus(status: ScalpAnalysisImage['analysis_status']) {
+  return status === 'uploaded' || status === 'ai_failed'
+}
+
+export async function retryScalpSessionAnalysis(
+  sessionId: string,
+  retryImage: RetryImageAnalysis = retryScalpImageAnalysis,
+) {
+  const session = await getTrackingSession(sessionId)
+  if (!session) throw new Error('session_not_found: Scalp analysis session not found.')
+
+  const images = await listTrackingImagesForSession(sessionId)
+  const candidates = images.filter((image) => isRetryableAnalysisStatus(image.analysis_status))
+  const results: Array<{
+    image_id: string
+    status: 'ready' | 'failed'
+    error?: string
+  }> = []
+  let skipped = images.length - candidates.length
+
+  for (const candidate of candidates) {
+    // Re-check status before each attempt so a concurrent confirmation or delete wins.
+    const current = await getTrackingImageById(candidate.id)
+    if (!current || !isRetryableAnalysisStatus(current.analysis_status)) {
+      skipped += 1
+      continue
+    }
+
+    try {
+      await retryImage(candidate.id)
+      results.push({ image_id: candidate.id, status: 'ready' })
+    } catch (error) {
+      results.push({
+        image_id: candidate.id,
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'AI analysis failed',
+      })
+    }
+  }
+
+  if (candidates.length > 0) await touchCustomer(session.customer_id, new Date().toISOString())
+  return {
+    session_id: sessionId,
+    attempted: results.length,
+    succeeded: results.filter((result) => result.status === 'ready').length,
+    failed: results.filter((result) => result.status === 'failed').length,
+    skipped,
+    results,
   }
 }
 

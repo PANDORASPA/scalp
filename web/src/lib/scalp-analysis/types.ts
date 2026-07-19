@@ -137,6 +137,8 @@ export type ScalpAnalysisSessionState = {
     total_areas: number
     ready_areas: number
     pending_confirmation_areas: number
+    ai_retryable_images: number
+    ai_failed_images: number
   }
   report_lines: string[]
 }

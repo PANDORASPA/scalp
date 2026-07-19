@@ -6,7 +6,6 @@ import {
   getTrackingImageById,
   getTrackingImageBySlot,
   getTrackingSessionStateRecord,
-  updateTrackingImageRecord,
   upsertTrackingImageRecord,
 } from './mock-repository'
 import { updateDb } from '../mockdb/store'
@@ -57,15 +56,13 @@ test('mock tracking repository supports session state and slot upsert', async ()
       driveFileId: 'demo-incomplete-confirmed',
       storageProvider: 'demo',
       storageObjectKey: 'customer-test/session/m_left/2.jpg',
-      analysisStatus: 'confirmed',
+      analysisStatus: 'ai_failed',
       nowISO: '2026-07-18T00:00:03.000Z',
-    })
-    await updateTrackingImageRecord(incompleteConfirmed.id, {
-      analysis_status: 'confirmed',
-      updated_at: '2026-07-18T00:00:04.000Z',
     })
     const state = await getTrackingSessionStateRecord(session.id)
     assert.equal(state?.progress.uploaded_images, 2)
+    assert.equal(state?.progress.ai_retryable_images, 2)
+    assert.equal(state?.progress.ai_failed_images, 1)
     assert.equal(state?.areas.find((area) => area.area_key === 'm_left')?.missing_images, 1)
     assert.equal(state?.areas.find((area) => area.area_key === 'm_left')?.confirmed_images, 0)
     assert.equal(state?.areas.find((area) => area.area_key === 'm_left')?.pending_confirmation_images, 2)

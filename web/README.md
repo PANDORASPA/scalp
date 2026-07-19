@@ -225,6 +225,23 @@ Important: share that folder with the service account `client_email` as Editor b
     spreadsheet follow-up or JSON for an internal archive.
 11. On a phone, use the upload controls to open the rear camera directly; desktop users can continue selecting files.
 
+### Recovery flow
+
+When a provider is unavailable during upload, the image metadata is retained with `analysis_status=ai_failed`
+instead of being discarded. The tracking page then exposes a session-level recovery action whenever an image is
+`uploaded` without analysis or `ai_failed`:
+
+1. Click `Retry N AI image(s)` in the session header.
+2. The server processes retryable images one at a time through the configured AI adapter.
+3. A successful retry becomes `ai_ready`; a failed retry remains `ai_failed` with its error note.
+4. Confirmed images and confirmed annotations are never included in the batch.
+5. The response reports `attempted`, `succeeded`, `failed`, `skipped`, and per-image results, then the page reloads
+   the canonical session state.
+
+The underlying endpoint is `POST /api/scalp-analysis/sessions/{sessionId}/retry`. It requires an authenticated admin
+or staff session and returns `Cache-Control: no-store` JSON. A report warning remains visible until all recovery work
+is complete; unconfirmed AI output is never included in official area averages.
+
 ### Manual checklist
 
 1. Create a new tracking session and verify it appears only in `/scalp-analysis` session list.
@@ -244,6 +261,8 @@ Important: share that folder with the service account `client_email` as Editor b
     three-image summaries in chronological order.
 13. For legacy capture images after the hardening migration, verify the image still loads through
    `/api/scalp-images/file` and that a direct public Storage URL is no longer usable.
+14. Force an AI failure, open the session again, click `Retry N AI image(s)`, and verify successful and failed counts,
+    `ai_ready`/`ai_failed` statuses, and the report recovery warning.
 
 ### Live smoke test
 

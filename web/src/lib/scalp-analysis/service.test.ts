@@ -5,11 +5,12 @@ import { updateDb } from '../mockdb/store'
 import {
   createScalpSession,
   getScalpAnalysisSessionState,
+  retryScalpSessionAnalysis,
   saveConfirmedAnnotations,
   scalpAnalysisErrorStatus,
   toScalpAnalysisError,
 } from './service'
-import { getTrackingAreaSummary, upsertTrackingImageRecord } from './repository'
+import { getTrackingAreaSummary, updateTrackingImageRecord, upsertTrackingImageRecord } from './repository'
 import { createEmptyAnnotations } from './logic'
 
 function annotations(babyCount: number) {
@@ -184,6 +185,94 @@ test('tracking sessions keep the authenticated operator name for auditability', 
       db: {
         ...db,
         sessions: db.sessions.filter((item) => item.customer_id !== customerId),
+        customers: db.customers.filter((item) => item.id !== customerId),
+      },
+      result: undefined,
+    }))
+    if (originalSupabaseUrl === undefined) delete process.env.SUPABASE_URL
+    else process.env.SUPABASE_URL = originalSupabaseUrl
+    if (originalSupabaseKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = originalSupabaseKey
+  }
+})
+
+test('session AI recovery retries only incomplete images and isolates per-image failures', async () => {
+  const customerId = `customer-${crypto.randomUUID()}`
+  const now = new Date().toISOString()
+  const originalSupabaseUrl = process.env.SUPABASE_URL
+  const originalSupabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  delete process.env.SUPABASE_URL
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  await updateDb((db) => ({
+    db: {
+      ...db,
+      customers: [
+        ...db.customers,
+        {
+          id: customerId,
+          name: 'Recovery test customer',
+          phone: null,
+          notes: null,
+          created_at: now,
+          updated_at: now,
+        },
+      ],
+    },
+    result: undefined,
+  }))
+
+  const session = await createScalpSession(customerId, { sessionDate: '2026-04-01T00:00:00.000Z' })
+  const statuses = ['uploaded', 'ai_failed', 'ai_ready', 'confirmed'] as const
+  const images: Array<Awaited<ReturnType<typeof upsertTrackingImageRecord>>> = []
+  for (const [offset, status] of statuses.entries()) {
+    images.push(
+      await upsertTrackingImageRecord({
+        customerId,
+        sessionId: session.id,
+        areaKey: 'm_left',
+        imageIndex: (offset + 1) as 1 | 2 | 3,
+        imageUrl: `https://example.test/recovery-${offset}`,
+        driveFileId: `demo-recovery-${offset}`,
+        storageProvider: 'demo',
+        storageObjectKey: `${customerId}/${session.id}/m_left/${offset + 1}.jpg`,
+        analysisStatus: status,
+        aiResultJson: status === 'ai_ready' ? annotations(1) : undefined,
+        confirmedAnnotationsJson: status === 'confirmed' ? annotations(1) : undefined,
+        nowISO: now,
+      }),
+    )
+  }
+
+  const attempted: string[] = []
+  try {
+    const result = await retryScalpSessionAnalysis(session.id, async (imageId) => {
+      attempted.push(imageId)
+      if (imageId === images[1].id) throw new Error('provider temporarily unavailable')
+      return updateTrackingImageRecord(imageId, {
+        analysis_status: 'ai_ready',
+        ai_result_json: annotations(2),
+        analysis_notes: 'Retried successfully',
+        updated_at: new Date().toISOString(),
+      })
+    })
+
+    assert.deepEqual(attempted, [images[0].id, images[1].id])
+    assert.equal(result.attempted, 2)
+    assert.equal(result.succeeded, 1)
+    assert.equal(result.failed, 1)
+    assert.equal(result.skipped, 2)
+    assert.deepEqual(result.results, [
+      { image_id: images[0].id, status: 'ready' },
+      { image_id: images[1].id, status: 'failed', error: 'provider temporarily unavailable' },
+    ])
+  } finally {
+    await updateDb((db) => ({
+      db: {
+        ...db,
+        sessions: db.sessions.filter((item) => item.id !== session.id),
+        trackingImages: (db.trackingImages ?? []).filter((item) => item.session_id !== session.id),
+        trackingAreaSummaries: (db.trackingAreaSummaries ?? []).filter((item) => item.session_id !== session.id),
         customers: db.customers.filter((item) => item.id !== customerId),
       },
       result: undefined,

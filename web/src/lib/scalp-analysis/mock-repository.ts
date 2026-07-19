@@ -319,6 +319,7 @@ export async function getTrackingSessionStateRecord(sessionId: string): Promise<
     }
   })
   const readyAreas = areas.filter((area) => area.ready_for_average).length
+  const allImages = areas.flatMap((area) => area.images)
   return {
     session,
     customer: customer ? { id: customer.id, name: customer.name, phone: customer.phone } : null,
@@ -330,6 +331,10 @@ export async function getTrackingSessionStateRecord(sessionId: string): Promise<
       total_areas: SCALP_ANALYSIS_AREA_KEYS.length,
       ready_areas: readyAreas,
       pending_confirmation_areas: areas.filter((area) => area.uploaded_images > 0 && !area.ready_for_average).length,
+      ai_retryable_images: allImages.filter(
+        (image) => image.analysis_status === 'uploaded' || image.analysis_status === 'ai_failed',
+      ).length,
+      ai_failed_images: allImages.filter((image) => image.analysis_status === 'ai_failed').length,
     },
     report_lines: summaries.map((summary) => summary.report_summary).filter((value): value is string => Boolean(value)),
   }

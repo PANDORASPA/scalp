@@ -93,6 +93,29 @@ test('structured report keeps incomplete areas out of official metrics', () => {
   assert.ok(report.warnings.some((warning) => warning.includes('M 字右')))
 })
 
+test('structured report explains when AI recovery is still pending', () => {
+  const state = buildState() as ReturnType<typeof buildState> & {
+    progress: ScalpAnalysisSessionState['progress']
+  }
+  const report = buildScalpAnalysisReport({
+    ...state,
+    progress: {
+      total_images: 18,
+      uploaded_images: 3,
+      confirmed_images: 2,
+      total_areas: 6,
+      ready_areas: 0,
+      pending_confirmation_areas: 1,
+      ai_retryable_images: 2,
+      ai_failed_images: 2,
+    },
+  })
+
+  assert.equal(report.ai_retryable_images, 2)
+  assert.equal(report.ai_failed_images, 2)
+  assert.ok(report.warnings.some((warning) => warning.includes('AI') && warning.includes('retry')))
+})
+
 test('structured report marks a fully confirmed six-area session complete', () => {
   const base = buildState()
   const mLeft = base.areas[0]
