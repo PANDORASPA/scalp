@@ -264,6 +264,7 @@ export async function retryScalpImageAnalysis(imageId: string) {
 }
 
 type RetryImageAnalysis = (imageId: string) => Promise<ScalpAnalysisImage>
+const RETRY_CONCURRENCY = 3
 
 function isRetryableAnalysisStatus(status: ScalpAnalysisImage['analysis_status']) {
   return status === 'uploaded' || status === 'ai_failed'
@@ -285,23 +286,30 @@ export async function retryScalpSessionAnalysis(
   }> = []
   let skipped = images.length - candidates.length
 
-  for (const candidate of candidates) {
-    // Re-check status before each attempt so a concurrent confirmation or delete wins.
-    const current = await getTrackingImageById(candidate.id)
-    if (!current || !isRetryableAnalysisStatus(current.analysis_status)) {
-      skipped += 1
-      continue
-    }
+  for (let index = 0; index < candidates.length; index += RETRY_CONCURRENCY) {
+    const batch = candidates.slice(index, index + RETRY_CONCURRENCY)
+    const outcomes = await Promise.all(
+      batch.map(async (candidate) => {
+        // Re-check status before each attempt so a concurrent confirmation or delete wins.
+        const current = await getTrackingImageById(candidate.id)
+        if (!current || !isRetryableAnalysisStatus(current.analysis_status)) return null
 
-    try {
-      await retryImage(candidate.id)
-      results.push({ image_id: candidate.id, status: 'ready' })
-    } catch (error) {
-      results.push({
-        image_id: candidate.id,
-        status: 'failed',
-        error: error instanceof Error ? error.message : 'AI analysis failed',
-      })
+        try {
+          await retryImage(candidate.id)
+          return { image_id: candidate.id, status: 'ready' as const }
+        } catch (error) {
+          return {
+            image_id: candidate.id,
+            status: 'failed' as const,
+            error: error instanceof Error ? error.message : 'AI analysis failed',
+          }
+        }
+      }),
+    )
+
+    for (const outcome of outcomes) {
+      if (outcome) results.push(outcome)
+      else skipped += 1
     }
   }
 

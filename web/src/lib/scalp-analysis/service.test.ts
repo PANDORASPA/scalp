@@ -257,7 +257,7 @@ test('session AI recovery retries only incomplete images and isolates per-image 
       })
     })
 
-    assert.deepEqual(attempted, [images[0].id, images[1].id])
+    assert.deepEqual([...attempted].sort(), [images[0].id, images[1].id].sort())
     assert.equal(result.attempted, 2)
     assert.equal(result.succeeded, 1)
     assert.equal(result.failed, 1)
@@ -266,6 +266,92 @@ test('session AI recovery retries only incomplete images and isolates per-image 
       { image_id: images[0].id, status: 'ready' },
       { image_id: images[1].id, status: 'failed', error: 'provider temporarily unavailable' },
     ])
+  } finally {
+    await updateDb((db) => ({
+      db: {
+        ...db,
+        sessions: db.sessions.filter((item) => item.id !== session.id),
+        trackingImages: (db.trackingImages ?? []).filter((item) => item.session_id !== session.id),
+        trackingAreaSummaries: (db.trackingAreaSummaries ?? []).filter((item) => item.session_id !== session.id),
+        customers: db.customers.filter((item) => item.id !== customerId),
+      },
+      result: undefined,
+    }))
+    if (originalSupabaseUrl === undefined) delete process.env.SUPABASE_URL
+    else process.env.SUPABASE_URL = originalSupabaseUrl
+    if (originalSupabaseKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = originalSupabaseKey
+  }
+})
+
+test('session AI recovery limits provider concurrency to three images', async () => {
+  const customerId = `customer-${crypto.randomUUID()}`
+  const now = new Date().toISOString()
+  const originalSupabaseUrl = process.env.SUPABASE_URL
+  const originalSupabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  delete process.env.SUPABASE_URL
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  await updateDb((db) => ({
+    db: {
+      ...db,
+      customers: [
+        ...db.customers,
+        {
+          id: customerId,
+          name: 'Recovery concurrency customer',
+          phone: null,
+          notes: null,
+          created_at: now,
+          updated_at: now,
+        },
+      ],
+    },
+    result: undefined,
+  }))
+
+  const session = await createScalpSession(customerId, { sessionDate: '2026-05-01T00:00:00.000Z' })
+  const slots: Array<{ areaKey: 'm_left' | 'm_right'; imageIndex: 1 | 2 | 3 }> = [
+    { areaKey: 'm_left', imageIndex: 1 },
+    { areaKey: 'm_left', imageIndex: 2 },
+    { areaKey: 'm_left', imageIndex: 3 },
+    { areaKey: 'm_right', imageIndex: 1 },
+  ]
+  try {
+    for (const slot of slots) {
+      await upsertTrackingImageRecord({
+        customerId,
+        sessionId: session.id,
+        areaKey: slot.areaKey,
+        imageIndex: slot.imageIndex,
+        imageUrl: `https://example.test/concurrency-${slot.areaKey}-${slot.imageIndex}`,
+        driveFileId: `demo-concurrency-${slot.areaKey}-${slot.imageIndex}`,
+        storageProvider: 'demo',
+        storageObjectKey: `${customerId}/${session.id}/${slot.areaKey}/${slot.imageIndex}.jpg`,
+        analysisStatus: 'ai_failed',
+        nowISO: now,
+      })
+    }
+
+    let active = 0
+    let maxActive = 0
+    const result = await retryScalpSessionAnalysis(session.id, async (imageId) => {
+      active += 1
+      maxActive = Math.max(maxActive, active)
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      active -= 1
+      return updateTrackingImageRecord(imageId, {
+        analysis_status: 'ai_ready',
+        ai_result_json: annotations(2),
+        analysis_notes: 'Retried successfully',
+        updated_at: new Date().toISOString(),
+      })
+    })
+
+    assert.ok(maxActive > 1 && maxActive <= 3)
+    assert.equal(result.attempted, 4)
+    assert.equal(result.succeeded, 4)
+    assert.equal(result.failed, 0)
   } finally {
     await updateDb((db) => ({
       db: {

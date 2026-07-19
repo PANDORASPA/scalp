@@ -9,6 +9,7 @@ import {
 } from '@/lib/scalp-analysis/service'
 
 export const runtime = 'nodejs'
+export const maxDuration = 300
 
 export async function POST(
   _req: Request,

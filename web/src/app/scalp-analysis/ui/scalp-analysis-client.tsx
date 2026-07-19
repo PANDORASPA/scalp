@@ -56,6 +56,8 @@ type CustomerRow = {
   latest_check_date: string | null
 }
 
+const SCALP_RECOVERY_REQUEST_TIMEOUT_MS = 240_000
+
 function formatMetric(value: number | null, suffix = '') {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '-'
   return `${Math.round(value * 10) / 10}${suffix}`
@@ -621,7 +623,11 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                       succeeded: number
                       failed: number
                       skipped: number
-                    }>(`/api/scalp-analysis/sessions/${encodeURIComponent(sessionId)}/retry`, { method: 'POST' })
+                    }>(
+                      `/api/scalp-analysis/sessions/${encodeURIComponent(sessionId)}/retry`,
+                      { method: 'POST' },
+                      SCALP_RECOVERY_REQUEST_TIMEOUT_MS,
+                    )
                     setRecoveryNotice(
                       `AI recovery finished: ${result.succeeded} succeeded, ${result.failed} failed, ${result.skipped} skipped.`,
                     )

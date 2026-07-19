@@ -4,7 +4,7 @@
 
 **Goal:** Make incomplete scalp-analysis sessions recoverable and operationally clear after AI or transient provider failures.
 
-**Architecture:** Add a session-level retry service that discovers only retryable image states (`uploaded` and `ai_failed`) and invokes the existing per-image provider adapter sequentially. Extend the existing session-state progress object with retry counts, then expose a protected session retry route and a UI action that refreshes the canonical session state after the batch completes. Confirmed annotations and derived summaries remain untouched unless a user explicitly confirms annotations.
+**Architecture:** Add a session-level retry service that discovers only retryable image states (`uploaded` and `ai_failed`) and invokes the existing per-image provider adapter in bounded groups of three. Extend the existing session-state progress object with retry counts, then expose a protected session retry route and a UI action that refreshes the canonical session state after the batch completes. Confirmed annotations and derived summaries remain untouched unless a user explicitly confirms annotations.
 
 **Tech Stack:** Next.js App Router, TypeScript, Supabase repository with local mock repository for tests, Node test runner, React client component.
 
@@ -12,7 +12,7 @@
 
 - Preserve the existing client request shape and `SessionState` fields; only add backward-compatible progress fields.
 - Do not retry confirmed images or overwrite confirmed annotations.
-- Process retryable images one at a time and persist each result independently.
+- Process retryable images with a maximum concurrency of three and persist each result independently.
 - Keep Google Drive and AI provider access behind the existing adapters.
 - Do not silently fall back to mock data in deployed runtimes.
 

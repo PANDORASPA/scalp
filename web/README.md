@@ -232,15 +232,18 @@ instead of being discarded. The tracking page then exposes a session-level recov
 `uploaded` without analysis or `ai_failed`:
 
 1. Click `Retry N AI image(s)` in the session header.
-2. The server processes retryable images one at a time through the configured AI adapter.
+2. The server processes retryable images in groups of at most three through the configured AI adapter, while each
+   image result is saved independently.
 3. A successful retry becomes `ai_ready`; a failed retry remains `ai_failed` with its error note.
 4. Confirmed images and confirmed annotations are never included in the batch.
 5. The response reports `attempted`, `succeeded`, `failed`, `skipped`, and per-image results, then the page reloads
    the canonical session state.
 
 The underlying endpoint is `POST /api/scalp-analysis/sessions/{sessionId}/retry`. It requires an authenticated admin
-or staff session and returns `Cache-Control: no-store` JSON. A report warning remains visible until all recovery work
-is complete; unconfirmed AI output is never included in official area averages.
+or staff session, has a five-minute server duration budget, and returns `Cache-Control: no-store` JSON. The browser
+allows four minutes for the batch request so a long OpenAI retry does not fail at the normal 30-second UI timeout. A
+report warning remains visible until all recovery work is complete; unconfirmed AI output is never included in official
+area averages.
 
 ### Manual checklist
 
