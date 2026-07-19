@@ -9,6 +9,7 @@ import {
   getScalpAnalysisSessionState,
   retryScalpSessionAnalysis,
   saveConfirmedAnnotations,
+  updateScalpSession,
   scalpAnalysisErrorStatus,
   toScalpAnalysisError,
 } from './service'
@@ -110,6 +111,75 @@ test('changes to an earlier session recompute downstream comparisons', async () 
 
     const after = await getTrackingAreaSummary(second.id, 'm_left')
     assert.equal(after?.compared_to_previous_json?.baby_hair_count.previous, 4)
+  } finally {
+    await updateDb((db) => ({
+      db: {
+        ...db,
+        sessions: db.sessions.filter((item) => item.id !== first.id && item.id !== second.id),
+        trackingImages: (db.trackingImages ?? []).filter(
+          (item) => item.session_id !== first.id && item.session_id !== second.id,
+        ),
+        trackingAreaSummaries: (db.trackingAreaSummaries ?? []).filter(
+          (item) => item.session_id !== first.id && item.session_id !== second.id,
+        ),
+        customers: db.customers.filter((item) => item.id !== customerId),
+      },
+      result: undefined,
+    }))
+    if (originalSupabaseUrl === undefined) delete process.env.SUPABASE_URL
+    else process.env.SUPABASE_URL = originalSupabaseUrl
+    if (originalSupabaseKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = originalSupabaseKey
+  }
+})
+
+test('editing a tracking session date recomputes previous and baseline references', async () => {
+  const customerId = `customer-${crypto.randomUUID()}`
+  const originalSupabaseUrl = process.env.SUPABASE_URL
+  const originalSupabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  delete process.env.SUPABASE_URL
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  await updateDb((db) => ({
+    db: {
+      ...db,
+      customers: [
+        ...db.customers,
+        {
+          id: customerId,
+          name: 'Session date test customer',
+          phone: null,
+          notes: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ],
+    },
+    result: undefined,
+  }))
+
+  const first = await createScalpSession(customerId, { sessionDate: '2026-01-01T00:00:00.000Z' })
+  const second = await createScalpSession(customerId, { sessionDate: '2026-02-01T00:00:00.000Z' })
+
+  try {
+    await seedConfirmedArea(first.id, customerId, 1)
+    await seedConfirmedArea(second.id, customerId, 2)
+    assert.equal(
+      (await getTrackingAreaSummary(second.id, 'm_left'))?.compared_to_previous_json?.reference_session_id,
+      first.id,
+    )
+
+    await updateScalpSession(first.id, {
+      sessionDate: '2026-03-01T00:00:00.000Z',
+      notes: 'Corrected capture date',
+    })
+
+    const earlier = await getTrackingAreaSummary(second.id, 'm_left')
+    const latest = await getTrackingAreaSummary(first.id, 'm_left')
+    assert.equal(earlier?.compared_to_previous_json, null)
+    assert.equal(earlier?.compared_to_baseline_json, null)
+    assert.equal(latest?.compared_to_previous_json?.reference_session_id, second.id)
+    assert.equal(latest?.compared_to_baseline_json?.reference_session_id, second.id)
   } finally {
     await updateDb((db) => ({
       db: {
