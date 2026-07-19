@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SCALP_ANALYSIS_AREA_KEYS, SCALP_ANALYSIS_AREA_LABELS } from '@/lib/scalp-analysis/constants'
+import { calculateCaptureConsistencyScore } from '@/lib/scalp-analysis/logic'
 import type { ScalpAnalysisAnnotations, ScalpAnalysisImage, ScalpAnalysisSessionState, ScalpAreaSummary } from '@/lib/scalp-analysis/types'
 import type { ScalpSession } from '@/lib/scalp/types'
 import { getHumanErrorMessage } from '@/lib/ui/errors'
@@ -66,13 +67,20 @@ function getImageStatusLabel(status: ScalpAnalysisImage['analysis_status'] | nul
   return '處理中'
 }
 
-function SummaryPanel({ summary }: { summary: ScalpAreaSummary | null }) {
+function SummaryPanel({ summary, consistencyScore }: { summary: ScalpAreaSummary | null; consistencyScore: number | null }) {
   if (!summary) {
     return <div className="text-sm text-slate-500">需要 3 張已確認圖片，才會產生平均值、上次比較和 baseline 比較。</div>
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <>
+      {consistencyScore !== null ? (
+        <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 p-2 text-xs text-slate-600">
+          <div className="font-medium text-slate-800">Capture consistency: {consistencyScore}%</div>
+          <div className="mt-1">Below 70%: review the three images or retake them.</div>
+        </div>
+      ) : null}
+      <div className="grid gap-4 md:grid-cols-3">
       <Card className="p-3">
         <div className="text-xs font-medium uppercase tracking-wide text-slate-500">3 張平均</div>
         <div className="mt-2 grid gap-1 text-sm text-slate-700">
@@ -106,7 +114,8 @@ function SummaryPanel({ summary }: { summary: ScalpAreaSummary | null }) {
           )}
         </div>
       </Card>
-    </div>
+      </div>
+    </>
   )
 }
 
@@ -525,7 +534,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                           <div className="mt-3 grid gap-2">
                             <Input
                               type="file"
-                              accept="image/*"
+                              accept="image/jpeg,image/png,image/webp"
                               onChange={(e) =>
                                 setFiles((prev) => ({
                                   ...prev,
@@ -666,7 +675,10 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                   </div>
 
                   <div className="mt-4">
-                    <SummaryPanel summary={area.summary} />
+                    <SummaryPanel
+                      summary={area.summary}
+                      consistencyScore={calculateCaptureConsistencyScore(area.images)}
+                    />
                   </div>
                 </Card>
               ))}

@@ -14,6 +14,7 @@ import {
   calculateStatsFromAnnotations,
   compareAreaSummaries,
   isAreaKey,
+  isConfirmedScalpAnalysisImage,
   normalizeAnnotations,
 } from './logic'
 import {
@@ -70,6 +71,8 @@ async function touchCustomer(customerId: string, now: string) {
 }
 
 export async function createScalpSession(customerId: string, input?: { sessionDate?: string; notes?: string | null }) {
+  const customer = await getCustomerRecord(customerId)
+  if (!customer) throw new Error('customer_not_found: Customer not found for scalp analysis session.')
   await ensureScalpAnalysisCapturePoints()
   const sessionDate = input?.sessionDate ?? new Date().toISOString()
   const now = new Date().toISOString()
@@ -340,10 +343,7 @@ export async function calculateAreaSummary(sessionId: string, areaKey: ScalpAnal
   if (!session) throw new Error('missing_image: Scalp analysis session not found.')
   const images = (await listTrackingImagesForSession(sessionId)).filter((item) => item.area_key === areaKey)
   const confirmedImages = images.filter(
-    (item) =>
-      item.analysis_status === 'confirmed' &&
-      item.confirmed_annotations_json &&
-      typeof item.stats.coarse_hair_count === 'number',
+    isConfirmedScalpAnalysisImage,
   )
 
   if (confirmedImages.length < 3) {
@@ -469,6 +469,7 @@ export function toScalpAnalysisError(error: unknown) {
     lowered.includes('permission failed')
   ) return 'upload_failed'
   if (lowered.includes('ai_analysis_failed')) return 'ai_analysis_failed'
+  if (lowered.includes('customer_not_found')) return 'customer_not_found'
   if (lowered.includes('missing_image')) return message.split(':')[0]
   if (lowered.includes('supabase_env_missing')) return 'supabase_env_missing'
   return `scalp_analysis_error: ${message}`

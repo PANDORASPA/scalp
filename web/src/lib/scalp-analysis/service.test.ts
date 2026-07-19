@@ -48,6 +48,24 @@ test('changes to an earlier session recompute downstream comparisons', async () 
   delete process.env.SUPABASE_URL
   delete process.env.SUPABASE_SERVICE_ROLE_KEY
 
+  await updateDb((db) => ({
+    db: {
+      ...db,
+      customers: [
+        ...db.customers,
+        {
+          id: customerId,
+          name: 'Tracking test customer',
+          phone: null,
+          notes: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ],
+    },
+    result: undefined,
+  }))
+
   const first = await createScalpSession(customerId, { sessionDate: '2026-01-01T00:00:00.000Z' })
   const second = await createScalpSession(customerId, { sessionDate: '2026-02-01T00:00:00.000Z' })
 
@@ -76,9 +94,29 @@ test('changes to an earlier session recompute downstream comparisons', async () 
         trackingAreaSummaries: (db.trackingAreaSummaries ?? []).filter(
           (item) => item.session_id !== first.id && item.session_id !== second.id,
         ),
+        customers: db.customers.filter((item) => item.id !== customerId),
       },
       result: undefined,
     }))
+    if (originalSupabaseUrl === undefined) delete process.env.SUPABASE_URL
+    else process.env.SUPABASE_URL = originalSupabaseUrl
+    if (originalSupabaseKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = originalSupabaseKey
+  }
+})
+
+test('createScalpSession rejects an unknown customer instead of creating an orphan record', async () => {
+  const originalSupabaseUrl = process.env.SUPABASE_URL
+  const originalSupabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  delete process.env.SUPABASE_URL
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  try {
+    await assert.rejects(
+      createScalpSession(`missing-customer-${crypto.randomUUID()}`),
+      /customer_not_found/,
+    )
+  } finally {
     if (originalSupabaseUrl === undefined) delete process.env.SUPABASE_URL
     else process.env.SUPABASE_URL = originalSupabaseUrl
     if (originalSupabaseKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY

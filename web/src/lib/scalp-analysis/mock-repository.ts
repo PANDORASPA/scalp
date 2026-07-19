@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import { SCALP_ANALYSIS_AREA_KEYS, SCALP_ANALYSIS_AREA_LABELS, SCALP_ANALYSIS_WORKFLOW_TYPE, type ScalpAnalysisAreaKey } from './constants'
-import { normalizeAnnotations } from './logic'
+import { isConfirmedScalpAnalysisImage, normalizeAnnotations } from './logic'
 import { readDb, updateDb } from '../mockdb/store'
 import type { Customer, ScalpSession } from '../scalp/types'
 import type { ScalpAnalysisImage, ScalpAnalysisSessionState, ScalpAreaSummary } from './types'
@@ -273,7 +273,7 @@ export async function getTrackingSessionStateRecord(sessionId: string): Promise<
   const summaries = getTrackingAreaSummaries(db).filter((summary) => summary.session_id === sessionId)
   const areas = SCALP_ANALYSIS_AREA_KEYS.map((areaKey) => {
     const areaImages = images.filter((image) => image.area_key === areaKey)
-    const confirmedImages = areaImages.filter((image) => image.analysis_status === 'confirmed')
+    const confirmedImages = areaImages.filter(isConfirmedScalpAnalysisImage)
     return {
       area_key: areaKey,
       label: SCALP_ANALYSIS_AREA_LABELS[areaKey],
@@ -281,9 +281,9 @@ export async function getTrackingSessionStateRecord(sessionId: string): Promise<
       summary: summaries.find((summary) => summary.area_key === areaKey) ?? null,
       uploaded_images: areaImages.length,
       confirmed_images: confirmedImages.length,
-      pending_confirmation_images: areaImages.filter((image) => image.analysis_status !== 'confirmed').length,
+      pending_confirmation_images: areaImages.filter((image) => !isConfirmedScalpAnalysisImage(image)).length,
       missing_images: Math.max(0, 3 - areaImages.length),
-      ready_for_average: areaImages.length === 3 && areaImages.every((image) => image.analysis_status === 'confirmed'),
+      ready_for_average: areaImages.length === 3 && areaImages.every(isConfirmedScalpAnalysisImage),
     }
   })
   const readyAreas = areas.filter((area) => area.ready_for_average).length

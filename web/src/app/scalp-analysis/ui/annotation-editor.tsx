@@ -13,6 +13,8 @@ import {
 import { createEmptyAnnotations, normalizeAnnotations } from '@/lib/scalp-analysis/logic'
 import type { ScalpAnalysisAnnotations, ScalpAnalysisImage, ScalpEditorMarker } from '@/lib/scalp-analysis/types'
 
+import { shouldCreateMarkerFromCanvasClick } from './annotation-editor-logic'
+
 function flattenMarkers(annotations: ScalpAnalysisAnnotations): ScalpEditorMarker[] {
   return [
     ...annotations.coarse_hairs.map((item) => ({ ...item, type: 'coarse_hairs' as const })),
@@ -63,6 +65,7 @@ export function AnnotationEditor({
   const [markers, setMarkers] = useState<ScalpEditorMarker[]>([])
   const [localError, setLocalError] = useState<string | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
+  const dragMovedRef = useRef(false)
 
   const baseAnnotations = useMemo(
     () => normalizeAnnotations(image.confirmed_annotations_json ?? image.ai_result_json ?? createEmptyAnnotations()),
@@ -146,12 +149,16 @@ export function AnnotationEditor({
               if (!dragId) return
               const point = pointFromEvent(event)
               if (!point) return
+              dragMovedRef.current = true
               setMarkers((prev) => prev.map((item) => (item.id === dragId ? { ...item, ...point } : item)))
             }}
             onPointerUp={() => setDragId(null)}
             onPointerLeave={() => setDragId(null)}
             onClick={(event) => {
-              if (dragId) return
+              if (!shouldCreateMarkerFromCanvasClick(dragMovedRef.current)) {
+                dragMovedRef.current = false
+                return
+              }
               const point = pointFromEvent(event)
               if (!point) return
               setMarkers((prev) => [
@@ -177,8 +184,10 @@ export function AnnotationEditor({
                   key={marker.id}
                   onPointerDown={(event) => {
                     event.stopPropagation()
+                    dragMovedRef.current = false
                     setDragId(marker.id)
                   }}
+                  onClick={(event) => event.stopPropagation()}
                 >
                   {isCircle ? (
                     <circle cx={marker.x} cy={marker.y} r={radius} fill="transparent" stroke={color} strokeWidth={3} />

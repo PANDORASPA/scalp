@@ -3,12 +3,15 @@ import assert from 'node:assert/strict'
 
 import {
   calculateAreaAverages,
+  calculateCaptureConsistencyScore,
   calculateStatsFromAnnotations,
   compareAreaSummaries,
   createEmptyAnnotations,
+  isConfirmedScalpAnalysisImage,
   normalizeAnnotations,
 } from './logic'
 import type { ScalpAnalysisImage } from './types'
+import { shouldCreateMarkerFromCanvasClick } from '../../app/scalp-analysis/ui/annotation-editor-logic'
 
 test('calculateStatsFromAnnotations derives counts and keeps score overrides', () => {
   const annotations = createEmptyAnnotations()
@@ -139,4 +142,60 @@ test('calculateAreaAverages uses the three confirmed image stats for a tracking 
   assert.equal(averages.average_redness_score, 3)
   assert.equal(averages.average_oiliness_score, 4)
   assert.equal(averages.average_density_score, 57)
+})
+
+test('only complete confirmed images are eligible for an area average', () => {
+  const complete = {
+    analysis_status: 'confirmed',
+    confirmed_annotations_json: createEmptyAnnotations(),
+    stats: {
+      coarse_hair_count: 1,
+      baby_hair_count: 2,
+      empty_follicle_count: 0,
+      blockage_count: 0,
+      scalp_empty_ratio: 40,
+      redness_score: null,
+      oiliness_score: null,
+      density_score: 50,
+    },
+  } as ScalpAnalysisImage
+  const incomplete = {
+    ...complete,
+    stats: { ...complete.stats, density_score: null },
+  }
+
+  assert.equal(isConfirmedScalpAnalysisImage(complete), true)
+  assert.equal(isConfirmedScalpAnalysisImage(incomplete), false)
+})
+
+test('dragging an annotation does not create a second marker on pointer release', () => {
+  assert.equal(shouldCreateMarkerFromCanvasClick(true), false)
+  assert.equal(shouldCreateMarkerFromCanvasClick(false), true)
+})
+
+test('capture consistency is only available for three complete confirmed images', () => {
+  const buildImage = (coarse: number, density: number) =>
+    ({
+      analysis_status: 'confirmed',
+      confirmed_annotations_json: createEmptyAnnotations(),
+      stats: {
+        coarse_hair_count: coarse,
+        baby_hair_count: 4,
+        empty_follicle_count: 1,
+        blockage_count: 1,
+        scalp_empty_ratio: 35,
+        redness_score: 2,
+        oiliness_score: 3,
+        density_score: density,
+      },
+    }) as ScalpAnalysisImage
+
+  assert.equal(calculateCaptureConsistencyScore([buildImage(10, 50)]), null)
+  assert.equal(calculateCaptureConsistencyScore([buildImage(10, 50), buildImage(10, 50), buildImage(10, 50)]), 100)
+  const inconsistent = calculateCaptureConsistencyScore([
+    buildImage(5, 40),
+    buildImage(10, 50),
+    buildImage(20, 70),
+  ])
+  assert.ok(typeof inconsistent === 'number' && inconsistent < 100)
 })

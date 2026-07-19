@@ -5,7 +5,7 @@ import type { Customer, ScalpSession } from '@/lib/scalp/types'
 import { getSupabaseAdminClient } from '@/lib/supabase/client'
 import { hasSupabaseServerEnv } from '@/lib/config/supabase'
 
-import { normalizeAnnotations } from './logic'
+import { isConfirmedScalpAnalysisImage, normalizeAnnotations } from './logic'
 import type { ScalpAnalysisImage, ScalpAreaSummary, ScalpAnalysisSessionState, ScalpSessionComparison } from './types'
 import * as mockRepository from './mock-repository'
 
@@ -466,7 +466,7 @@ export async function getTrackingSessionStateRecord(sessionId: string): Promise<
   const areas = SCALP_ANALYSIS_AREA_KEYS.map((areaKey) => {
     const areaImages = images.filter((image) => image.area_key === areaKey)
     const summary = summaries.find((item) => item.area_key === areaKey) ?? null
-    const confirmedImages = areaImages.filter((image) => image.analysis_status === 'confirmed')
+    const confirmedImages = areaImages.filter(isConfirmedScalpAnalysisImage)
     return {
       area_key: areaKey,
       label: SCALP_ANALYSIS_AREA_LABELS[areaKey],
@@ -474,9 +474,9 @@ export async function getTrackingSessionStateRecord(sessionId: string): Promise<
       summary,
       uploaded_images: areaImages.length,
       confirmed_images: confirmedImages.length,
-      pending_confirmation_images: areaImages.filter((image) => image.analysis_status !== 'confirmed').length,
+      pending_confirmation_images: areaImages.filter((image) => !isConfirmedScalpAnalysisImage(image)).length,
       missing_images: Math.max(0, 3 - areaImages.length),
-      ready_for_average: areaImages.length === 3 && areaImages.every((image) => image.analysis_status === 'confirmed'),
+      ready_for_average: areaImages.length === 3 && areaImages.every(isConfirmedScalpAnalysisImage),
     }
   })
 

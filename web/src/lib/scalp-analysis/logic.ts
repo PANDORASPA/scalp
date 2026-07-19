@@ -160,6 +160,51 @@ export function calculateStatsFromAnnotations(annotations: ScalpAnalysisAnnotati
   }
 }
 
+export function isConfirmedScalpAnalysisImage(
+  image: Pick<ScalpAnalysisImage, 'analysis_status' | 'confirmed_annotations_json' | 'stats'>,
+) {
+  if (image.analysis_status !== 'confirmed' || !image.confirmed_annotations_json) return false
+  const requiredStats = [
+    image.stats.coarse_hair_count,
+    image.stats.baby_hair_count,
+    image.stats.empty_follicle_count,
+    image.stats.blockage_count,
+    image.stats.scalp_empty_ratio,
+    image.stats.density_score,
+  ]
+  return requiredStats.every((value) => typeof value === 'number' && Number.isFinite(value))
+}
+
+export function calculateCaptureConsistencyScore(images: ScalpAnalysisImage[]) {
+  const confirmedImages = images.filter(isConfirmedScalpAnalysisImage)
+  if (confirmedImages.length !== 3) return null
+
+  const metrics: Array<{ values: Array<number | null>; scale: number }> = [
+    { values: confirmedImages.map((image) => image.stats.coarse_hair_count), scale: 0 },
+    { values: confirmedImages.map((image) => image.stats.baby_hair_count), scale: 0 },
+    { values: confirmedImages.map((image) => image.stats.empty_follicle_count), scale: 0 },
+    { values: confirmedImages.map((image) => image.stats.blockage_count), scale: 0 },
+    { values: confirmedImages.map((image) => image.stats.scalp_empty_ratio), scale: 100 },
+    { values: confirmedImages.map((image) => image.stats.redness_score), scale: 10 },
+    { values: confirmedImages.map((image) => image.stats.oiliness_score), scale: 10 },
+    { values: confirmedImages.map((image) => image.stats.density_score), scale: 100 },
+  ]
+
+  const spreads = metrics
+    .map(({ values, scale }) => {
+      const ready = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+      if (ready.length !== 3) return null
+      const spread = Math.max(...ready) - Math.min(...ready)
+      if (scale > 0) return Math.min(1, spread / scale)
+      const averageValue = ready.reduce((sum, value) => sum + value, 0) / ready.length
+      return Math.min(1, spread / Math.max(1, Math.abs(averageValue)))
+    })
+    .filter((value): value is number => value !== null)
+
+  if (!spreads.length) return null
+  return Math.round((1 - spreads.reduce((sum, value) => sum + value, 0) / spreads.length) * 100)
+}
+
 function average(values: Array<number | null | undefined>) {
   const ready = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
   if (!ready.length) return null
