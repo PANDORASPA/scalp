@@ -44,6 +44,7 @@ export const demoStorageAdapter: ScalpStorageAdapter = {
       url: buildDemoImageUrl(input),
       objectKey: input.objectKey,
       publicAccess: true,
+      replacesExistingObject: false,
     }
   },
   async delete() {

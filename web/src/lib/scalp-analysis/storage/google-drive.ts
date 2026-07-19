@@ -250,6 +250,8 @@ export const googleDriveStorageAdapter: ScalpStorageAdapter = {
       url: `https://drive.google.com/uc?export=view&id=${uploaded.id}`,
       objectKey: input.objectKey,
       publicAccess: env.publicAccess,
+      // Drive creates a new file for each upload; the previous file remains valid until cleanup.
+      replacesExistingObject: false,
     }
   },
   async delete(fileId: string | null) {

@@ -39,7 +39,12 @@ import {
   updateTrackingSessionRecord,
 } from './repository'
 import { getScalpStorageAdapter } from './storage'
-import { commitUploadedStorageRecord, deleteStorageBestEffort, deleteStorageRequired } from './storage-consistency'
+import {
+  commitUploadedStorageRecord,
+  deleteStorageBestEffort,
+  deleteStorageRequired,
+  shouldRollbackUploadedStorageOnRecordFailure,
+} from './storage-consistency'
 import type { ScalpAnalysisAnnotations } from './types'
 
 type UploadInput = {
@@ -93,7 +98,7 @@ export async function updateScalpSession(
   input: { sessionDate: string; notes?: string | null },
 ) {
   const session = await getTrackingSession(sessionId)
-  if (!session) throw new Error('missing_image: Scalp analysis session not found.')
+  if (!session) throw new Error('session_not_found: Scalp analysis session not found.')
   const now = new Date().toISOString()
   const updated = await updateTrackingSessionRecord(sessionId, {
     checkDate: input.sessionDate,
@@ -157,6 +162,10 @@ export async function uploadScalpImage(input: UploadInput) {
   let image = await commitUploadedStorageRecord({
     adapter,
     uploaded,
+    rollbackOnWriteFailure: shouldRollbackUploadedStorageOnRecordFailure({
+      hasExistingRecord: Boolean(existing),
+      uploaded,
+    }),
     writeRecord: () =>
       upsertTrackingImageRecord({
         customerId: input.customerId,
@@ -341,7 +350,7 @@ export async function compareWithBaseline(customerId: string, sessionId: string,
 
 export async function calculateAreaSummary(sessionId: string, areaKey: ScalpAnalysisAreaKey) {
   const session = await getTrackingSession(sessionId)
-  if (!session) throw new Error('missing_image: Scalp analysis session not found.')
+  if (!session) throw new Error('session_not_found: Scalp analysis session not found.')
   const images = (await listTrackingImagesForSession(sessionId)).filter((item) => item.area_key === areaKey)
   const confirmedImages = images.filter(
     isConfirmedScalpAnalysisImage,
@@ -429,7 +438,7 @@ export async function removeScalpImage(imageId: string) {
 
 export async function removeScalpSession(sessionId: string) {
   const session = await getTrackingSession(sessionId)
-  if (!session) throw new Error('missing_image: Scalp analysis session not found.')
+  if (!session) throw new Error('session_not_found: Scalp analysis session not found.')
   const images = await listTrackingImagesForSession(sessionId)
   const cleanupPlans = await Promise.all(
     images.map(async (image) => ({ image, adapter: await getScalpStorageAdapter(image.storage_provider) })),
@@ -478,6 +487,10 @@ export function toScalpAnalysisError(error: unknown) {
   if (lowered.includes('ai_analysis_failed')) return 'ai_analysis_failed'
   if (lowered.includes('customer_not_found')) return 'customer_not_found'
   if (lowered.includes('session_not_found')) return 'session_not_found'
+  if (
+    lowered.includes('storage_cleanup_failed') ||
+    lowered.includes('google drive delete failed')
+  ) return 'storage_cleanup_failed'
   if (lowered.includes('missing_image')) return message.split(':')[0]
   if (lowered.includes('invalid_area_key')) return 'invalid_area_key'
   if (lowered.includes('annotations_required')) return 'annotations_required'

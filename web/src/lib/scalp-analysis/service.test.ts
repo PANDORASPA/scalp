@@ -130,6 +130,8 @@ test('tracking errors expose stable client status codes', () => {
   assert.equal(toScalpAnalysisError(new Error('session_not_found: wrong owner')), 'session_not_found')
   assert.equal(toScalpAnalysisError(new Error('missing_image: image not found')), 'missing_image')
   assert.equal(toScalpAnalysisError(new Error('customer_not_found: missing')), 'customer_not_found')
+  assert.equal(toScalpAnalysisError(new Error('Google Drive delete failed: permission denied')), 'storage_cleanup_failed')
+  assert.equal(toScalpAnalysisError(new Error('storage_cleanup_failed: google-drive: permission denied')), 'storage_cleanup_failed')
   assert.equal(scalpAnalysisErrorStatus(new Error('session_not_found: wrong owner')), 404)
   assert.equal(scalpAnalysisErrorStatus(new Error('missing_image: image not found')), 404)
   assert.equal(scalpAnalysisErrorStatus(new Error('invalid_area_key: unsupported')), 400)

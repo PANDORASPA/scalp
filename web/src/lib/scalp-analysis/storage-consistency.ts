@@ -5,6 +5,14 @@ export type StorageCleanupTarget = {
   objectKey: string | null
 }
 
+export function shouldRollbackUploadedStorageOnRecordFailure(params: {
+  hasExistingRecord: boolean
+  uploaded: Pick<ScalpStorageUploadResult, 'replacesExistingObject'>
+}) {
+  // A same-key upsert still backs the old row, so deleting it would create a broken reference.
+  return !params.hasExistingRecord || !params.uploaded.replacesExistingObject
+}
+
 type CleanupLogger = (message: string, error: unknown) => void
 
 export async function deleteStorageRequired(params: {
@@ -34,20 +42,23 @@ export async function commitUploadedStorageRecord<T>(params: {
   adapter: ScalpStorageAdapter
   uploaded: ScalpStorageUploadResult
   writeRecord: () => Promise<T>
+  rollbackOnWriteFailure?: boolean
   logger?: CleanupLogger
 }) {
   try {
     return await params.writeRecord()
   } catch (error) {
-    await deleteStorageBestEffort({
-      adapter: params.adapter,
-      target: {
-        fileId: params.uploaded.fileId,
-        objectKey: params.uploaded.objectKey,
-      },
-      context: 'new upload rollback after database failure',
-      logger: params.logger,
-    })
+    if (params.rollbackOnWriteFailure !== false) {
+      await deleteStorageBestEffort({
+        adapter: params.adapter,
+        target: {
+          fileId: params.uploaded.fileId,
+          objectKey: params.uploaded.objectKey,
+        },
+        context: 'new upload rollback after database failure',
+        logger: params.logger,
+      })
+    }
     throw error
   }
 }

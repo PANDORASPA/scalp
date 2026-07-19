@@ -11,6 +11,8 @@ export type ScalpStorageUploadResult = {
   url: string
   objectKey: string
   publicAccess: boolean
+  /** True when the adapter wrote into an existing object key instead of creating a new object. */
+  replacesExistingObject: boolean
 }
 
 export type ScalpStorageDownloadResult = {
