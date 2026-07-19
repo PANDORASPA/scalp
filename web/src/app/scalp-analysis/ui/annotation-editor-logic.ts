@@ -1,5 +1,5 @@
 import { createEmptyAnnotations, normalizeAnnotations } from '@/lib/scalp-analysis/logic'
-import type { ScalpAnalysisImage, ScalpAnalysisScores } from '@/lib/scalp-analysis/types'
+import type { ScalpAnalysisAnnotations, ScalpAnalysisImage, ScalpAnalysisScores } from '@/lib/scalp-analysis/types'
 
 type AnnotationSources = Pick<ScalpAnalysisImage, 'ai_result_json' | 'confirmed_annotations_json'>
 
@@ -15,6 +15,16 @@ const SCORE_LIMITS: Record<ScalpAnalysisScoreKey, readonly [number, number]> = {
 
 export function shouldCreateMarkerFromCanvasClick(dragged: boolean) {
   return !dragged
+}
+
+export function getAnnotationEditorCanvasSize(
+  annotations: Pick<ScalpAnalysisAnnotations, 'image_width' | 'image_height'>,
+  naturalSize: { width: number; height: number } | null,
+) {
+  return {
+    width: annotations.image_width ?? naturalSize?.width ?? 360,
+    height: annotations.image_height ?? naturalSize?.height ?? 240,
+  }
 }
 
 export function getAnnotationEditorInitialAnnotations(sources: AnnotationSources) {

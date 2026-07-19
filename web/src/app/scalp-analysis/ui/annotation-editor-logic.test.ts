@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 
 import { createEmptyAnnotations } from '@/lib/scalp-analysis/logic'
 import {
+  getAnnotationEditorCanvasSize,
   getAnnotationEditorInitialAnnotations,
   getAnnotationEditorAiResetAnnotations,
   updateAnnotationScore,
@@ -43,4 +44,17 @@ test('annotation editor clamps manual score corrections to supported ranges', ()
   assert.equal(updateAnnotationScore(scores, 'redness_score', '-2').redness_score, 0)
   assert.equal(updateAnnotationScore(scores, 'density_score', '').density_score, null)
   assert.equal(updateAnnotationScore(scores, 'oiliness_score', 'not-a-number').oiliness_score, null)
+})
+
+test('annotation editor uses natural image dimensions when AI dimensions are unavailable', () => {
+  const annotations = createEmptyAnnotations()
+
+  assert.deepEqual(getAnnotationEditorCanvasSize(annotations, { width: 1600, height: 900 }), {
+    width: 1600,
+    height: 900,
+  })
+  assert.deepEqual(
+    getAnnotationEditorCanvasSize({ ...annotations, image_width: 720, image_height: 480 }, { width: 1600, height: 900 }),
+    { width: 720, height: 480 },
+  )
 })

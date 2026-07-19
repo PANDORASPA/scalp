@@ -13,6 +13,7 @@ import {
 import type { ScalpAnalysisAnnotations, ScalpAnalysisImage, ScalpEditorMarker } from '@/lib/scalp-analysis/types'
 
 import {
+  getAnnotationEditorCanvasSize,
   getAnnotationEditorAiResetAnnotations,
   getAnnotationEditorInitialAnnotations,
   shouldCreateMarkerFromCanvasClick,
@@ -84,6 +85,8 @@ export function AnnotationEditor({
   const [localError, setLocalError] = useState<string | null>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
+  const [naturalImageSize, setNaturalImageSize] = useState<{ width: number; height: number } | null>(null)
+  const [imageLoadError, setImageLoadError] = useState(false)
   const dragMovedRef = useRef(false)
 
   const baseAnnotations = useMemo(
@@ -96,8 +99,7 @@ export function AnnotationEditor({
   )
 
   const [scores, setScores] = useState(baseAnnotations.scores)
-  const width = baseAnnotations.image_width ?? 360
-  const height = baseAnnotations.image_height ?? 240
+  const { width, height } = getAnnotationEditorCanvasSize(baseAnnotations, naturalImageSize)
 
   useEffect(() => {
     setNotes(baseAnnotations.notes)
@@ -105,6 +107,11 @@ export function AnnotationEditor({
     setMarkers(flattenMarkers(baseAnnotations))
     setHasUnsavedChanges(false)
   }, [baseAnnotations])
+
+  useEffect(() => {
+    setNaturalImageSize(null)
+    setImageLoadError(false)
+  }, [image.image_url])
 
   useEffect(() => {
     if (!hasUnsavedChanges) return
@@ -195,7 +202,26 @@ export function AnnotationEditor({
 
         <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={image.image_url} alt={`${image.area_key}-${image.image_index}`} className="block w-full object-contain" />
+          <img
+            src={image.image_url}
+            alt={`${image.area_key}-${image.image_index}`}
+            className="block w-full object-contain"
+            onLoad={(event) => {
+              setImageLoadError(false)
+              if (!baseAnnotations.image_width || !baseAnnotations.image_height) {
+                setNaturalImageSize({
+                  width: event.currentTarget.naturalWidth,
+                  height: event.currentTarget.naturalHeight,
+                })
+              }
+            }}
+            onError={() => setImageLoadError(true)}
+          />
+          {imageLoadError ? (
+            <div role="alert" className="absolute inset-x-2 top-2 rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+              圖片無法載入。請檢查 Google Drive 權限或連線；確認前請先確保看得到原圖。
+            </div>
+          ) : null}
           <svg
             ref={svgRef}
             viewBox={`0 0 ${width} ${height}`}
