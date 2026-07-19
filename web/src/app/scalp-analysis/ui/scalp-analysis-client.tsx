@@ -823,6 +823,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                             <Input
                               type="file"
                               accept="image/jpeg,image/png,image/webp"
+                              capture="environment"
                               onChange={(e) =>
                                 setFiles((prev) => ({
                                   ...prev,

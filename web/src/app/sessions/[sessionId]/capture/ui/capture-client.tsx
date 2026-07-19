@@ -332,6 +332,7 @@ export default function CaptureClient() {
                       <Input
                         type="file"
                         accept="image/*"
+                        capture="environment"
                         multiple
                         onChange={async (e) => {
                           const picked = Array.from(e.target.files ?? []).slice(0, 3)
@@ -433,6 +434,7 @@ export default function CaptureClient() {
                           <Input
                             type="file"
                             accept="image/*"
+                            capture="environment"
                             onChange={async (e) => {
                               const picked = e.target.files?.[0] ?? null
                               const f = picked ? await compressImage(picked) : null
