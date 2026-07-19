@@ -102,6 +102,7 @@ export type ScalpAreaSummary = {
   average_redness_score: number | null
   average_oiliness_score: number | null
   average_density_score: number | null
+  capture_consistency_score?: number | null
   compared_to_previous_json: ScalpSessionComparison | null
   compared_to_baseline_json: ScalpSessionComparison | null
   report_summary: string | null

@@ -236,10 +236,11 @@ Important: share that folder with the service account `client_email` as Editor b
    an unauthenticated request cannot read the image.
 10. Edit or delete a tracking session date and verify later session comparisons are recalculated rather than retaining
    a deleted or outdated previous-session reference.
-11. Open the tracking history panel, switch between areas and metrics, and verify it only includes complete
+11. Verify a low capture-consistency area shows a review warning and is excluded from official trend deltas.
+12. Open the tracking history panel, switch between areas and metrics, and verify it only includes complete
     three-image summaries in chronological order.
-12. For legacy capture images after the hardening migration, verify the image still loads through
-    `/api/scalp-images/file` and that a direct public Storage URL is no longer usable.
+13. For legacy capture images after the hardening migration, verify the image still loads through
+   `/api/scalp-images/file` and that a direct public Storage URL is no longer usable.
 
 ### Live smoke test
 

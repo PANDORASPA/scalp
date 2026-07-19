@@ -1070,7 +1070,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                   <div className="mt-4">
                     <SummaryPanel
                       summary={area.summary}
-                      consistencyScore={calculateCaptureConsistencyScore(area.images)}
+                      consistencyScore={area.summary?.capture_consistency_score ?? calculateCaptureConsistencyScore(area.images)}
                     />
                   </div>
                 </Card>

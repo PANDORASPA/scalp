@@ -137,7 +137,9 @@ export function buildScalpAnalysisReport(
   const areas = state.areas.map((area) => {
     const complete = area.ready_for_average && Boolean(area.summary)
     const summary = complete ? area.summary : null
-    const consistencyScore = complete ? calculateCaptureConsistencyScore(area.images) : null
+    const consistencyScore = complete
+      ? area.summary?.capture_consistency_score ?? calculateCaptureConsistencyScore(area.images)
+      : null
     return {
       area_key: area.area_key,
       label: area.label || SCALP_ANALYSIS_AREA_LABELS[area.area_key],

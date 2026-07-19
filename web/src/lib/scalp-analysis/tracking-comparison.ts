@@ -54,6 +54,13 @@ function getMetric(point: ScalpAnalysisHistoryPoint | undefined, metric: ScalpHi
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
+function isTrustworthyHistoryPoint(point: ScalpAnalysisHistoryPoint | undefined) {
+  if (!point) return false
+  const score = point.capture_consistency_score
+  // Legacy summaries have no persisted score; keep them usable after migration.
+  return typeof score !== 'number' || score >= 70
+}
+
 export function buildTrackingComparisonRows(history: ScalpAnalysisHistoryPoint[]): TrackingComparisonRow[] {
   const byArea = new Map<ScalpAnalysisAreaKey, ScalpAnalysisHistoryPoint[]>()
   for (const point of history) {
@@ -69,7 +76,7 @@ export function buildTrackingComparisonRows(history: ScalpAnalysisHistoryPoint[]
     const ordered = [...points].sort(compareHistoryPoints)
     const baseline = ordered[0]
     const current = ordered.at(-1)
-    const ready = ordered.length >= 2
+    const ready = ordered.length >= 2 && isTrustworthyHistoryPoint(baseline) && isTrustworthyHistoryPoint(current)
 
     const metrics = Object.fromEntries(
       SCALP_HISTORY_METRICS.map((metric) => {

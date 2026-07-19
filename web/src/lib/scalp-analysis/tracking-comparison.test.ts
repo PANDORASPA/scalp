@@ -46,6 +46,21 @@ test('buildTrackingComparisonRows keeps one-session areas pending instead of inv
   assert.equal(rows[0]?.metrics.baby_hair_count.delta, null)
 })
 
+test('buildTrackingComparisonRows keeps low-consistency points out of official trends', () => {
+  const rows = buildTrackingComparisonRows([
+    point({ capture_consistency_score: 58 }),
+    point({
+      session_id: 'session-2',
+      session_date: '2026-03-01T00:00:00.000Z',
+      baby_hair_count: 7,
+      capture_consistency_score: 92,
+    }),
+  ])
+
+  assert.equal(rows[0]?.ready, false)
+  assert.equal(rows[0]?.metrics.baby_hair_count.delta, null)
+})
+
 test('getTrackingMetricDirection treats scalp burden metrics as lower-is-better', () => {
   assert.equal(getTrackingMetricDirection('baby_hair_count', 4), 'improved')
   assert.equal(getTrackingMetricDirection('scalp_empty_ratio', -11), 'improved')

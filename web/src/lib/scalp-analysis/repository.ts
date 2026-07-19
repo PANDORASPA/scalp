@@ -57,6 +57,7 @@ type ScalpAreaSummaryRow = {
   average_redness_score: number | null
   average_oiliness_score: number | null
   average_density_score: number | null
+  capture_consistency_score: number | null
   compared_to_previous_json: ScalpSessionComparison | null
   compared_to_baseline_json: ScalpSessionComparison | null
   report_summary: string | null
@@ -129,6 +130,7 @@ function mapSummary(row: ScalpAreaSummaryRow, byId: Map<string, string>): ScalpA
     average_redness_score: row.average_redness_score,
     average_oiliness_score: row.average_oiliness_score,
     average_density_score: row.average_density_score,
+    capture_consistency_score: row.capture_consistency_score ?? null,
     compared_to_previous_json: row.compared_to_previous_json,
     compared_to_baseline_json: row.compared_to_baseline_json,
     report_summary: row.report_summary,
@@ -426,6 +428,7 @@ export async function upsertTrackingAreaSummary(input: Omit<ScalpAreaSummary, 'i
         average_redness_score: input.average_redness_score,
         average_oiliness_score: input.average_oiliness_score,
         average_density_score: input.average_density_score,
+        capture_consistency_score: input.capture_consistency_score ?? null,
         compared_to_previous_json: input.compared_to_previous_json,
         compared_to_baseline_json: input.compared_to_baseline_json,
         report_summary: input.report_summary,

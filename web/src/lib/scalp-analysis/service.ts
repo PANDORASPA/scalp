@@ -12,6 +12,7 @@ import { analyzeScalpImageWithOpenAi, type ScalpVisionImageSource } from './open
 import {
   buildAreaReportLine,
   calculateAreaAverages,
+  calculateCaptureConsistencyScore,
   calculateStatsFromAnnotations,
   compareAreaSummaries,
   isAreaKey,
@@ -367,6 +368,7 @@ export async function calculateAreaSummary(sessionId: string, areaKey: ScalpAnal
     session_id: sessionId,
     area_key: areaKey,
     ...averages,
+    capture_consistency_score: calculateCaptureConsistencyScore(confirmedImages),
     compared_to_previous_json: null,
     compared_to_baseline_json: null,
     report_summary: null,

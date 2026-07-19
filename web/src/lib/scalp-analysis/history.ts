@@ -37,6 +37,7 @@ export type ScalpAnalysisHistoryPoint = {
   blockage_count: number | null
   redness_score: number | null
   oiliness_score: number | null
+  capture_consistency_score?: number | null
 }
 
 type HistorySession = Pick<ScalpSession, 'id' | 'check_date'>
@@ -51,6 +52,7 @@ type HistorySummary = Pick<
   | 'average_blockage_count'
   | 'average_redness_score'
   | 'average_oiliness_score'
+  | 'capture_consistency_score'
 >
 
 export function buildScalpAnalysisHistory(
@@ -77,6 +79,7 @@ export function buildScalpAnalysisHistory(
           blockage_count: summary.average_blockage_count,
           redness_score: summary.average_redness_score,
           oiliness_score: summary.average_oiliness_score,
+          capture_consistency_score: summary.capture_consistency_score ?? null,
         },
       ]
     })
