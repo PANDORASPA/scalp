@@ -87,6 +87,15 @@ test('changes to an earlier session recompute downstream comparisons', async () 
     await seedConfirmedArea(first.id, customerId, 1)
     await seedConfirmedArea(second.id, customerId, 2)
 
+    // Supabase does not guarantee row order; downstream recomputation must not depend on it.
+    await updateDb((db) => ({
+      db: {
+        ...db,
+        trackingAreaSummaries: [...(db.trackingAreaSummaries ?? [])].reverse(),
+      },
+      result: undefined,
+    }))
+
     const before = await getTrackingAreaSummary(second.id, 'm_left')
     assert.equal(before?.compared_to_previous_json?.baby_hair_count.previous, 1)
 
@@ -221,11 +230,14 @@ test('tracking errors expose stable client status codes', () => {
   assert.equal(toScalpAnalysisError(new Error('missing_image: image not found')), 'missing_image')
   assert.equal(toScalpAnalysisError(new Error('customer_not_found: missing')), 'customer_not_found')
   assert.equal(toScalpAnalysisError(new Error('invalid_image_content: signature mismatch')), 'invalid_image_content')
+  assert.equal(toScalpAnalysisError(new Error('scalp_capture_points: relation "public.scalp_capture_points" does not exist')), 'supabase_schema_missing')
+  assert.equal(toScalpAnalysisError(new Error('supabase_settings_unavailable: TypeError: fetch failed')), 'supabase_connection_failed')
   assert.equal(toScalpAnalysisError(new Error('Google Drive delete failed: permission denied')), 'storage_cleanup_failed')
   assert.equal(toScalpAnalysisError(new Error('storage_cleanup_failed: google-drive: permission denied')), 'storage_cleanup_failed')
   assert.equal(scalpAnalysisErrorStatus(new Error('session_not_found: wrong owner')), 404)
   assert.equal(scalpAnalysisErrorStatus(new Error('missing_image: image not found')), 404)
   assert.equal(scalpAnalysisErrorStatus(new Error('invalid_area_key: unsupported')), 400)
   assert.equal(scalpAnalysisErrorStatus(new Error('invalid_image_content: signature mismatch')), 400)
+  assert.equal(scalpAnalysisErrorStatus(new Error('supabase_settings_unavailable: TypeError: fetch failed')), 503)
   assert.equal(scalpAnalysisErrorStatus(new Error('Google Drive upload failed')), 500)
 })

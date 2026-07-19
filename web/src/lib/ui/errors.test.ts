@@ -48,3 +48,18 @@ test('getHumanErrorMessage explains missing Google Drive configuration', () => {
   assert.match(message, /Google Drive/i)
   assert.doesNotMatch(message, /GOOGLE_DRIVE_PRIVATE_KEY/)
 })
+
+test('getHumanErrorMessage explains missing Supabase schema', () => {
+  const message = getHumanErrorMessage('supabase_schema_missing')
+
+  assert.match(message, /Supabase/i)
+  assert.match(message, /migration|schema/i)
+  assert.doesNotMatch(message, /supabase_schema_missing/)
+})
+
+test('getHumanErrorMessage explains Supabase storage failures', () => {
+  const message = getHumanErrorMessage('supabase_storage_error')
+
+  assert.match(message, /Supabase|storage|bucket/i)
+  assert.doesNotMatch(message, /supabase_storage_error/)
+})

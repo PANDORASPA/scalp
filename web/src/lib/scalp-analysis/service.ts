@@ -1,11 +1,16 @@
 import 'server-only'
 
 import { normalizeScalpAnalysisAiProvider } from '@/lib/config/scalp-analysis-ai'
-import { hasSupabaseServerEnv } from '@/lib/config/supabase'
+import { explainSupabaseErrorMessage, hasSupabaseServerEnv } from '@/lib/config/supabase'
 import { getAppSettings } from '@/lib/settings/repository'
 import { touchCustomerInSupabase } from '@/lib/supabase/repository'
 
-import { SCALP_ANALYSIS_AREA_LABELS, SCALP_ANALYSIS_WORKFLOW_TYPE, type ScalpAnalysisAreaKey } from './constants'
+import {
+  SCALP_ANALYSIS_AREA_KEYS,
+  SCALP_ANALYSIS_AREA_LABELS,
+  SCALP_ANALYSIS_WORKFLOW_TYPE,
+  type ScalpAnalysisAreaKey,
+} from './constants'
 import { buildScalpAnalysisHistory } from './history'
 import { analyzeScalpImage as runMockAnalyzer } from './mock-analyzer'
 import { analyzeScalpImageWithOpenAi, type ScalpVisionImageSource } from './openai-vision'
@@ -423,7 +428,33 @@ async function recomputeCustomerTrackingSummaries(
     for (const image of images) targets.add(`${sessionId}:${image.area_key}`)
   }
 
-  for (const target of targets) {
+  const sessionOrder = new Map(
+    [...sessions]
+      .sort(
+        (a, b) =>
+          a.check_date.localeCompare(b.check_date) ||
+          a.created_at.localeCompare(b.created_at) ||
+          a.id.localeCompare(b.id),
+      )
+      .map((session, index) => [session.id, index]),
+  )
+  const areaOrder = new Map(SCALP_ANALYSIS_AREA_KEYS.map((key, index) => [key, index]))
+  const orderedTargets = [...targets].sort((a, b) => {
+    const aSeparator = a.indexOf(':')
+    const bSeparator = b.indexOf(':')
+    const aSessionId = a.slice(0, aSeparator)
+    const bSessionId = b.slice(0, bSeparator)
+    const aArea = a.slice(aSeparator + 1) as ScalpAnalysisAreaKey
+    const bArea = b.slice(bSeparator + 1) as ScalpAnalysisAreaKey
+    return (
+      (sessionOrder.get(aSessionId) ?? Number.MAX_SAFE_INTEGER) -
+        (sessionOrder.get(bSessionId) ?? Number.MAX_SAFE_INTEGER) ||
+      (areaOrder.get(aArea) ?? Number.MAX_SAFE_INTEGER) -
+        (areaOrder.get(bArea) ?? Number.MAX_SAFE_INTEGER)
+    )
+  })
+
+  for (const target of orderedTargets) {
     const separator = target.indexOf(':')
     if (separator === -1) continue
     await calculateAreaSummary(target.slice(0, separator), target.slice(separator + 1) as ScalpAnalysisAreaKey)
@@ -504,6 +535,16 @@ export function toScalpAnalysisError(error: unknown) {
   if (lowered.includes('annotations_required')) return 'annotations_required'
   if (lowered.includes('ai_retry_not_allowed')) return 'ai_retry_not_allowed'
   if (lowered.includes('supabase_env_missing')) return 'supabase_env_missing'
+  const explainedSupabaseError = explainSupabaseErrorMessage(message)
+  const supabaseCode = explainedSupabaseError.split(':', 1)[0]
+  if (
+    supabaseCode === 'supabase_env_missing' ||
+    supabaseCode === 'supabase_connection_failed' ||
+    supabaseCode === 'supabase_schema_missing' ||
+    supabaseCode === 'supabase_storage_error'
+  ) {
+    return supabaseCode
+  }
   return `scalp_analysis_error: ${message}`
 }
 
@@ -516,5 +557,11 @@ export function scalpAnalysisErrorStatus(error: unknown) {
     code === 'annotations_required' ||
     code === 'ai_retry_not_allowed'
   ) return 400
+  if (
+    code === 'supabase_env_missing' ||
+    code === 'supabase_connection_failed' ||
+    code === 'supabase_schema_missing' ||
+    code === 'supabase_storage_error'
+  ) return 503
   return 500
 }

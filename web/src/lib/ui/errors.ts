@@ -53,6 +53,15 @@ export function getHumanErrorMessage(error: string) {
   if (error.includes('supabase_connection_failed')) {
     return 'Supabase 連線失敗，暫時不能儲存客人或紀錄。請到 Supabase Project Settings > API 複製正確 Project URL 和 service_role key，更新 Vercel env 後重新部署。'
   }
+  if (error.includes('supabase_schema_missing')) {
+    return 'Supabase database schema is incomplete. Run all migrations in order, then refresh the health check.'
+  }
+  if (error.includes('supabase_storage_error')) {
+    return 'Supabase storage is not ready. Confirm the private scalp-images bucket exists and matches SUPABASE_STORAGE_BUCKET.'
+  }
+  if (error.includes('supabase_error')) {
+    return 'Supabase returned an unexpected error. Check the health page for the exact setup action and try again.'
+  }
   if (error.includes('supabase_settings_unavailable')) {
     return 'Supabase settings could not be read. Check the Project URL, service role key, and migrations, then try again.'
   }
