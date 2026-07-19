@@ -6,6 +6,7 @@ import {
   getAnnotationEditorCanvasSize,
   getAnnotationEditorInitialAnnotations,
   getAnnotationEditorAiResetAnnotations,
+  shouldEndAnnotationDragOnPointerEvent,
   updateAnnotationScore,
 } from './annotation-editor-logic'
 
@@ -57,4 +58,10 @@ test('annotation editor uses natural image dimensions when AI dimensions are una
     getAnnotationEditorCanvasSize({ ...annotations, image_width: 720, image_height: 480 }, { width: 1600, height: 900 }),
     { width: 720, height: 480 },
   )
+})
+
+test('annotation editor keeps a drag alive when the pointer leaves the canvas', () => {
+  assert.equal(shouldEndAnnotationDragOnPointerEvent('pointerleave'), false)
+  assert.equal(shouldEndAnnotationDragOnPointerEvent('pointerup'), true)
+  assert.equal(shouldEndAnnotationDragOnPointerEvent('pointercancel'), true)
 })

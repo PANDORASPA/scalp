@@ -17,6 +17,12 @@ export function shouldCreateMarkerFromCanvasClick(dragged: boolean) {
   return !dragged
 }
 
+export function shouldEndAnnotationDragOnPointerEvent(
+  eventType: 'pointercancel' | 'pointerleave' | 'pointerup',
+) {
+  return eventType !== 'pointerleave'
+}
+
 export function getAnnotationEditorCanvasSize(
   annotations: Pick<ScalpAnalysisAnnotations, 'image_width' | 'image_height'>,
   naturalSize: { width: number; height: number } | null,

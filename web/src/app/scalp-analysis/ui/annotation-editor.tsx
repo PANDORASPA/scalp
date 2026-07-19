@@ -17,6 +17,7 @@ import {
   getAnnotationEditorAiResetAnnotations,
   getAnnotationEditorInitialAnnotations,
   shouldCreateMarkerFromCanvasClick,
+  shouldEndAnnotationDragOnPointerEvent,
   type ScalpAnalysisScoreKey,
   updateAnnotationScore,
 } from './annotation-editor-logic'
@@ -225,7 +226,7 @@ export function AnnotationEditor({
           <svg
             ref={svgRef}
             viewBox={`0 0 ${width} ${height}`}
-            className="absolute inset-0 h-full w-full cursor-crosshair"
+            className="absolute inset-0 h-full w-full touch-none cursor-crosshair"
             onPointerMove={(event) => {
               if (!dragId) return
               const point = pointFromEvent(event)
@@ -234,8 +235,22 @@ export function AnnotationEditor({
               setHasUnsavedChanges(true)
               setMarkers((prev) => prev.map((item) => (item.id === dragId ? { ...item, ...point } : item)))
             }}
-            onPointerUp={() => setDragId(null)}
-            onPointerLeave={() => setDragId(null)}
+            onPointerUp={(event) => {
+              if (shouldEndAnnotationDragOnPointerEvent('pointerup')) {
+                if (svgRef.current?.hasPointerCapture(event.pointerId)) {
+                  svgRef.current.releasePointerCapture(event.pointerId)
+                }
+                setDragId(null)
+              }
+            }}
+            onPointerCancel={(event) => {
+              if (shouldEndAnnotationDragOnPointerEvent('pointercancel')) {
+                if (svgRef.current?.hasPointerCapture(event.pointerId)) {
+                  svgRef.current.releasePointerCapture(event.pointerId)
+                }
+                setDragId(null)
+              }
+            }}
             onClick={(event) => {
               if (!shouldCreateMarkerFromCanvasClick(dragMovedRef.current)) {
                 dragMovedRef.current = false
@@ -267,6 +282,7 @@ export function AnnotationEditor({
                   key={marker.id}
                   onPointerDown={(event) => {
                     event.stopPropagation()
+                    svgRef.current?.setPointerCapture(event.pointerId)
                     dragMovedRef.current = false
                     setDragId(marker.id)
                   }}
