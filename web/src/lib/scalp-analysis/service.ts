@@ -6,6 +6,7 @@ import { getAppSettings } from '@/lib/settings/repository'
 import { touchCustomerInSupabase } from '@/lib/supabase/repository'
 
 import { SCALP_ANALYSIS_AREA_LABELS, SCALP_ANALYSIS_WORKFLOW_TYPE, type ScalpAnalysisAreaKey } from './constants'
+import { buildScalpAnalysisHistory } from './history'
 import { analyzeScalpImage as runMockAnalyzer } from './mock-analyzer'
 import { analyzeScalpImageWithOpenAi, type ScalpVisionImageSource } from './openai-vision'
 import {
@@ -454,6 +455,15 @@ export async function getScalpAnalysisSessionState(sessionId: string) {
     ...state,
     workflow_type: SCALP_ANALYSIS_WORKFLOW_TYPE,
   }
+}
+
+export async function getScalpAnalysisHistory(customerId: string) {
+  if (!customerId) throw new Error('customer_id_required')
+  const [sessions, summaries] = await Promise.all([
+    listTrackingSessions(customerId),
+    listTrackingAreaSummariesForCustomer(customerId),
+  ])
+  return buildScalpAnalysisHistory(sessions, summaries)
 }
 
 export function toScalpAnalysisError(error: unknown) {

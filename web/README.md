@@ -225,7 +225,9 @@ Important: share that folder with the service account `client_email` as Editor b
    an unauthenticated request cannot read the image.
 9. Edit or delete a tracking session date and verify later session comparisons are recalculated rather than retaining
    a deleted or outdated previous-session reference.
-10. For legacy capture images after the hardening migration, verify the image still loads through
+10. Open the tracking history panel, switch between areas and metrics, and verify it only includes complete
+    three-image summaries in chronological order.
+11. For legacy capture images after the hardening migration, verify the image still loads through
     `/api/scalp-images/file` and that a direct public Storage URL is no longer usable.
 
 ### Live smoke test

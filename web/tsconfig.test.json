@@ -44,6 +44,8 @@
     "src/lib/scalp-analysis/constants.ts",
     "src/lib/scalp-analysis/navigation.ts",
     "src/lib/scalp-analysis/navigation.test.ts",
+    "src/lib/scalp-analysis/history.ts",
+    "src/lib/scalp-analysis/history.test.ts",
     "src/lib/scalp-analysis/types.ts",
     "src/app/scalp-analysis/ui/annotation-editor-logic.ts",
     "src/app/scalp-analysis/ui/annotation-editor-logic.test.ts",

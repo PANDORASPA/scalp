@@ -223,6 +223,16 @@ async function main() {
 
     const baseline = await createAndCompleteSession({ customerId, headers, sessionNumber: 1 })
     const followUp = await createAndCompleteSession({ customerId, headers, sessionNumber: 2 })
+    const history = await fetchJson(`${baseUrl}/api/scalp-analysis/history?customerId=${customerId}`, { headers })
+    if (!Array.isArray(history.json) || history.json.length !== 12) {
+      fail(`history endpoint should return 12 completed area points, got ${history.json?.length ?? 0}`)
+    }
+    if (!history.json.some((point) => point.session_id === baseline.sessionId && point.area_key === 'm_left')) {
+      fail('history endpoint is missing the baseline m_left point')
+    }
+    if (!history.json.some((point) => point.session_id === followUp.sessionId && point.area_key === 'm_left')) {
+      fail('history endpoint is missing the follow-up m_left point')
+    }
     await verifyDeleteReturnsAreaToIncomplete({ headers, sessionId: followUp.sessionId, state: followUp.state })
 
     const overview = await fetchJson(`${baseUrl}/api/customers/${customerId}/overview`, { headers })

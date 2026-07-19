@@ -7,7 +7,18 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { SCALP_ANALYSIS_AREA_KEYS, SCALP_ANALYSIS_AREA_LABELS } from '@/lib/scalp-analysis/constants'
+import {
+  SCALP_ANALYSIS_AREA_KEYS,
+  SCALP_ANALYSIS_AREA_LABELS,
+  type ScalpAnalysisAreaKey,
+} from '@/lib/scalp-analysis/constants'
+import {
+  getScalpHistoryMetricValue,
+  SCALP_HISTORY_METRIC_LABELS,
+  SCALP_HISTORY_METRICS,
+  type ScalpAnalysisHistoryPoint,
+  type ScalpHistoryMetric,
+} from '@/lib/scalp-analysis/history'
 import { calculateCaptureConsistencyScore } from '@/lib/scalp-analysis/logic'
 import { buildScalpAnalysisHref, pickTrackingSessionId } from '@/lib/scalp-analysis/navigation'
 import type { ScalpAnalysisAnnotations, ScalpAnalysisImage, ScalpAnalysisSessionState, ScalpAreaSummary } from '@/lib/scalp-analysis/types'
@@ -120,6 +131,149 @@ function SummaryPanel({ summary, consistencyScore }: { summary: ScalpAreaSummary
   )
 }
 
+function formatHistoryValue(value: number | null, metric: ScalpHistoryMetric) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '-'
+  return `${Math.round(value * 10) / 10}${metric === 'scalp_empty_ratio' ? '%' : ''}`
+}
+
+function TrendHistoryPanel({
+  history,
+  loading,
+}: {
+  history: ScalpAnalysisHistoryPoint[]
+  loading: boolean
+}) {
+  const [areaKey, setAreaKey] = useState<ScalpAnalysisAreaKey>('m_left')
+  const [metric, setMetric] = useState<ScalpHistoryMetric>('baby_hair_count')
+  const points = useMemo(
+    () => history.filter((point) => point.area_key === areaKey),
+    [areaKey, history],
+  )
+  const numericPoints = points.filter((point) => {
+    const value = getScalpHistoryMetricValue(point, metric)
+    return typeof value === 'number' && Number.isFinite(value)
+  })
+  const values = numericPoints.map((point) => getScalpHistoryMetricValue(point, metric) as number)
+  const min = values.length ? Math.min(...values) : 0
+  const max = values.length ? Math.max(...values) : 1
+  const range = Math.max(1, max - min)
+  const chartWidth = 640
+  const chartHeight = 190
+  const chartPoints = numericPoints.map((point, index) => {
+    const value = getScalpHistoryMetricValue(point, metric) as number
+    const x = numericPoints.length === 1 ? chartWidth / 2 : (index / (numericPoints.length - 1)) * chartWidth
+    const y = chartHeight - ((value - min) / range) * (chartHeight - 24) - 12
+    return { point, x, y, value }
+  })
+
+  return (
+    <Card className="p-5 print:hidden">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="text-sm font-semibold text-slate-900">長期趨勢</div>
+          <div className="mt-1 text-sm text-slate-600">
+            只顯示已完成 3 張 confirmed 圖片的部位，避免未完成資料誤導客人。
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <select
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+            value={areaKey}
+            onChange={(event) => setAreaKey(event.target.value as ScalpAnalysisAreaKey)}
+          >
+            {SCALP_ANALYSIS_AREA_KEYS.map((key) => (
+              <option key={key} value={key}>{SCALP_ANALYSIS_AREA_LABELS[key]}</option>
+            ))}
+          </select>
+          <select
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+            value={metric}
+            onChange={(event) => setMetric(event.target.value as ScalpHistoryMetric)}
+          >
+            {SCALP_HISTORY_METRICS.map((key) => (
+              <option key={key} value={key}>{SCALP_HISTORY_METRIC_LABELS[key]}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="mt-4 text-sm text-slate-500">正在載入歷史趨勢...</div>
+      ) : !history.length ? (
+        <div className="mt-4 rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+          完成任何一個部位的 3 張 confirmed 圖片後，這裡會開始顯示長期變化。
+        </div>
+      ) : !points.length ? (
+        <div className="mt-4 rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+          這個部位尚未有完整歷史紀錄。
+        </div>
+      ) : (
+        <>
+          {numericPoints.length >= 1 ? (
+            <div className="mt-4 overflow-x-auto rounded-md border border-slate-200 bg-slate-50 p-3">
+              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-48 min-w-[520px] w-full" role="img" aria-label={`${SCALP_ANALYSIS_AREA_LABELS[areaKey]} ${SCALP_HISTORY_METRIC_LABELS[metric]} 趨勢圖`}>
+                <line x1="0" y1={chartHeight - 12} x2={chartWidth} y2={chartHeight - 12} stroke="#cbd5e1" strokeWidth="1" />
+                {chartPoints.length > 1 ? (
+                  <polyline
+                    fill="none"
+                    stroke="#0f766e"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    points={chartPoints.map((item) => `${item.x},${item.y}`).join(' ')}
+                  />
+                ) : null}
+                {chartPoints.map((item) => (
+                  <g key={item.point.session_id}>
+                    <circle cx={item.x} cy={item.y} r="6" fill="#0f766e" />
+                    <text x={item.x} y={chartHeight - 1} textAnchor="middle" className="fill-slate-500 text-[10px]">
+                      {formatDate(item.point.session_date)}
+                    </text>
+                  </g>
+                ))}
+              </svg>
+              <div className="mt-1 flex justify-between text-xs text-slate-500">
+                <span>最低 {formatHistoryValue(min, metric)}</span>
+                <span>最高 {formatHistoryValue(max, metric)}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 text-sm text-slate-500">這個指標暫時沒有可用數值。</div>
+          )}
+
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="border-b border-slate-200 text-xs text-slate-500">
+                <tr>
+                  <th className="px-3 py-2">檢查日期</th>
+                  <th className="px-3 py-2">數值</th>
+                  <th className="px-3 py-2">相對上一次</th>
+                </tr>
+              </thead>
+              <tbody>
+                {points.map((point, index) => {
+                  const value = getScalpHistoryMetricValue(point, metric)
+                  const previous = index > 0 ? getScalpHistoryMetricValue(points[index - 1], metric) : null
+                  const delta = typeof value === 'number' && typeof previous === 'number' ? value - previous : null
+                  return (
+                    <tr key={`${point.session_id}:${point.area_key}`} className="border-b border-slate-100">
+                      <td className="px-3 py-2">{formatDate(point.session_date)}</td>
+                      <td className="px-3 py-2 font-medium">{formatHistoryValue(value, metric)}</td>
+                      <td className="px-3 py-2 text-slate-600">
+                        {delta === null ? '-' : `${delta > 0 ? '+' : ''}${Math.round(delta * 10) / 10}${metric === 'scalp_empty_ratio' ? '%' : ''}`}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </Card>
+  )
+}
+
 export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -138,6 +292,8 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
   const [editDate, setEditDate] = useState('')
   const [editNotes, setEditNotes] = useState('')
   const [integrations, setIntegrations] = useState<IntegrationStatus[]>([])
+  const [history, setHistory] = useState<ScalpAnalysisHistoryPoint[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -178,10 +334,30 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
     router.replace(buildScalpAnalysisHref(nextCustomerId, selectedSessionId || null))
   }, [customerId, router, searchParams, sessionId])
 
+  const loadHistory = useCallback(async (nextCustomerId: string) => {
+    if (!nextCustomerId) {
+      setHistory([])
+      return
+    }
+    setHistoryLoading(true)
+    try {
+      setHistory(await fetchJSON<ScalpAnalysisHistoryPoint[]>(`/api/scalp-analysis/history?customerId=${nextCustomerId}`))
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     if (!customerId) return
     void loadSessions(customerId).catch((e) => setError(e instanceof Error ? e.message : '載入檢查紀錄失敗'))
   }, [customerId, loadSessions])
+
+  useEffect(() => {
+    if (!customerId) return
+    void loadHistory(customerId).catch((e) =>
+      setError(e instanceof Error ? e.message : 'Failed to load tracking history'),
+    )
+  }, [customerId, loadHistory])
 
   useEffect(() => {
     if (!sessionId) {
@@ -223,8 +399,14 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
 
   async function refreshCurrentSession() {
     if (!sessionId) return
-    const data = await fetchJSON<ScalpAnalysisSessionState>(`/api/scalp-analysis/sessions/${sessionId}`)
+    const [data, nextHistory] = await Promise.all([
+      fetchJSON<ScalpAnalysisSessionState>(`/api/scalp-analysis/sessions/${sessionId}`),
+      customerId
+        ? fetchJSON<ScalpAnalysisHistoryPoint[]>(`/api/scalp-analysis/history?customerId=${customerId}`)
+        : Promise.resolve([]),
+    ])
     setSessionState(data)
+    setHistory(nextHistory)
   }
 
   if (loading) {
@@ -473,6 +655,8 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
               </div>
             </Card>
           ) : null}
+
+          {customerId ? <TrendHistoryPanel history={history} loading={historyLoading} /> : null}
 
           {!sessionState ? (
             <Card className="p-6 text-sm text-slate-500">請先選擇或建立一個頭皮分析 session。</Card>
