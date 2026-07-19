@@ -3,12 +3,14 @@ import test from 'node:test'
 
 import {
   createTrackingSessionRecord,
+  getTrackingImageById,
   getTrackingImageBySlot,
   getTrackingSessionStateRecord,
   updateTrackingImageRecord,
   upsertTrackingImageRecord,
 } from './mock-repository'
 import { updateDb } from '../mockdb/store'
+import type { ScalpSession } from '../scalp/types'
 
 test('mock tracking repository supports session state and slot upsert', async () => {
   const session = await createTrackingSessionRecord({
@@ -74,6 +76,54 @@ test('mock tracking repository supports session state and slot upsert', async ()
         sessions: db.sessions.filter((item) => item.id !== session.id),
         trackingImages: (db.trackingImages ?? []).filter((item) => item.session_id !== session.id),
         trackingAreaSummaries: (db.trackingAreaSummaries ?? []).filter((item) => item.session_id !== session.id),
+      },
+      result: undefined,
+    }))
+  }
+})
+
+test('mock tracking repository refuses images attached to a legacy session', async () => {
+  const legacySession: ScalpSession = {
+    id: 'legacy-session-for-tracking-test',
+    customer_id: 'customer-test',
+    check_date: '2026-07-18T00:00:00.000Z',
+    staff_name: null,
+    notes: null,
+    workflow_type: 'legacy_capture',
+    created_at: '2026-07-18T00:00:00.000Z',
+    updated_at: '2026-07-18T00:00:00.000Z',
+  }
+
+  await updateDb((db) => ({
+    db: { ...db, sessions: [...db.sessions, legacySession] },
+    result: undefined,
+  }))
+
+  try {
+    await assert.rejects(
+      () =>
+        upsertTrackingImageRecord({
+          customerId: legacySession.customer_id,
+          sessionId: legacySession.id,
+          areaKey: 'crown',
+          imageIndex: 1,
+          imageUrl: 'data:image/svg+xml,legacy',
+          driveFileId: 'legacy-file',
+          storageProvider: 'demo',
+          storageObjectKey: 'legacy/session/crown/1.jpg',
+          analysisStatus: 'uploaded',
+          nowISO: '2026-07-18T00:00:01.000Z',
+        }),
+      /session_not_found/,
+    )
+    assert.equal(await getTrackingImageById('legacy-tracking-image'), null)
+    assert.equal(await getTrackingImageBySlot(legacySession.id, 'crown', 1), null)
+  } finally {
+    await updateDb((db) => ({
+      db: {
+        ...db,
+        sessions: db.sessions.filter((item) => item.id !== legacySession.id),
+        trackingImages: (db.trackingImages ?? []).filter((item) => item.session_id !== legacySession.id),
       },
       result: undefined,
     }))

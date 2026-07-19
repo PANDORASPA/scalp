@@ -6,6 +6,7 @@ import { requireAuthRole } from '@/lib/auth/session'
 import {
   getScalpAnalysisSessionState,
   removeScalpSession,
+  scalpAnalysisErrorStatus,
   toScalpAnalysisError,
   updateScalpSession,
 } from '@/lib/scalp-analysis/service'
@@ -40,7 +41,7 @@ export async function PATCH(
       }),
     )
   } catch (error) {
-    return NextResponse.json({ error: toScalpAnalysisError(error) }, { status: 500 })
+    return NextResponse.json({ error: toScalpAnalysisError(error) }, { status: scalpAnalysisErrorStatus(error) })
   }
 }
 
@@ -55,7 +56,7 @@ export async function DELETE(
   try {
     return NextResponse.json(await removeScalpSession(sessionId))
   } catch (error) {
-    return NextResponse.json({ error: toScalpAnalysisError(error) }, { status: 500 })
+    return NextResponse.json({ error: toScalpAnalysisError(error) }, { status: scalpAnalysisErrorStatus(error) })
   }
 }
 
@@ -72,6 +73,6 @@ export async function GET(
     if (!state) return NextResponse.json({ error: 'not_found' }, { status: 404 })
     return jsonNoStore(state)
   } catch (error) {
-    return NextResponse.json({ error: toScalpAnalysisError(error) }, { status: 500 })
+    return NextResponse.json({ error: toScalpAnalysisError(error) }, { status: scalpAnalysisErrorStatus(error) })
   }
 }

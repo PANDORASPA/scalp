@@ -477,7 +477,18 @@ export function toScalpAnalysisError(error: unknown) {
   ) return 'upload_failed'
   if (lowered.includes('ai_analysis_failed')) return 'ai_analysis_failed'
   if (lowered.includes('customer_not_found')) return 'customer_not_found'
+  if (lowered.includes('session_not_found')) return 'session_not_found'
   if (lowered.includes('missing_image')) return message.split(':')[0]
+  if (lowered.includes('invalid_area_key')) return 'invalid_area_key'
+  if (lowered.includes('annotations_required')) return 'annotations_required'
+  if (lowered.includes('ai_retry_not_allowed')) return 'ai_retry_not_allowed'
   if (lowered.includes('supabase_env_missing')) return 'supabase_env_missing'
   return `scalp_analysis_error: ${message}`
+}
+
+export function scalpAnalysisErrorStatus(error: unknown) {
+  const code = toScalpAnalysisError(error)
+  if (code === 'customer_not_found' || code === 'session_not_found' || code === 'missing_image') return 404
+  if (code === 'invalid_area_key' || code === 'annotations_required' || code === 'ai_retry_not_allowed') return 400
+  return 500
 }

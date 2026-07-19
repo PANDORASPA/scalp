@@ -139,6 +139,11 @@ export async function getCustomerRecord(customerId: string) {
 
 export async function upsertTrackingImageRecord(input: TrackingImageInput) {
   return updateDb((db) => {
+    const session = db.sessions.find((item) => item.id === input.sessionId)
+    if (!session || !isTrackingSession(session) || session.customer_id !== input.customerId) {
+      throw new Error('session_not_found: Tracking image session does not belong to customer.')
+    }
+
     const existing = getTrackingImages(db).find(
       (image) => image.session_id === input.sessionId && image.area_key === input.areaKey && image.image_index === input.imageIndex,
     )
@@ -169,7 +174,10 @@ export async function upsertTrackingImageRecord(input: TrackingImageInput) {
 export async function updateTrackingImageRecord(imageId: string, patch: TrackingImagePatch) {
   return updateDb((db) => {
     const current = getTrackingImages(db).find((image) => image.id === imageId)
-    if (!current) throw new Error('update scalp analysis image: image not found')
+    const session = current ? db.sessions.find((item) => item.id === current.session_id) : null
+    if (!current || !session || !isTrackingSession(session) || session.customer_id !== current.customer_id) {
+      throw new Error('update scalp analysis image: image not found')
+    }
     const updated: ScalpAnalysisImage = {
       ...current,
       ...(patch.image_url === undefined ? {} : { image_url: patch.image_url }),
@@ -201,11 +209,17 @@ export async function updateTrackingImageRecord(imageId: string, patch: Tracking
 
 export async function getTrackingImageById(imageId: string) {
   const db = await readDb()
-  return getTrackingImages(db).find((image) => image.id === imageId) ?? null
+  const image = getTrackingImages(db).find((item) => item.id === imageId)
+  if (!image) return null
+  const session = db.sessions.find((item) => item.id === image.session_id)
+  if (!session || !isTrackingSession(session) || session.customer_id !== image.customer_id) return null
+  return image
 }
 
 export async function getTrackingImageBySlot(sessionId: string, areaKey: ScalpAnalysisAreaKey, imageIndex: 1 | 2 | 3) {
   const db = await readDb()
+  const session = db.sessions.find((item) => item.id === sessionId)
+  if (!session || !isTrackingSession(session)) return null
   return getTrackingImages(db).find(
     (image) => image.session_id === sessionId && image.area_key === areaKey && image.image_index === imageIndex,
   ) ?? null
@@ -214,7 +228,10 @@ export async function getTrackingImageBySlot(sessionId: string, areaKey: ScalpAn
 export async function deleteTrackingImageRecord(imageId: string) {
   return updateDb((db) => {
     const deleted = getTrackingImages(db).find((image) => image.id === imageId)
-    if (!deleted) throw new Error('delete scalp analysis image: image not found')
+    const session = deleted ? db.sessions.find((item) => item.id === deleted.session_id) : null
+    if (!deleted || !session || !isTrackingSession(session) || session.customer_id !== deleted.customer_id) {
+      throw new Error('delete scalp analysis image: image not found')
+    }
     return {
       db: { ...db, trackingImages: getTrackingImages(db).filter((image) => image.id !== imageId) },
       result: deleted,
@@ -224,6 +241,8 @@ export async function deleteTrackingImageRecord(imageId: string) {
 
 export async function listTrackingImagesForSession(sessionId: string) {
   const db = await readDb()
+  const session = db.sessions.find((item) => item.id === sessionId)
+  if (!session || !isTrackingSession(session)) return []
   return getTrackingImages(db)
     .filter((image) => image.session_id === sessionId && SCALP_ANALYSIS_AREA_KEYS.includes(image.area_key))
     .sort((a, b) => a.area_key.localeCompare(b.area_key) || a.image_index - b.image_index)
@@ -236,6 +255,11 @@ export async function listTrackingAreaSummariesForCustomer(customerId: string) {
 
 export async function upsertTrackingAreaSummary(input: Omit<ScalpAreaSummary, 'id' | 'created_at' | 'updated_at'> & { id?: string }) {
   return updateDb((db) => {
+    const session = db.sessions.find((item) => item.id === input.session_id)
+    if (!session || !isTrackingSession(session) || session.customer_id !== input.customer_id) {
+      throw new Error('session_not_found: Tracking summary session does not belong to customer.')
+    }
+
     const existing = getTrackingAreaSummaries(db).find(
       (summary) => summary.session_id === input.session_id && summary.area_key === input.area_key,
     )
@@ -254,13 +278,20 @@ export async function upsertTrackingAreaSummary(input: Omit<ScalpAreaSummary, 'i
 
 export async function deleteTrackingAreaSummary(sessionId: string, areaKey: ScalpAnalysisAreaKey) {
   await updateDb((db) => ({
-    db: { ...db, trackingAreaSummaries: getTrackingAreaSummaries(db).filter((summary) => !(summary.session_id === sessionId && summary.area_key === areaKey)) },
+    db: {
+      ...db,
+      trackingAreaSummaries: db.sessions.some((item) => item.id === sessionId && isTrackingSession(item))
+        ? getTrackingAreaSummaries(db).filter((summary) => !(summary.session_id === sessionId && summary.area_key === areaKey))
+        : getTrackingAreaSummaries(db),
+    },
     result: undefined,
   }))
 }
 
 export async function getTrackingAreaSummary(sessionId: string, areaKey: ScalpAnalysisAreaKey) {
   const db = await readDb()
+  const session = db.sessions.find((item) => item.id === sessionId)
+  if (!session || !isTrackingSession(session)) return null
   return getTrackingAreaSummaries(db).find((summary) => summary.session_id === sessionId && summary.area_key === areaKey) ?? null
 }
 

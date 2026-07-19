@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { requireAuthRole } from '@/lib/auth/session'
 import { isAreaKey } from '@/lib/scalp-analysis/logic'
-import { uploadScalpImage, toScalpAnalysisError } from '@/lib/scalp-analysis/service'
+import { scalpAnalysisErrorStatus, uploadScalpImage, toScalpAnalysisError } from '@/lib/scalp-analysis/service'
 
 export const runtime = 'nodejs'
 
@@ -60,6 +60,6 @@ export async function POST(req: Request) {
     })
     return NextResponse.json(image)
   } catch (error) {
-    return NextResponse.json({ error: toScalpAnalysisError(error) }, { status: 500 })
+    return NextResponse.json({ error: toScalpAnalysisError(error) }, { status: scalpAnalysisErrorStatus(error) })
   }
 }

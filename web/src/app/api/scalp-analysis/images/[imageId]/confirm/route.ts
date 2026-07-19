@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { readJsonBody } from '@/lib/api/json'
 import { requireAuthRole } from '@/lib/auth/session'
-import { saveConfirmedAnnotations, toScalpAnalysisError } from '@/lib/scalp-analysis/service'
+import { saveConfirmedAnnotations, scalpAnalysisErrorStatus, toScalpAnalysisError } from '@/lib/scalp-analysis/service'
 
 export const runtime = 'nodejs'
 
@@ -27,6 +27,6 @@ export async function POST(
     const result = await saveConfirmedAnnotations(imageId, body.annotations)
     return NextResponse.json(result)
   } catch (error) {
-    return NextResponse.json({ error: toScalpAnalysisError(error) }, { status: 500 })
+    return NextResponse.json({ error: toScalpAnalysisError(error) }, { status: scalpAnalysisErrorStatus(error) })
   }
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { requireAuthRole } from '@/lib/auth/session'
-import { removeScalpImage, retryScalpImageAnalysis, toScalpAnalysisError } from '@/lib/scalp-analysis/service'
+import { removeScalpImage, retryScalpImageAnalysis, scalpAnalysisErrorStatus, toScalpAnalysisError } from '@/lib/scalp-analysis/service'
 
 export const runtime = 'nodejs'
 
@@ -16,7 +16,7 @@ export async function POST(
   try {
     return NextResponse.json(await retryScalpImageAnalysis(imageId))
   } catch (error) {
-    return NextResponse.json({ error: toScalpAnalysisError(error) }, { status: 500 })
+    return NextResponse.json({ error: toScalpAnalysisError(error) }, { status: scalpAnalysisErrorStatus(error) })
   }
 }
 
@@ -32,6 +32,6 @@ export async function DELETE(
     const deleted = await removeScalpImage(imageId)
     return NextResponse.json(deleted)
   } catch (error) {
-    return NextResponse.json({ error: toScalpAnalysisError(error) }, { status: 500 })
+    return NextResponse.json({ error: toScalpAnalysisError(error) }, { status: scalpAnalysisErrorStatus(error) })
   }
 }

@@ -54,6 +54,7 @@ Run these migrations in order:
 5. `0005_app_integration_settings.sql`
 6. `0006_add_tracking_image_score_columns.sql`
 7. `20260717195041_harden_scalp_data_access.sql`
+8. `20260719133000_enforce_customer_session_ownership.sql`
 
 `0003` creates the AI analysis tables and the `scalp-images` storage bucket.
 `0004` adds the scalp-analysis tracking columns, tracking workflow type, and `scalp_area_summaries`.
@@ -62,6 +63,8 @@ Run these migrations in order:
 The hardening migration backfills legacy Supabase image paths, makes the `scalp-images` bucket private,
 and restricts all application tables to the server-side service role. Existing image URLs are returned
 through the authenticated `/api/scalp-images/file` proxy.
+`0008` enforces customer/session ownership for new image and area-summary writes while leaving existing
+historical rows available for review.
 
 ### Verification flow
 

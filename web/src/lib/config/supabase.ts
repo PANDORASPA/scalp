@@ -81,7 +81,7 @@ export function explainSupabaseErrorMessage(message: string) {
     normalized.includes('column') ||
     normalized.includes('schema cache')
   ) {
-    return `supabase_schema_missing: ${message}. Run migrations 0001 through 0007 before enabling Supabase mode.`
+    return `supabase_schema_missing: ${message}. Run migrations through 20260719133000 before enabling Supabase mode.`
   }
 
   if (

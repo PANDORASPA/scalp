@@ -6,6 +6,8 @@ import {
   createScalpSession,
   getScalpAnalysisSessionState,
   saveConfirmedAnnotations,
+  scalpAnalysisErrorStatus,
+  toScalpAnalysisError,
 } from './service'
 import { getTrackingAreaSummary, upsertTrackingImageRecord } from './repository'
 import { createEmptyAnnotations } from './logic'
@@ -122,4 +124,14 @@ test('createScalpSession rejects an unknown customer instead of creating an orph
     if (originalSupabaseKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY
     else process.env.SUPABASE_SERVICE_ROLE_KEY = originalSupabaseKey
   }
+})
+
+test('tracking errors expose stable client status codes', () => {
+  assert.equal(toScalpAnalysisError(new Error('session_not_found: wrong owner')), 'session_not_found')
+  assert.equal(toScalpAnalysisError(new Error('missing_image: image not found')), 'missing_image')
+  assert.equal(toScalpAnalysisError(new Error('customer_not_found: missing')), 'customer_not_found')
+  assert.equal(scalpAnalysisErrorStatus(new Error('session_not_found: wrong owner')), 404)
+  assert.equal(scalpAnalysisErrorStatus(new Error('missing_image: image not found')), 404)
+  assert.equal(scalpAnalysisErrorStatus(new Error('invalid_area_key: unsupported')), 400)
+  assert.equal(scalpAnalysisErrorStatus(new Error('Google Drive upload failed')), 500)
 })
