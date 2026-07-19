@@ -5,6 +5,7 @@ import { updateDb } from '../mockdb/store'
 import {
   createScalpSession,
   cleanupScalpSessionStorage,
+  buildConfirmedImagePatch,
   getScalpAnalysisSessionState,
   retryScalpSessionAnalysis,
   saveConfirmedAnnotations,
@@ -129,6 +130,44 @@ test('changes to an earlier session recompute downstream comparisons', async () 
     if (originalSupabaseKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY
     else process.env.SUPABASE_SERVICE_ROLE_KEY = originalSupabaseKey
   }
+})
+
+test('confirmed annotation patch keeps annotations and derived stats atomic', () => {
+  const input = annotations(4)
+  input.coarse_hairs = [{ id: 'coarse-1', x: 10, y: 12, confidence: 0.9 }]
+  input.empty_follicles = [{ id: 'empty-1', x: 20, y: 22, confidence: 0.8 }]
+  input.blockages = [{ id: 'blockage-1', x: 30, y: 32, radius: 10, confidence: 0.7 }]
+  input.scores.redness_score = 3
+  input.scores.oiliness_score = 6
+
+  const patch = buildConfirmedImagePatch(input, '2026-07-19T12:00:00.000Z')
+
+  assert.equal(patch.analysis_status, 'confirmed')
+  assert.equal(patch.confirmed_annotations_json, input)
+  assert.equal(patch.analysis_notes, input.notes)
+  assert.equal(patch.updated_at, '2026-07-19T12:00:00.000Z')
+  assert.deepEqual(
+    {
+      coarse_hair_count: patch.coarse_hair_count,
+      baby_hair_count: patch.baby_hair_count,
+      empty_follicle_count: patch.empty_follicle_count,
+      blockage_count: patch.blockage_count,
+      scalp_empty_ratio: patch.scalp_empty_ratio,
+      redness_score: patch.redness_score,
+      oiliness_score: patch.oiliness_score,
+      density_score: patch.density_score,
+    },
+    {
+      coarse_hair_count: 1,
+      baby_hair_count: 4,
+      empty_follicle_count: 1,
+      blockage_count: 1,
+      scalp_empty_ratio: 35,
+      redness_score: 3,
+      oiliness_score: 6,
+      density_score: 60,
+    },
+  )
 })
 
 test('createScalpSession rejects an unknown customer instead of creating an orphan record', async () => {

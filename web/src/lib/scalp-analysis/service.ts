@@ -326,22 +326,34 @@ export async function retryScalpSessionAnalysis(
   }
 }
 
+export function buildConfirmedImagePatch(annotations: ScalpAnalysisAnnotations, nowISO: string) {
+  const stats = calculateStatsFromAnnotations(annotations)
+  return {
+    confirmed_annotations_json: annotations,
+    analysis_status: 'confirmed' as const,
+    analysis_notes: annotations.notes,
+    coarse_hair_count: stats.coarse_hair_count,
+    baby_hair_count: stats.baby_hair_count,
+    empty_follicle_count: stats.empty_follicle_count,
+    blockage_count: stats.blockage_count,
+    scalp_empty_ratio: stats.scalp_empty_ratio,
+    redness_score: stats.redness_score,
+    oiliness_score: stats.oiliness_score,
+    density_score: stats.density_score,
+    updated_at: nowISO,
+  }
+}
+
 export async function saveConfirmedAnnotations(imageId: string, annotationsJson: unknown) {
   const image = await getTrackingImageById(imageId)
   if (!image) throw new Error('missing_image: Scalp analysis image not found.')
   const annotations = normalizeAnnotations(annotationsJson)
   const now = new Date().toISOString()
-  const updated = await updateTrackingImageRecord(imageId, {
-    confirmed_annotations_json: annotations,
-    analysis_status: 'confirmed',
-    analysis_notes: annotations.notes,
-    updated_at: now,
-  })
-  const stats = await calculateImageStats(imageId)
+  const updated = await updateTrackingImageRecord(imageId, buildConfirmedImagePatch(annotations, now))
   await recomputeCustomerTrackingSummaries(updated.customer_id, updated.area_key)
   const summary = await getTrackingAreaSummary(updated.session_id, updated.area_key)
   await touchCustomer(updated.customer_id, now)
-  return { image: stats, summary }
+  return { image: updated, summary }
 }
 
 export async function calculateImageStats(imageId: string) {
