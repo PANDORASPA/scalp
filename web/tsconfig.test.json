@@ -38,6 +38,8 @@
     "src/lib/config/supabase-connectivity.test.ts",
     "src/lib/customers/workspace.ts",
     "src/lib/customers/workspace.test.ts",
+    "src/lib/customers/overview.ts",
+    "src/lib/customers/overview.test.ts",
     "src/lib/customers/search.ts",
     "src/lib/customers/search.test.ts",
     "src/lib/scalp/ai.ts",

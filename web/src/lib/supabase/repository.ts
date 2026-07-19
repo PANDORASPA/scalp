@@ -4,6 +4,7 @@ import { explainSupabaseErrorMessage } from '@/lib/config/supabase'
 import type { MockDb } from '@/lib/mockdb/store'
 import type { TrackingAreaProgress } from '@/lib/customers/workspace'
 import { mergeCustomerSearchResults } from '@/lib/customers/search'
+import { buildCustomerOverview } from '@/lib/customers/overview'
 import type {
   Customer,
   ScalpAiPointAnalysis,
@@ -386,24 +387,11 @@ export async function getSessionStateFromSupabase(sessionId: string) {
 export async function getCustomerOverviewFromSupabase(customerId: string) {
   const snapshot = await getCustomerSnapshot(customerId)
   const customer = snapshot.customers.find((item) => item.id === customerId) ?? null
-  if (!customer) return null
-
-  const sessions = [...snapshot.sessions]
-    .filter((session) => (session as ScalpSession & { workflow_type?: string }).workflow_type !== 'scalp_analysis_tracking')
-    .sort((a, b) => b.check_date.localeCompare(a.check_date))
-  const latestSession = sessions[0] ?? null
-  const latestSummaries = latestSession
-    ? snapshot.pointSummaries
-        .filter((item) => item.session_id === latestSession.id)
-        .sort((a, b) => a.capture_point_code.localeCompare(b.capture_point_code))
-    : []
-
-  return {
+  return buildCustomerOverview({
     customer,
-    sessions,
-    latestSession,
-    latestSummaries,
-  }
+    sessions: snapshot.sessions,
+    pointSummaries: snapshot.pointSummaries,
+  })
 }
 
 export async function listCustomersFromSupabase(q: string) {

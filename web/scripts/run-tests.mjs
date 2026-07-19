@@ -46,6 +46,7 @@ const tests = spawnSync(
     testPath('lib/config/supabase.test.js'),
     testPath('lib/config/supabase-connectivity.test.js'),
     testPath('lib/customers/workspace.test.js'),
+    testPath('lib/customers/overview.test.js'),
     testPath('lib/customers/search.test.js'),
     testPath('lib/scalp/ai.test.js'),
     testPath('lib/scalp/pipeline.test.js'),
