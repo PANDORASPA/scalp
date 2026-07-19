@@ -20,6 +20,7 @@ import {
   calculateCaptureConsistencyScore,
   calculateStatsFromAnnotations,
   compareAreaSummaries,
+  hasCompleteScalpImageStats,
   isAreaKey,
   isConfirmedScalpAnalysisImage,
   isTrustworthyCaptureConsistencyScore,
@@ -328,6 +329,7 @@ export async function retryScalpSessionAnalysis(
 
 export function buildConfirmedImagePatch(annotations: ScalpAnalysisAnnotations, nowISO: string) {
   const stats = calculateStatsFromAnnotations(annotations)
+  assertCompleteScalpImageStats(stats)
   return {
     confirmed_annotations_json: annotations,
     analysis_status: 'confirmed' as const,
@@ -342,6 +344,24 @@ export function buildConfirmedImagePatch(annotations: ScalpAnalysisAnnotations, 
     density_score: stats.density_score,
     updated_at: nowISO,
   }
+}
+
+function assertCompleteScalpImageStats(stats: ReturnType<typeof calculateStatsFromAnnotations>) {
+  if (hasCompleteScalpImageStats(stats)) return
+  const missing = [
+    ['coarse_hair_count', stats.coarse_hair_count],
+    ['baby_hair_count', stats.baby_hair_count],
+    ['empty_follicle_count', stats.empty_follicle_count],
+    ['blockage_count', stats.blockage_count],
+    ['scalp_empty_ratio', stats.scalp_empty_ratio],
+    ['redness_score', stats.redness_score],
+    ['oiliness_score', stats.oiliness_score],
+    ['density_score', stats.density_score],
+  ]
+    .filter(([, value]) => typeof value !== 'number' || !Number.isFinite(value))
+    .map(([key]) => key)
+
+  throw new Error(`incomplete_annotations: ${missing.join(', ')} must be provided before confirmation.`)
 }
 
 export async function saveConfirmedAnnotations(imageId: string, annotationsJson: unknown) {
@@ -363,6 +383,7 @@ export async function calculateImageStats(imageId: string) {
     throw new Error('missing_image: Confirmed annotations are required before calculating image stats.')
   }
   const stats = calculateStatsFromAnnotations(image.confirmed_annotations_json)
+  assertCompleteScalpImageStats(stats)
   return updateTrackingImageRecord(imageId, {
     coarse_hair_count: stats.coarse_hair_count,
     baby_hair_count: stats.baby_hair_count,
@@ -631,6 +652,7 @@ export function toScalpAnalysisError(error: unknown) {
   if (lowered.includes('invalid_area_key')) return 'invalid_area_key'
   if (lowered.includes('invalid_image_content')) return 'invalid_image_content'
   if (lowered.includes('annotations_required')) return 'annotations_required'
+  if (lowered.includes('incomplete_annotations')) return 'incomplete_annotations'
   if (lowered.includes('ai_retry_not_allowed')) return 'ai_retry_not_allowed'
   if (lowered.includes('supabase_env_missing')) return 'supabase_env_missing'
   const explainedSupabaseError = explainSupabaseErrorMessage(message)
@@ -653,6 +675,7 @@ export function scalpAnalysisErrorStatus(error: unknown) {
     code === 'invalid_area_key' ||
     code === 'invalid_image_content' ||
     code === 'annotations_required' ||
+    code === 'incomplete_annotations' ||
     code === 'ai_retry_not_allowed'
   ) return 400
   if (

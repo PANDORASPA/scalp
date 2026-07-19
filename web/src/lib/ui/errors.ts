@@ -86,6 +86,9 @@ export function getHumanErrorMessage(error: string) {
   if (error.includes('annotations_required')) {
     return '請先確認或新增標記，然後再儲存。'
   }
+  if (error.includes('incomplete_annotations')) {
+    return '正式統計仍未完整，請補填紅腫、出油或其他空白分數後再確認。'
+  }
   if (error.includes('ai_retry_not_allowed')) return '這張圖片目前不需要重新分析，請先完成或重新上傳。'
   return error || '操作失敗，請稍後再試。'
 }

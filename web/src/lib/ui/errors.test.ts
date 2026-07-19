@@ -63,3 +63,10 @@ test('getHumanErrorMessage explains Supabase storage failures', () => {
   assert.match(message, /Supabase|storage|bucket/i)
   assert.doesNotMatch(message, /supabase_storage_error/)
 })
+
+test('getHumanErrorMessage explains incomplete confirmed annotations', () => {
+  const message = getHumanErrorMessage('incomplete_annotations')
+
+  assert.match(message, /統計|紅腫|出油/)
+  assert.doesNotMatch(message, /incomplete_annotations/)
+})

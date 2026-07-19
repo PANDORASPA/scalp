@@ -160,21 +160,24 @@ export function calculateStatsFromAnnotations(annotations: ScalpAnalysisAnnotati
   }
 }
 
+export function hasCompleteScalpImageStats(stats: ScalpImageStats) {
+  return [
+    stats.coarse_hair_count,
+    stats.baby_hair_count,
+    stats.empty_follicle_count,
+    stats.blockage_count,
+    stats.scalp_empty_ratio,
+    stats.redness_score,
+    stats.oiliness_score,
+    stats.density_score,
+  ].every((value) => typeof value === 'number' && Number.isFinite(value))
+}
+
 export function isConfirmedScalpAnalysisImage(
   image: Pick<ScalpAnalysisImage, 'analysis_status' | 'confirmed_annotations_json' | 'stats'>,
 ) {
   if (image.analysis_status !== 'confirmed' || !image.confirmed_annotations_json) return false
-  const requiredStats = [
-    image.stats.coarse_hair_count,
-    image.stats.baby_hair_count,
-    image.stats.empty_follicle_count,
-    image.stats.blockage_count,
-    image.stats.scalp_empty_ratio,
-    image.stats.redness_score,
-    image.stats.oiliness_score,
-    image.stats.density_score,
-  ]
-  return requiredStats.every((value) => typeof value === 'number' && Number.isFinite(value))
+  return hasCompleteScalpImageStats(image.stats)
 }
 
 export function calculateCaptureConsistencyScore(images: ScalpAnalysisImage[]) {

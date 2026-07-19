@@ -242,6 +242,21 @@ test('confirmed annotation patch keeps annotations and derived stats atomic', ()
   )
 })
 
+test('confirmed annotations reject missing formal scores before changing image status', () => {
+  assert.throws(
+    () => buildConfirmedImagePatch(createEmptyAnnotations(), '2026-07-19T12:00:00.000Z'),
+    /incomplete_annotations/,
+  )
+  assert.equal(
+    toScalpAnalysisError(new Error('incomplete_annotations: oiliness_score is required')),
+    'incomplete_annotations',
+  )
+  assert.equal(
+    scalpAnalysisErrorStatus(new Error('incomplete_annotations: oiliness_score is required')),
+    400,
+  )
+})
+
 test('createScalpSession rejects an unknown customer instead of creating an orphan record', async () => {
   const originalSupabaseUrl = process.env.SUPABASE_URL
   const originalSupabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
