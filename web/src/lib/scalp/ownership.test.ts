@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { belongsToSessionOwner, hasSessionWorkflow } from './ownership'
+import { belongsToSessionOwner, filterSessionsByWorkflow, hasSessionWorkflow } from './ownership'
 
 const legacySession = {
   id: 'session-1',
@@ -28,4 +28,21 @@ test('session workflow checks keep legacy routes away from tracking sessions', (
   assert.equal(hasSessionWorkflow(legacySession, 'scalp_analysis_tracking'), false)
   assert.equal(hasSessionWorkflow({ workflow_type: undefined }, 'legacy_capture'), true)
   assert.equal(hasSessionWorkflow(null, 'legacy_capture'), false)
+})
+
+test('filterSessionsByWorkflow keeps local session lists aligned with Supabase workflow filters', () => {
+  const sessions = [
+    { id: 'legacy', workflow_type: 'legacy_capture' },
+    { id: 'tracking', workflow_type: 'scalp_analysis_tracking' },
+    { id: 'historical', workflow_type: undefined },
+  ] as Array<{ id: string; workflow_type?: string }>
+
+  assert.deepEqual(
+    filterSessionsByWorkflow(sessions, 'legacy_capture').map((session) => session.id),
+    ['legacy', 'historical'],
+  )
+  assert.deepEqual(
+    filterSessionsByWorkflow(sessions, 'scalp_analysis_tracking').map((session) => session.id),
+    ['tracking'],
+  )
 })

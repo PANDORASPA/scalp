@@ -5,6 +5,7 @@ import { jsonNoStore } from '@/lib/api/response'
 import { requireAuthRole } from '@/lib/auth/session'
 import { shouldUseSupabaseDataSource } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
+import { filterSessionsByWorkflow } from '@/lib/scalp/ownership'
 import {
   createSessionInSupabase,
   getCustomerFromSupabase,
@@ -36,7 +37,7 @@ export async function GET(req: Request) {
   }
 
   const result = await updateDb(async (db) => {
-    const sessions = db.sessions
+    const sessions = filterSessionsByWorkflow(db.sessions, 'legacy_capture')
       .filter((s) => (customerId ? s.customer_id === customerId : true))
       .sort((a, b) => b.check_date.localeCompare(a.check_date))
     return { db, result: sessions }
