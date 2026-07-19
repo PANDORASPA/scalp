@@ -74,13 +74,14 @@ export async function createTrackingSessionRecord(input: {
   customerId: string
   checkDate: string
   notes: string | null
+  staffName?: string | null
   nowISO: string
 }) {
   const session: ScalpSession = {
     id: randomUUID(),
     customer_id: input.customerId,
     check_date: input.checkDate,
-    staff_name: null,
+    staff_name: input.staffName ?? null,
     notes: input.notes,
     workflow_type: SCALP_ANALYSIS_WORKFLOW_TYPE,
     created_at: input.nowISO,

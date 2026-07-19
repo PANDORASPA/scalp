@@ -147,6 +147,54 @@ test('createScalpSession rejects an unknown customer instead of creating an orph
   }
 })
 
+test('tracking sessions keep the authenticated operator name for auditability', async () => {
+  const customerId = `customer-${crypto.randomUUID()}`
+  const now = new Date().toISOString()
+  const originalSupabaseUrl = process.env.SUPABASE_URL
+  const originalSupabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  delete process.env.SUPABASE_URL
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  await updateDb((db) => ({
+    db: {
+      ...db,
+      customers: [
+        ...db.customers,
+        {
+          id: customerId,
+          name: 'Audit test customer',
+          phone: null,
+          notes: null,
+          created_at: now,
+          updated_at: now,
+        },
+      ],
+    },
+    result: undefined,
+  }))
+
+  try {
+    const session = await createScalpSession(customerId, {
+      sessionDate: '2026-03-01T00:00:00.000Z',
+      staffName: 'Front Desk',
+    })
+    assert.equal(session.staff_name, 'Front Desk')
+  } finally {
+    await updateDb((db) => ({
+      db: {
+        ...db,
+        sessions: db.sessions.filter((item) => item.customer_id !== customerId),
+        customers: db.customers.filter((item) => item.id !== customerId),
+      },
+      result: undefined,
+    }))
+    if (originalSupabaseUrl === undefined) delete process.env.SUPABASE_URL
+    else process.env.SUPABASE_URL = originalSupabaseUrl
+    if (originalSupabaseKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = originalSupabaseKey
+  }
+})
+
 test('low-consistency summaries do not publish misleading session comparisons', async () => {
   const customerId = `customer-${crypto.randomUUID()}`
   const originalSupabaseUrl = process.env.SUPABASE_URL

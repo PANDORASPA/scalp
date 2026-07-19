@@ -84,7 +84,10 @@ async function touchCustomer(customerId: string, now: string) {
   if (hasSupabaseServerEnv()) await touchCustomerInSupabase(customerId, now)
 }
 
-export async function createScalpSession(customerId: string, input?: { sessionDate?: string; notes?: string | null }) {
+export async function createScalpSession(
+  customerId: string,
+  input?: { sessionDate?: string; notes?: string | null; staffName?: string | null },
+) {
   const customer = await getCustomerRecord(customerId)
   if (!customer) throw new Error('customer_not_found: Customer not found for scalp analysis session.')
   await ensureScalpAnalysisCapturePoints()
@@ -94,6 +97,7 @@ export async function createScalpSession(customerId: string, input?: { sessionDa
     customerId,
     checkDate: sessionDate,
     notes: input?.notes ?? null,
+    staffName: input?.staffName ?? null,
     nowISO: now,
   })
   await touchCustomer(customerId, now)

@@ -52,6 +52,7 @@ export type ScalpAnalysisReport = {
   customer_id: string
   customer_name: string
   session_date: string
+  staff_name: string | null
   session_complete: boolean
   completed_areas: number
   incomplete_areas: number
@@ -165,6 +166,7 @@ export function buildScalpAnalysisReport(
     customer_id: state.session.customer_id,
     customer_name: state.customer?.name ?? '未命名客人',
     session_date: state.session.check_date,
+    staff_name: state.session.staff_name,
     session_complete: areas.length > 0 && incompleteAreas === 0,
     completed_areas: completedAreas,
     incomplete_areas: incompleteAreas,

@@ -57,6 +57,7 @@ export async function POST(req: Request) {
     const session = await createScalpSession(customerId, {
       sessionDate,
       notes: body.notes?.toString().trim() || null,
+      staffName: auth.session.name,
     })
     return NextResponse.json(session)
   } catch (error) {

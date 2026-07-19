@@ -89,6 +89,7 @@ test('structured report keeps incomplete areas out of official metrics', () => {
   assert.equal(report.session_complete, false)
   assert.equal(report.areas.find((area) => area.area_key === 'm_left')?.metrics.average_baby_hair_count, 6)
   assert.equal(report.areas.find((area) => area.area_key === 'm_right')?.metrics.average_baby_hair_count, null)
+  assert.equal(report.staff_name, null)
   assert.ok(report.warnings.some((warning) => warning.includes('M 字右')))
 })
 

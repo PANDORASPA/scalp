@@ -736,6 +736,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                     >
                       <div className="font-medium">{formatDate(session.check_date)}</div>
                       <div className="mt-1 text-xs text-slate-500">{session.notes || '沒有備註'}</div>
+                      <div className="mt-1 text-xs text-slate-500">Operator: {session.staff_name || 'Not recorded'}</div>
                     </button>
                     <div className="mt-2 flex gap-3 text-xs">
                       <button
@@ -892,6 +893,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                       {sessionState.customer?.name ?? '未知客人'} | {formatDate(sessionState.session.check_date)}
                     </div>
                     <div className="mt-1 text-sm text-slate-600">{sessionState.session.notes || '未有 session 備註。'}</div>
+                    <div className="mt-1 text-xs text-slate-500">Operator: {sessionState.session.staff_name || 'Not recorded'}</div>
                   </div>
                   <div className="text-xs text-slate-500">
                     {sessionState.progress.ready_areas}/{sessionState.progress.total_areas} 個部位可產生平均

@@ -157,6 +157,7 @@ export async function createTrackingSessionRecord(input: {
   customerId: string
   checkDate: string
   notes: string | null
+  staffName?: string | null
   nowISO: string
 }) {
   if (shouldUseMockRepository()) return mockRepository.createTrackingSessionRecord(input)
@@ -166,6 +167,7 @@ export async function createTrackingSessionRecord(input: {
     .insert({
       customer_id: input.customerId,
       check_date: input.checkDate,
+      staff_name: input.staffName ?? null,
       notes: input.notes,
       workflow_type: 'scalp_analysis_tracking',
       created_at: input.nowISO,
