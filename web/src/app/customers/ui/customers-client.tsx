@@ -190,8 +190,10 @@ function CustomerModal({
 
 export default function CustomersClient({
   role,
+  allowDemoSeed,
 }: {
   role: 'admin' | 'staff'
+  allowDemoSeed: boolean
 }) {
   const [q, setQ] = useState('')
   const [rows, setRows] = useState<CustomerRow[]>([])
@@ -358,7 +360,7 @@ export default function CustomersClient({
                   <td className="px-3 py-4 text-slate-500" colSpan={6}>
                     <div className="space-y-3">
                       <div>暫時未有客人資料。</div>
-                      {role === 'admin' ? <DemoSeedButton onSeeded={() => void fetchRows(q)} /> : null}
+                      {role === 'admin' && allowDemoSeed ? <DemoSeedButton onSeeded={() => void fetchRows(q)} /> : null}
                     </div>
                   </td>
                 </tr>

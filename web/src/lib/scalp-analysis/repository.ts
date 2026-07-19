@@ -3,13 +3,13 @@ import 'server-only'
 import { SCALP_ANALYSIS_AREA_KEYS, SCALP_ANALYSIS_AREA_LABELS, type ScalpAnalysisAreaKey } from '@/lib/scalp-analysis/constants'
 import type { Customer, ScalpSession } from '@/lib/scalp/types'
 import { getSupabaseAdminClient } from '@/lib/supabase/client'
-import { hasSupabaseServerEnv } from '@/lib/config/supabase'
+import { shouldUseSupabaseDataSource } from '@/lib/config/supabase'
 
 import { isConfirmedScalpAnalysisImage, normalizeAnnotations } from './logic'
 import type { ScalpAnalysisImage, ScalpAreaSummary, ScalpAnalysisSessionState, ScalpSessionComparison } from './types'
 import * as mockRepository from './mock-repository'
 
-const shouldUseMockRepository = () => !hasSupabaseServerEnv()
+const shouldUseMockRepository = () => !shouldUseSupabaseDataSource()
 
 type CapturePointRow = {
   id: string

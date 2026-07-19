@@ -4,7 +4,7 @@ import path from 'node:path'
 import { NextResponse } from 'next/server'
 
 import { requireAuthRole } from '@/lib/auth/session'
-import { hasSupabaseServerEnv } from '@/lib/config/supabase'
+import { shouldUseSupabaseDataSource } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
 import { buildHairCountShotAnalysis } from '@/lib/scalp/ai'
 import { isCapturePointCode } from '@/lib/scalp/logic'
@@ -113,7 +113,7 @@ export async function POST(req: Request) {
   const now = new Date().toISOString()
   const capturePointCode = capturePointCodeRaw
 
-  if (hasSupabaseServerEnv()) {
+  if (shouldUseSupabaseDataSource()) {
     try {
       await seedCapturePointsIfNeeded()
       const existingFile = file instanceof File ? file : null
@@ -391,7 +391,7 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: 'missing_required_fields' }, { status: 400 })
   }
 
-  if (hasSupabaseServerEnv()) {
+  if (shouldUseSupabaseDataSource()) {
     try {
       const deleted = await deleteImageBySessionPointShotInSupabase({
         sessionId,

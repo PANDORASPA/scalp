@@ -38,7 +38,7 @@ import {
   updateTrackingSessionRecord,
 } from './repository'
 import { getScalpStorageAdapter } from './storage'
-import { commitUploadedStorageRecord, deleteStorageBestEffort } from './storage-consistency'
+import { commitUploadedStorageRecord, deleteStorageBestEffort, deleteStorageRequired } from './storage-consistency'
 import type { ScalpAnalysisAnnotations } from './types'
 
 type UploadInput = {
@@ -417,12 +417,11 @@ export async function removeScalpImage(imageId: string) {
   const image = await getTrackingImageById(imageId)
   if (!image) throw new Error('missing_image: Scalp analysis image not found.')
   const adapter = await getScalpStorageAdapter(image.storage_provider)
-  const deleted = await deleteTrackingImageRecord(imageId)
-  await deleteStorageBestEffort({
+  await deleteStorageRequired({
     adapter,
     target: { fileId: image.drive_file_id, objectKey: image.storage_object_key },
-    context: 'deleted image',
   })
+  const deleted = await deleteTrackingImageRecord(imageId)
   await recomputeCustomerTrackingSummaries(deleted.customer_id, deleted.area_key)
   return deleted
 }
@@ -434,17 +433,15 @@ export async function removeScalpSession(sessionId: string) {
   const cleanupPlans = await Promise.all(
     images.map(async (image) => ({ image, adapter: await getScalpStorageAdapter(image.storage_provider) })),
   )
-  const deleted = await deleteTrackingSessionRecord(sessionId)
-
   await Promise.all(
     cleanupPlans.map(({ image, adapter }) =>
-      deleteStorageBestEffort({
+      deleteStorageRequired({
         adapter,
         target: { fileId: image.drive_file_id, objectKey: image.storage_object_key },
-        context: 'deleted tracking session image',
       }),
     ),
   )
+  const deleted = await deleteTrackingSessionRecord(sessionId)
   await recomputeCustomerTrackingSummaries(deleted.customer_id)
   await touchCustomer(deleted.customer_id, new Date().toISOString())
   return deleted

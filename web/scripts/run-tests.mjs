@@ -50,6 +50,7 @@ const tests = spawnSync(
     '.test-dist/lib/settings/secret-merge.test.js',
     '.test-dist/lib/supabase/storage-path.test.js',
     '.test-dist/lib/ui/errors.test.js',
+    '.test-dist/lib/mockdb/store.test.js',
   ],
   { stdio: 'inherit' },
 )

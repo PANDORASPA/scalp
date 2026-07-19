@@ -4,8 +4,9 @@
 
 The app supports two runtime modes:
 
-- Local mock mode: used automatically when `SUPABASE_URL` or `SUPABASE_SERVICE_ROLE_KEY` is missing.
+- Local mock mode: used automatically when `SUPABASE_URL` or `SUPABASE_SERVICE_ROLE_KEY` is missing during local development only.
 - Supabase mode: enabled when all required server-only Supabase env vars are present.
+- Deployed runtime: never falls back to local mock files; missing or invalid Supabase env returns a clear readiness error.
 
 ### Required env
 
@@ -99,7 +100,7 @@ The smoke script checks:
 ### Common failures
 
 - `supabase_env_missing`
-  - Supabase env vars are not set, so the app stays in local mock mode.
+  - Local development may use mock mode, but deployed customer/session writes require Supabase env vars.
 - `supabase_schema_missing`
   - The migrations were not fully applied.
 - `supabase_storage_error`

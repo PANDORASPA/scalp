@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { commitUploadedStorageRecord, deleteStorageBestEffort } from './storage-consistency'
+import { commitUploadedStorageRecord, deleteStorageBestEffort, deleteStorageRequired } from './storage-consistency'
 import type { ScalpStorageAdapter, ScalpStorageUploadResult } from './storage/types'
 
 function createAdapter(options?: { failDelete?: boolean }) {
@@ -84,4 +84,17 @@ test('deleteStorageBestEffort skips empty cleanup targets', async () => {
   })
 
   assert.deepEqual(deleted, [])
+})
+
+test('deleteStorageRequired propagates cleanup failures so database rows can be retained', async () => {
+  const { adapter, deleted } = createAdapter({ failDelete: true })
+
+  await assert.rejects(
+    deleteStorageRequired({
+      adapter,
+      target: { fileId: 'file-to-delete', objectKey: 'customer/session/area/1.jpg' },
+    }),
+    /delete failed/,
+  )
+  assert.deepEqual(deleted, [{ fileId: 'file-to-delete', objectKey: 'customer/session/area/1.jpg' }])
 })

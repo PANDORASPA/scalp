@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 
 import { readJsonBody } from '@/lib/api/json'
 import { requireAuthRole } from '@/lib/auth/session'
-import { hasSupabaseServerEnv } from '@/lib/config/supabase'
+import { shouldUseSupabaseDataSource } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
 import { cleanupScalpImageStorageRefs } from '@/lib/scalp-analysis/storage-cleanup'
 import {
@@ -33,7 +33,7 @@ export async function GET(
 
   const { sessionId } = await params
 
-  if (hasSupabaseServerEnv()) {
+  if (shouldUseSupabaseDataSource()) {
     try {
       const result = await getSessionFromSupabase(sessionId)
       if (!result) {
@@ -75,7 +75,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'invalid_check_date' }, { status: 400 })
   }
 
-  if (hasSupabaseServerEnv()) {
+  if (shouldUseSupabaseDataSource()) {
     try {
       const current = await getSessionFromSupabase(sessionId)
       if (!current) {
@@ -145,15 +145,15 @@ export async function DELETE(
 
   const { sessionId } = await params
 
-  if (hasSupabaseServerEnv()) {
+  if (shouldUseSupabaseDataSource()) {
     try {
       const session = await getSessionFromSupabase(sessionId)
       if (!session) {
         return NextResponse.json({ error: 'not_found' }, { status: 404 })
       }
       const imageStorageRefs = await getImageStorageRefsForSessionFromSupabase(sessionId)
-      const deleted = await deleteSessionInSupabase(sessionId)
       await cleanupScalpImageStorageRefs(imageStorageRefs)
+      const deleted = await deleteSessionInSupabase(sessionId)
       await touchCustomerInSupabase(session.customer_id, new Date().toISOString())
       return NextResponse.json(deleted)
     } catch (error) {

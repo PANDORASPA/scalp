@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { requireAuthRole } from '@/lib/auth/session'
-import { hasSupabaseServerEnv } from '@/lib/config/supabase'
+import { shouldUseSupabaseDataSource } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
 import { buildCustomerWorkspaceRows } from '@/lib/customers/workspace'
 import { getWorkspaceSnapshot, toRepositoryError } from '@/lib/supabase/repository'
@@ -12,7 +12,7 @@ export async function GET() {
   const auth = await requireAuthRole(['admin', 'staff'])
   if (!auth.ok) return auth.response
 
-  if (hasSupabaseServerEnv()) {
+  if (shouldUseSupabaseDataSource()) {
     try {
       const snapshot = await getWorkspaceSnapshot()
       const { summary } = buildCustomerWorkspaceRows({

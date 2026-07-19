@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 
 import { readJsonBody } from '@/lib/api/json'
 import { requireAuthRole } from '@/lib/auth/session'
-import { hasSupabaseServerEnv } from '@/lib/config/supabase'
+import { shouldUseSupabaseDataSource } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
 import { cleanupScalpImageStorageRefs } from '@/lib/scalp-analysis/storage-cleanup'
 import {
@@ -33,7 +33,7 @@ export async function GET(
 
   const { customerId } = await params
 
-  if (hasSupabaseServerEnv()) {
+  if (shouldUseSupabaseDataSource()) {
     try {
       const result = await getCustomerFromSupabase(customerId)
       if (!result) {
@@ -84,7 +84,7 @@ export async function PATCH(
 
   const now = new Date().toISOString()
 
-  if (hasSupabaseServerEnv()) {
+  if (shouldUseSupabaseDataSource()) {
     try {
       const updated = await updateCustomerInSupabase(customerId, {
         name: body.name === undefined ? undefined : nextName,
@@ -134,11 +134,11 @@ export async function DELETE(
 
   const { customerId } = await params
 
-  if (hasSupabaseServerEnv()) {
+  if (shouldUseSupabaseDataSource()) {
     try {
       const imageStorageRefs = await getImageStorageRefsForCustomerFromSupabase(customerId)
-      const deleted = await deleteCustomerInSupabase(customerId)
       await cleanupScalpImageStorageRefs(imageStorageRefs)
+      const deleted = await deleteCustomerInSupabase(customerId)
       return NextResponse.json(deleted)
     } catch (error) {
       return NextResponse.json({ error: toRepositoryError(error) }, { status: 500 })

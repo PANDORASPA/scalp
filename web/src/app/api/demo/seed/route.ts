@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { requireAuthRole } from '@/lib/auth/session'
-import { hasSupabaseServerEnv } from '@/lib/config/supabase'
+import { shouldUseSupabaseDataSource } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
 import { CAPTURE_POINT_CODES } from '@/lib/scalp/constants'
 import { computeAiPointAnalysis } from '@/lib/scalp/ai'
@@ -32,7 +32,7 @@ export async function POST() {
   const now = new Date().toISOString()
   type ScoreMatrix = Record<(typeof CAPTURE_POINT_CODES)[number], readonly [number, number, number, number, number, number]>
 
-  if (hasSupabaseServerEnv()) {
+  if (shouldUseSupabaseDataSource()) {
     try {
       const workspace = await getWorkspaceSnapshot()
       if (workspace.customers.length > 0 || workspace.sessions.length > 0) {

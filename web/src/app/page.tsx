@@ -4,7 +4,7 @@ import { AppShell } from '@/components/app-shell'
 import { DemoSeedButton } from '@/components/demo-seed-button'
 import { Card } from '@/components/ui/card'
 import { getAuthSession } from '@/lib/auth/session'
-import { hasSupabaseServerEnv } from '@/lib/config/supabase'
+import { hasSupabaseServerEnv, isDeployedRuntime } from '@/lib/config/supabase'
 import { buildCustomerWorkspaceRows } from '@/lib/customers/workspace'
 import { readDb } from '@/lib/mockdb/store'
 import { getWorkspaceSnapshot } from '@/lib/supabase/repository'
@@ -19,7 +19,11 @@ export default async function HomePage() {
     sessions: db.sessions,
     pointSummaries: db.pointSummaries,
   })
-  const canLoadDemoData = session?.role === 'admin' && db.customers.length === 0 && db.sessions.length === 0
+  const canLoadDemoData =
+    !isDeployedRuntime() &&
+    session?.role === 'admin' &&
+    db.customers.length === 0 &&
+    db.sessions.length === 0
 
   return (
     <AppShell>

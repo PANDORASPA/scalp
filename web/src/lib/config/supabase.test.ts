@@ -1,7 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { explainSupabaseErrorMessage, getSupabaseServerEnvIssue, hasSupabaseServerEnv } from './supabase'
+import {
+  explainSupabaseErrorMessage,
+  getSupabaseServerEnvIssue,
+  hasSupabaseServerEnv,
+  isDeployedRuntime,
+  shouldUseSupabaseDataSource,
+} from './supabase'
 
 const validJwtShape = `eyJ${'a'.repeat(40)}.eyJ${'b'.repeat(40)}.${'c'.repeat(80)}`
 
@@ -60,6 +66,20 @@ test('hasSupabaseServerEnv accepts valid Supabase URL and service key shape', ()
     } as NodeJS.ProcessEnv),
     true,
   )
+})
+
+test('deployed runtime never silently falls back to local mock data', () => {
+  assert.equal(isDeployedRuntime({ VERCEL: '1' } as NodeJS.ProcessEnv), true)
+  assert.equal(isDeployedRuntime({} as NodeJS.ProcessEnv), false)
+  assert.equal(
+    shouldUseSupabaseDataSource({ VERCEL: '1' } as NodeJS.ProcessEnv),
+    true,
+  )
+  assert.equal(
+    shouldUseSupabaseDataSource({ VERCEL_ENV: 'production' } as NodeJS.ProcessEnv),
+    true,
+  )
+  assert.equal(shouldUseSupabaseDataSource({} as NodeJS.ProcessEnv), false)
 })
 
 test('explainSupabaseErrorMessage classifies connectivity failures', () => {

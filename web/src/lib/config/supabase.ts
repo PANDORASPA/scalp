@@ -5,7 +5,7 @@ export type SupabaseServerEnv = {
 }
 
 export const SUPABASE_LOCAL_FALLBACK_MESSAGE =
-  'Supabase server env is not configured. The app will stay in local mock mode until SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.'
+  'Supabase server env is not configured. Local development may use mock mode, but deployed environments require SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY and never persist to local mock files.'
 
 export function getSupabaseServerEnvIssue(env: NodeJS.ProcessEnv = process.env) {
   const url = env.SUPABASE_URL?.trim()
@@ -29,6 +29,14 @@ export function getSupabaseServerEnvIssue(env: NodeJS.ProcessEnv = process.env) 
 
 export function hasSupabaseServerEnv(env: NodeJS.ProcessEnv = process.env) {
   return getSupabaseServerEnvIssue(env) === null
+}
+
+export function isDeployedRuntime(env: NodeJS.ProcessEnv = process.env) {
+  return env.VERCEL === '1' || Boolean(env.VERCEL_ENV)
+}
+
+export function shouldUseSupabaseDataSource(env: NodeJS.ProcessEnv = process.env) {
+  return hasSupabaseServerEnv(env) || isDeployedRuntime(env)
 }
 
 export function getSupabaseServerEnv(env: NodeJS.ProcessEnv = process.env): SupabaseServerEnv {

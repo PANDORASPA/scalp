@@ -30,11 +30,20 @@ export function getHumanErrorMessage(error: string) {
   if (error.includes('supabase_connection_failed')) {
     return 'Supabase 連線失敗，暫時不能儲存客人或紀錄。請到 Supabase Project Settings > API 複製正確 Project URL 和 service_role key，更新 Vercel env 後重新部署。'
   }
+  if (error.includes('mock_db_corrupt')) {
+    return 'Local mock database is corrupted. Stop the local server and restore or remove .data/mock-db.json; deployed environments never use local mock data.'
+  }
+  if (error.includes('mock_db_locked')) {
+    return 'The local mock database is busy. Wait briefly and try again.'
+  }
   if (error.includes('google_drive_auth_failed')) {
     return 'Google Drive 認證失敗，請檢查 service account email / private key。'
   }
   if (error.includes('upload_failed')) {
     return '圖片上傳失敗，請檢查 Google Drive folder 權限與 credential。'
+  }
+  if (error.includes('storage_cleanup_failed')) {
+    return 'Storage cleanup failed. The record was kept so the operator can fix permissions and retry deletion.'
   }
   if (error.includes('ai_analysis_failed')) {
     return 'AI 初步分析失敗，但圖片資料可保留；請稍後重試或先用人工確認。'

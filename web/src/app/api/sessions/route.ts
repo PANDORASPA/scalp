@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { readJsonBody } from '@/lib/api/json'
 import { jsonNoStore } from '@/lib/api/response'
 import { requireAuthRole } from '@/lib/auth/session'
-import { hasSupabaseServerEnv } from '@/lib/config/supabase'
+import { shouldUseSupabaseDataSource } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
 import {
   createSessionInSupabase,
@@ -26,7 +26,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url)
   const customerId = url.searchParams.get('customerId')
 
-  if (hasSupabaseServerEnv()) {
+  if (shouldUseSupabaseDataSource()) {
     try {
       return jsonNoStore(await listSessionsFromSupabase(customerId))
     } catch (error) {
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
 
   const now = new Date().toISOString()
 
-  if (hasSupabaseServerEnv()) {
+  if (shouldUseSupabaseDataSource()) {
     try {
       const created = await createSessionInSupabase({
         customer_id: customerId,

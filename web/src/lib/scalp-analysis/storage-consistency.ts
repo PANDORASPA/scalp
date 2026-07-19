@@ -7,6 +7,14 @@ export type StorageCleanupTarget = {
 
 type CleanupLogger = (message: string, error: unknown) => void
 
+export async function deleteStorageRequired(params: {
+  adapter: ScalpStorageAdapter
+  target: StorageCleanupTarget
+}) {
+  if (!params.target.fileId && !params.target.objectKey) return
+  await params.adapter.delete(params.target.fileId, params.target.objectKey)
+}
+
 export async function deleteStorageBestEffort(params: {
   adapter: ScalpStorageAdapter
   target: StorageCleanupTarget
@@ -15,7 +23,7 @@ export async function deleteStorageBestEffort(params: {
 }) {
   if (!params.target.fileId && !params.target.objectKey) return
   try {
-    await params.adapter.delete(params.target.fileId, params.target.objectKey)
+    await deleteStorageRequired(params)
   } catch (error) {
     const logger = params.logger ?? console.warn
     logger(`Scalp analysis storage cleanup failed (${params.context})`, error)

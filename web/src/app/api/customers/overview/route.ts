@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { jsonNoStore } from '@/lib/api/response'
 import { requireAuthRole } from '@/lib/auth/session'
-import { hasSupabaseServerEnv } from '@/lib/config/supabase'
+import { shouldUseSupabaseDataSource } from '@/lib/config/supabase'
 import { buildCustomerWorkspaceRows } from '@/lib/customers/workspace'
 import { updateDb } from '@/lib/mockdb/store'
 import { getWorkspaceSnapshot, toRepositoryError } from '@/lib/supabase/repository'
@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     | 'ready_compare'
     | 'stale_follow_up'
 
-  if (hasSupabaseServerEnv()) {
+  if (shouldUseSupabaseDataSource()) {
     try {
       const snapshot = await getWorkspaceSnapshot()
       const workspace = buildCustomerWorkspaceRows({

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { requireAuthRole } from '@/lib/auth/session'
-import { hasSupabaseServerEnv } from '@/lib/config/supabase'
+import { shouldUseSupabaseDataSource } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
 import { getCustomerOverviewFromSupabase, toRepositoryError } from '@/lib/supabase/repository'
 
@@ -16,7 +16,7 @@ export async function GET(
 
   const { customerId } = await params
 
-  if (hasSupabaseServerEnv()) {
+  if (shouldUseSupabaseDataSource()) {
     try {
       const result = await getCustomerOverviewFromSupabase(customerId)
       if (!result) {
