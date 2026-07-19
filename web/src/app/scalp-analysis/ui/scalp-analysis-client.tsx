@@ -39,6 +39,12 @@ import type { ScalpSession } from '@/lib/scalp/types'
 import { getHumanErrorMessage } from '@/lib/ui/errors'
 import { fetchJson as fetchJSON, isAbortError } from '@/lib/ui/fetch'
 import { formatDate } from '@/lib/ui/format'
+import {
+  getIntegrationStatus,
+  isIntegrationReady,
+  type IntegrationStatus,
+  type SettingsStatusResponse,
+} from '@/lib/ui/integration'
 
 import { AnnotationEditor } from './annotation-editor'
 
@@ -48,20 +54,6 @@ type CustomerRow = {
   phone: string | null
   session_count: number
   latest_check_date: string | null
-}
-
-type IntegrationStatus = {
-  key: string
-  label: string
-  ready: boolean
-  officialReady?: boolean
-  mode?: 'official' | 'demo' | 'mock' | 'missing'
-  requiredFor: string
-  details: string
-}
-
-type SettingsStatusResponse = {
-  integrations: IntegrationStatus[]
 }
 
 function formatMetric(value: number | null, suffix = '') {
@@ -568,7 +560,9 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
     [customerId, customerSearch, customers],
   )
   const storageStatus = integrations.find((item) => item.key === 'google-drive')
-  const googleDriveReady = storageStatus?.ready ?? false
+  const supabaseReady = isIntegrationReady(integrations, 'supabase')
+  const googleDriveReady = isIntegrationReady(integrations, 'google-drive')
+  const aiStatus = getIntegrationStatus(integrations, 'scalp-ai')
   const googleDriveDetails = storageStatus?.details
   const demoStorageActive = storageStatus?.mode === 'demo'
 
@@ -685,7 +679,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                 placeholder="可輸入今次檢查備註"
               />
               <Button
-                disabled={!customerId || busyKey === 'create-session'}
+                disabled={!customerId || !supabaseReady || busyKey === 'create-session'}
                 onClick={async () => {
                   if (!customerId) return
                   setBusyKey('create-session')
@@ -747,6 +741,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                       <button
                         type="button"
                         className="text-blue-700 underline underline-offset-2"
+                        disabled={!supabaseReady}
                         onClick={() => beginEditSession(session)}
                       >
                         編輯日期/備註
@@ -755,7 +750,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                         <button
                           type="button"
                           className="text-red-700 underline underline-offset-2"
-                          disabled={busyKey === `delete-session:${session.id}`}
+                          disabled={!supabaseReady || busyKey === `delete-session:${session.id}`}
                           onClick={async () => {
                             if (!window.confirm('確定刪除這次追蹤 session、所有圖片及分析結果？')) return
                             setBusyKey(`delete-session:${session.id}`)
@@ -790,7 +785,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                 <Input value={editNotes} onChange={(event) => setEditNotes(event.target.value)} placeholder="檢查備註" />
                 <div className="flex gap-2">
                   <Button
-                    disabled={busyKey === `edit-session:${editingSession.id}`}
+                    disabled={!supabaseReady || busyKey === `edit-session:${editingSession.id}`}
                     onClick={async () => {
                       if (!editDate) return
                       setBusyKey(`edit-session:${editingSession.id}`)
@@ -839,6 +834,18 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
             <Card className="border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</Card>
           ) : null}
 
+          {!supabaseReady ? (
+            <Card className="border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              <div className="font-semibold">Workspace storage is not ready</div>
+              <div className="mt-1">
+                Customer, session, annotation, and report changes are disabled until Supabase is connected.
+              </div>
+              <a className="mt-2 inline-block font-medium underline" href="/settings">
+                Open integration settings
+              </a>
+            </Card>
+          ) : null}
+
           {!googleDriveReady ? (
             <Card className="border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
               <div className="font-semibold">圖片上傳尚未啟用</div>
@@ -857,6 +864,18 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
               <div className="mt-1">
                 你可以先測完整上傳、AI 初步標記、人手確認、3 張平均與報告流程；正式客人圖片長期保存請改用 Google Drive。
               </div>
+            </Card>
+          ) : null}
+
+          {aiStatus?.mode === 'mock' ? (
+            <Card className="border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              <div className="font-semibold">Mock AI is active</div>
+              <div className="mt-1">
+                Preliminary labels are for workflow testing only. Confirmed annotations remain the source of official statistics.
+              </div>
+              <a className="mt-2 inline-block font-medium underline" href="/settings">
+                Configure OpenAI Vision
+              </a>
             </Card>
           ) : null}
 
@@ -942,7 +961,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                             {pendingFile ? <div className="text-xs text-slate-500">{pendingFile.name}</div> : null}
                             <div className="flex gap-2">
                               <Button
-                                disabled={!googleDriveReady || !pendingFile || busyKey === `upload:${fileKey}`}
+                                disabled={!supabaseReady || !googleDriveReady || !pendingFile || busyKey === `upload:${fileKey}`}
                                 onClick={async () => {
                                   const file = files[fileKey]
                                   if (!file) return
@@ -981,7 +1000,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                               {image?.analysis_status === 'ai_failed' ? (
                                 <Button
                                   variant="secondary"
-                                  disabled={busyKey === `retry:${image.id}`}
+                                  disabled={!supabaseReady || busyKey === `retry:${image.id}`}
                                   onClick={async () => {
                                     setBusyKey(`retry:${image.id}`)
                                     setError(null)
@@ -1001,7 +1020,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                               {image ? (
                                 <Button
                                   variant="danger"
-                                  disabled={busyKey === `delete:${image.id}`}
+                                  disabled={!supabaseReady || busyKey === `delete:${image.id}`}
                                   onClick={async () => {
                                     if (!window.confirm('確定刪除這張放大圖及其確認標記、統計和比較結果嗎？')) return
                                     setBusyKey(`delete:${image.id}`)
@@ -1037,7 +1056,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
 
                               <AnnotationEditor
                                 image={image}
-                                busy={busyKey === `confirm:${image.id}`}
+                                busy={!supabaseReady || busyKey === `confirm:${image.id}`}
                                 onConfirm={async (annotations: ScalpAnalysisAnnotations) => {
                                   setBusyKey(`confirm:${image.id}`)
                                   setError(null)

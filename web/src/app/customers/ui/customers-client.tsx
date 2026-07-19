@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { fetchJson, isAbortError } from '@/lib/ui/fetch'
 import { formatDate } from '@/lib/ui/format'
+import { getIntegrationStatus, type SettingsStatusResponse } from '@/lib/ui/integration'
 
 type CustomerRow = {
   id: string
@@ -67,6 +68,7 @@ function CustomerModal({
   onClose,
   onSaved,
   onDeleted,
+  persistenceReady,
 }: {
   open: boolean
   customer: CustomerRow | null
@@ -74,6 +76,7 @@ function CustomerModal({
   onClose: () => void
   onSaved: () => void
   onDeleted: () => void
+  persistenceReady: boolean | null
 }) {
   const isEdit = Boolean(customer)
   const [name, setName] = useState('')
@@ -130,7 +133,7 @@ function CustomerModal({
               {customer && role === 'admin' ? (
                 <Button
                   variant="danger"
-                  disabled={saving}
+                  disabled={saving || persistenceReady === false}
                   onClick={async () => {
                     if (!window.confirm(`確定刪除客人「${customer.name}」和所有相關資料？`)) return
                     setSaving(true)
@@ -176,7 +179,7 @@ function CustomerModal({
                     setSaving(false)
                   }
                 }}
-                disabled={saving}
+                disabled={saving || persistenceReady === false}
               >
                 {isEdit ? '保存變更' : '保存'}
               </Button>
@@ -211,7 +214,26 @@ export default function CustomersClient({
   const [loadError, setLoadError] = useState<string | null>(null)
   const [openModal, setOpenModal] = useState(false)
   const [activeCustomer, setActiveCustomer] = useState<CustomerRow | null>(null)
+  const [supabaseReady, setSupabaseReady] = useState<boolean | null>(null)
   const listRequestRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const controller = new AbortController()
+    void fetchJson<SettingsStatusResponse>('/api/settings/status', { signal: controller.signal })
+      .then((status) => {
+        if (cancelled) return
+        setSupabaseReady(getIntegrationStatus(status.integrations, 'supabase')?.ready ?? false)
+      })
+      .catch((error) => {
+        if (cancelled || isAbortError(error)) return
+        setSupabaseReady(null)
+      })
+    return () => {
+      cancelled = true
+      controller.abort()
+    }
+  }, [])
 
   const fetchRows = useCallback(async (query: string) => {
     listRequestRef.current?.abort()
@@ -293,6 +315,7 @@ export default function CustomersClient({
               搜尋
             </Button>
             <Button
+              disabled={supabaseReady === false}
               onClick={() => {
                 setActiveCustomer(null)
                 setOpenModal(true)
@@ -310,6 +333,18 @@ export default function CustomersClient({
           <Button className="mt-3" variant="secondary" onClick={() => void fetchRows(q)} disabled={loading}>
             重試載入
           </Button>
+        </Card>
+      ) : null}
+
+      {supabaseReady === false ? (
+        <Card className="border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <div className="font-semibold">Workspace storage is not ready</div>
+          <div className="mt-1">
+            Creating, editing, and deleting customers is disabled until Supabase is connected.
+          </div>
+          <Link className="mt-2 inline-block font-medium underline" href="/settings">
+            Open integration settings
+          </Link>
         </Card>
       ) : null}
 
@@ -399,6 +434,7 @@ export default function CustomersClient({
                         </Link>
                         <button
                           className="text-slate-700 underline decoration-slate-300 underline-offset-2 hover:text-slate-900"
+                          disabled={supabaseReady === false}
                           onClick={() => {
                             setActiveCustomer(c)
                             setOpenModal(true)
@@ -422,6 +458,7 @@ export default function CustomersClient({
         role={role}
         onClose={() => setOpenModal(false)}
         onSaved={() => void fetchRows(q)}
+        persistenceReady={supabaseReady}
         onDeleted={() => {
           setOpenModal(false)
           setActiveCustomer(null)

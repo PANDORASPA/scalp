@@ -67,6 +67,7 @@ const tests = spawnSync(
     testPath('lib/settings/repository.test.js'),
     testPath('lib/supabase/storage-path.test.js'),
     testPath('lib/ui/errors.test.js'),
+    testPath('lib/ui/integration.test.js'),
     testPath('lib/ui/fetch.test.js'),
     testPath('lib/ui/home-status.test.js'),
     testPath('lib/ui/workspace-load.test.js'),
