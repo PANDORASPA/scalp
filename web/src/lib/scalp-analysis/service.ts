@@ -53,7 +53,9 @@ import {
   deleteStorageRequired,
   shouldRollbackUploadedStorageOnRecordFailure,
 } from './storage-consistency'
+import { deleteStorageTargetsWithConcurrency } from './storage-cleanup'
 import type { ScalpAnalysisAnnotations, ScalpAnalysisImage } from './types'
+import type { ScalpStorageAdapter } from './storage/types'
 
 type UploadInput = {
   sessionId: string
@@ -466,6 +468,31 @@ export async function calculateAreaSummary(sessionId: string, areaKey: ScalpAnal
   })
 }
 
+type ScalpSessionStorageCleanupPlan = {
+  image: Pick<ScalpAnalysisImage, 'id' | 'drive_file_id' | 'storage_object_key'>
+  adapter: ScalpStorageAdapter
+}
+
+export async function cleanupScalpSessionStorage(
+  plans: readonly ScalpSessionStorageCleanupPlan[],
+  concurrency = 4,
+) {
+  const result = await deleteStorageTargetsWithConcurrency(plans, concurrency, ({ image, adapter }) =>
+    deleteStorageRequired({
+      adapter,
+      target: { fileId: image.drive_file_id, objectKey: image.storage_object_key },
+    }),
+  )
+
+  if (result.failures.length > 0) {
+    throw new Error(
+      `storage_cleanup_failed: ${result.failures
+        .map((failure) => `${failure.target.image.id}: ${failure.message}`)
+        .join('; ')}`,
+    )
+  }
+}
+
 async function recomputeCustomerTrackingSummaries(
   customerId: string,
   areaKey?: ScalpAnalysisAreaKey,
@@ -536,6 +563,7 @@ export async function removeScalpImage(imageId: string) {
   })
   const deleted = await deleteTrackingImageRecord(imageId)
   await recomputeCustomerTrackingSummaries(deleted.customer_id, deleted.area_key)
+  await touchCustomer(deleted.customer_id, new Date().toISOString())
   return deleted
 }
 
@@ -546,14 +574,7 @@ export async function removeScalpSession(sessionId: string) {
   const cleanupPlans = await Promise.all(
     images.map(async (image) => ({ image, adapter: await getScalpStorageAdapter(image.storage_provider) })),
   )
-  await Promise.all(
-    cleanupPlans.map(({ image, adapter }) =>
-      deleteStorageRequired({
-        adapter,
-        target: { fileId: image.drive_file_id, objectKey: image.storage_object_key },
-      }),
-    ),
-  )
+  await cleanupScalpSessionStorage(cleanupPlans)
   const deleted = await deleteTrackingSessionRecord(sessionId)
   await recomputeCustomerTrackingSummaries(deleted.customer_id)
   await touchCustomer(deleted.customer_id, new Date().toISOString())

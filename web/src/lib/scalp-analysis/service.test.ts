@@ -4,6 +4,7 @@ import test from 'node:test'
 import { updateDb } from '../mockdb/store'
 import {
   createScalpSession,
+  cleanupScalpSessionStorage,
   getScalpAnalysisSessionState,
   retryScalpSessionAnalysis,
   saveConfirmedAnnotations,
@@ -12,6 +13,7 @@ import {
 } from './service'
 import { getTrackingAreaSummary, updateTrackingImageRecord, upsertTrackingImageRecord } from './repository'
 import { createEmptyAnnotations } from './logic'
+import type { ScalpStorageAdapter } from './storage/types'
 
 function annotations(babyCount: number) {
   const result = createEmptyAnnotations()
@@ -463,4 +465,41 @@ test('tracking errors expose stable client status codes', () => {
   assert.equal(scalpAnalysisErrorStatus(new Error('invalid_image_content: signature mismatch')), 400)
   assert.equal(scalpAnalysisErrorStatus(new Error('supabase_settings_unavailable: TypeError: fetch failed')), 503)
   assert.equal(scalpAnalysisErrorStatus(new Error('Google Drive upload failed')), 500)
+})
+
+test('tracking session storage cleanup is bounded and aggregates failures', async () => {
+  let active = 0
+  let maxActive = 0
+  const adapter: ScalpStorageAdapter = {
+    provider: 'test',
+    upload: async () => ({
+      provider: 'test',
+      fileId: 'unused',
+      url: 'https://example.test/file',
+      objectKey: 'unused',
+      publicAccess: false,
+      replacesExistingObject: false,
+    }),
+    delete: async (fileId) => {
+      active += 1
+      maxActive = Math.max(maxActive, active)
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      active -= 1
+      if (fileId === 'file-4') throw new Error('permission denied')
+    },
+  }
+  const plans = Array.from({ length: 9 }, (_, index) => ({
+    image: {
+      id: `image-${index}`,
+      drive_file_id: `file-${index}`,
+      storage_object_key: null,
+    },
+    adapter,
+  }))
+
+  await assert.rejects(
+    cleanupScalpSessionStorage(plans, 2),
+    /storage_cleanup_failed: image-4: permission denied/,
+  )
+  assert.equal(maxActive, 2)
 })
