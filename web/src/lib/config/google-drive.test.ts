@@ -31,3 +31,23 @@ test('Google Drive public access can be explicitly enabled', () => {
   assert.equal(env.publicAccess, true)
   assert.equal(settingsEnv.publicAccess, true)
 })
+
+test('Google Drive request timeout defaults to 20 seconds and accepts a positive override', () => {
+  assert.equal(
+    getGoogleDriveEnv({
+      GOOGLE_DRIVE_CLIENT_EMAIL: 'service@example.com',
+      GOOGLE_DRIVE_PRIVATE_KEY: 'key',
+      GOOGLE_DRIVE_FOLDER_ID: 'folder-1',
+    } as NodeJS.ProcessEnv).timeoutMs,
+    20000,
+  )
+  assert.equal(
+    getGoogleDriveEnv({
+      GOOGLE_DRIVE_CLIENT_EMAIL: 'service@example.com',
+      GOOGLE_DRIVE_PRIVATE_KEY: 'key',
+      GOOGLE_DRIVE_FOLDER_ID: 'folder-1',
+      GOOGLE_DRIVE_TIMEOUT_MS: '7500',
+    } as NodeJS.ProcessEnv).timeoutMs,
+    7500,
+  )
+})

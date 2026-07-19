@@ -5,6 +5,7 @@ import { createSign } from 'node:crypto'
 import { getGoogleDriveEnv, getGoogleDriveEnvFromSettings, type GoogleDriveEnv } from '@/lib/config/google-drive'
 import { getAppSettings, hasCompleteGoogleDriveSettings } from '@/lib/settings/repository'
 
+import { fetchWithGoogleDriveTimeout } from './google-drive-http'
 import type { ScalpStorageAdapter, ScalpStorageUploadInput, ScalpStorageUploadResult } from './types'
 
 function base64UrlEncode(value: string | Buffer) {
@@ -43,14 +44,14 @@ async function getAccessToken(env: GoogleDriveEnv) {
   const signature = signer.sign(env.privateKey)
   const assertion = `${unsigned}.${base64UrlEncode(signature)}`
 
-  const res = await fetch('https://oauth2.googleapis.com/token', {
+  const res = await fetchWithGoogleDriveTimeout('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
       assertion,
     }),
-  })
+  }, env.timeoutMs)
 
   if (!res.ok) {
     const text = await res.text()
@@ -65,7 +66,7 @@ async function getAccessToken(env: GoogleDriveEnv) {
 export async function testGoogleDriveConnection() {
   const env = await getConfiguredGoogleDriveEnv()
   const accessToken = await getAccessToken(env)
-  const res = await fetch(
+  const res = await fetchWithGoogleDriveTimeout(
     `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(env.folderId)}?supportsAllDrives=true&fields=id,name,mimeType`,
     {
       method: 'GET',
@@ -73,6 +74,7 @@ export async function testGoogleDriveConnection() {
         Authorization: `Bearer ${accessToken}`,
       },
     },
+    env.timeoutMs,
   )
 
   if (!res.ok) {
@@ -91,7 +93,7 @@ export async function testGoogleDriveConnection() {
     description: 'Temporary file created by the Pandora scalp analysis connection test.',
   }
   const probe = buildMultipartBody(probeMetadata, Buffer.from('ok'), 'text/plain')
-  const uploadRes = await fetch(
+  const uploadRes = await fetchWithGoogleDriveTimeout(
     'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id',
     {
       method: 'POST',
@@ -101,6 +103,7 @@ export async function testGoogleDriveConnection() {
       },
       body: probe.body,
     },
+    env.timeoutMs,
   )
 
   if (!uploadRes.ok) {
@@ -111,7 +114,7 @@ export async function testGoogleDriveConnection() {
   const uploadedProbe = (await uploadRes.json()) as { id?: string }
   if (!uploadedProbe.id) throw new Error('Google Drive write check failed: missing probe file id')
 
-  const deleteRes = await fetch(
+  const deleteRes = await fetchWithGoogleDriveTimeout(
     `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(uploadedProbe.id)}?supportsAllDrives=true`,
     {
       method: 'DELETE',
@@ -119,6 +122,7 @@ export async function testGoogleDriveConnection() {
         Authorization: `Bearer ${accessToken}`,
       },
     },
+    env.timeoutMs,
   )
 
   if (!deleteRes.ok && deleteRes.status !== 404) {
@@ -159,7 +163,7 @@ export const googleDriveStorageAdapter: ScalpStorageAdapter = {
     }
     const multipart = buildMultipartBody(metadata, input.bytes, input.contentType)
 
-    const uploadRes = await fetch(
+    const uploadRes = await fetchWithGoogleDriveTimeout(
       'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,webViewLink,webContentLink',
       {
         method: 'POST',
@@ -169,6 +173,7 @@ export const googleDriveStorageAdapter: ScalpStorageAdapter = {
         },
         body: multipart.body,
       },
+      env.timeoutMs,
     )
 
     if (!uploadRes.ok) {
@@ -184,7 +189,7 @@ export const googleDriveStorageAdapter: ScalpStorageAdapter = {
     if (!uploaded.id) throw new Error('Google Drive upload failed: missing file id')
 
     if (env.publicAccess) {
-      const permissionRes = await fetch(
+      const permissionRes = await fetchWithGoogleDriveTimeout(
         `https://www.googleapis.com/drive/v3/files/${uploaded.id}/permissions?supportsAllDrives=true`,
         {
           method: 'POST',
@@ -197,6 +202,7 @@ export const googleDriveStorageAdapter: ScalpStorageAdapter = {
             type: 'anyone',
           }),
         },
+        env.timeoutMs,
       )
 
       if (!permissionRes.ok) {
@@ -217,12 +223,16 @@ export const googleDriveStorageAdapter: ScalpStorageAdapter = {
     if (!fileId) return
     const env = await getConfiguredGoogleDriveEnv()
     const accessToken = await getAccessToken(env)
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`, {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
+    const res = await fetchWithGoogleDriveTimeout(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`,
+      {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       },
-    })
+      env.timeoutMs,
+    )
     if (!res.ok && res.status !== 404) {
       const text = await res.text()
       throw new Error(`Google Drive delete failed: ${res.status} ${text}`)
@@ -231,13 +241,14 @@ export const googleDriveStorageAdapter: ScalpStorageAdapter = {
   async download(fileId) {
     const env = await getConfiguredGoogleDriveEnv()
     const accessToken = await getAccessToken(env)
-    const res = await fetch(
+    const res = await fetchWithGoogleDriveTimeout(
       `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
       },
+      env.timeoutMs,
     )
 
     if (!res.ok) {

@@ -168,6 +168,7 @@ The new `/scalp-analysis` page uses:
 - `GOOGLE_DRIVE_PRIVATE_KEY`
 - `GOOGLE_DRIVE_FOLDER_ID`
 - `GOOGLE_DRIVE_PUBLIC_ACCESS=false` (recommended; only enable when an external consumer requires public image URLs)
+- `GOOGLE_DRIVE_TIMEOUT_MS=20000` (optional request timeout; increase only for unusually slow uploads)
 - `SCALP_ANALYSIS_AI_PROVIDER=mock`
 - `OPENAI_API_KEY` and `OPENAI_VISION_MODEL` only when switching to OpenAI Vision
 

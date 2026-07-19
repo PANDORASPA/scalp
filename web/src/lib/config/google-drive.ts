@@ -3,6 +3,7 @@ export type GoogleDriveEnv = {
   privateKey: string
   folderId: string
   publicAccess: boolean
+  timeoutMs: number
 }
 
 type GoogleDriveSettingsSource = {
@@ -10,6 +11,11 @@ type GoogleDriveSettingsSource = {
   privateKey?: string
   folderId?: string
   publicAccess?: boolean
+}
+
+function toPositiveInt(value: string | undefined, fallback: number) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : fallback
 }
 
 export function hasGoogleDriveEnv(env: NodeJS.ProcessEnv = process.env) {
@@ -36,6 +42,7 @@ export function getGoogleDriveEnv(env: NodeJS.ProcessEnv = process.env): GoogleD
     privateKey: privateKeyRaw.replace(/\\n/g, '\n'),
     folderId,
     publicAccess: env.GOOGLE_DRIVE_PUBLIC_ACCESS?.trim().toLowerCase() === 'true',
+    timeoutMs: toPositiveInt(env.GOOGLE_DRIVE_TIMEOUT_MS, 20000),
   }
 }
 
@@ -59,5 +66,6 @@ export function getGoogleDriveEnvFromSettings(settings: GoogleDriveSettingsSourc
     privateKey: privateKeyRaw.replace(/\\n/g, '\n'),
     folderId,
     publicAccess: settings.publicAccess === true,
+    timeoutMs: 20000,
   }
 }

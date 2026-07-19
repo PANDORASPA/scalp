@@ -21,6 +21,9 @@ export function getHumanErrorMessage(error: string) {
   if (error.includes('incomplete_images')) return '此部位需要 3 張圖片，而且每張都要確認標記後才可計算平均。'
   if (error.includes('storage_provider')) return '圖片儲存設定不完整，請到系統設定檢查 Google Drive。'
   if (error.includes('private_image_proxy_unavailable')) return '私有圖片 proxy 尚未啟用，請檢查 storage adapter 設定。'
+  if (error.includes('Google Drive request timed out') || error.includes('google_drive_request_timeout')) {
+    return 'Google Drive request timeout，請檢查網絡或稍後再試。'
+  }
   if (
     error.includes('save_google_drive_settings_failed') ||
     error.includes('save_openai_settings_failed')

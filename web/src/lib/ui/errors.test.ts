@@ -24,3 +24,11 @@ test('getHumanErrorMessage explains session ownership failures', () => {
   assert.match(message, /session/i)
   assert.doesNotMatch(message, /session_not_found/)
 })
+
+test('getHumanErrorMessage explains Google Drive request timeouts', () => {
+  const message = getHumanErrorMessage('storage_upload_failed: Google Drive request timed out after 20000ms')
+
+  assert.match(message, /Google Drive/i)
+  assert.match(message, /timeout|稍後|網絡/i)
+  assert.doesNotMatch(message, /storage_upload_failed/)
+})
