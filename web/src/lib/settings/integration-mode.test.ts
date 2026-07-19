@@ -9,7 +9,14 @@ test('settings only fall back to local defaults outside deployed runtimes', () =
 })
 
 test('Supabase mode distinguishes missing configuration from an unavailable connection', () => {
-  assert.equal(getSupabaseIntegrationMode({ ready: false, envIssue: 'SUPABASE_URL is missing.' }), 'missing')
-  assert.equal(getSupabaseIntegrationMode({ ready: false, envIssue: null }), 'unavailable')
+  assert.equal(
+    getSupabaseIntegrationMode({ ready: false, envIssue: 'SUPABASE_URL is missing.', deployed: true }),
+    'missing',
+  )
+  assert.equal(
+    getSupabaseIntegrationMode({ ready: false, envIssue: 'SUPABASE_URL is missing.', deployed: false }),
+    'mock',
+  )
+  assert.equal(getSupabaseIntegrationMode({ ready: false, envIssue: null, deployed: true }), 'unavailable')
   assert.equal(getSupabaseIntegrationMode({ ready: true, envIssue: null }), 'official')
 })

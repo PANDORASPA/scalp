@@ -41,7 +41,7 @@ import { fetchJson as fetchJSON, isAbortError } from '@/lib/ui/fetch'
 import { formatDate } from '@/lib/ui/format'
 import {
   getIntegrationStatus,
-  isIntegrationReady,
+  isIntegrationOperational,
   type IntegrationStatus,
   type SettingsStatusResponse,
 } from '@/lib/ui/integration'
@@ -567,8 +567,8 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
     [customerId, customerSearch, customers],
   )
   const storageStatus = integrations.find((item) => item.key === 'google-drive')
-  const supabaseReady = isIntegrationReady(integrations, 'supabase')
-  const googleDriveReady = isIntegrationReady(integrations, 'google-drive')
+  const supabaseReady = isIntegrationOperational(integrations, 'supabase')
+  const googleDriveReady = isIntegrationOperational(integrations, 'google-drive')
   const aiStatus = getIntegrationStatus(integrations, 'scalp-ai')
   const googleDriveDetails = storageStatus?.details
   const demoStorageActive = storageStatus?.mode === 'demo'

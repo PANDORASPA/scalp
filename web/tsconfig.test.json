@@ -78,6 +78,8 @@
     "src/lib/scalp-analysis/storage-cleanup-plan.ts",
     "src/lib/scalp-analysis/storage-cleanup-plan.test.ts",
     "src/lib/scalp-analysis/storage-cleanup.test.ts",
+    "src/lib/scalp-analysis/storage/index.ts",
+    "src/lib/scalp-analysis/storage/index.test.ts",
     "src/lib/scalp-analysis/storage-consistency.ts",
     "src/lib/scalp-analysis/storage-consistency.test.ts",
     "src/lib/supabase/storage-path.ts",

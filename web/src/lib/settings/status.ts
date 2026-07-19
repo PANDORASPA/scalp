@@ -1,9 +1,10 @@
 import { hasGoogleDriveEnv } from '@/lib/config/google-drive'
 import { normalizeScalpAnalysisAiProvider } from '@/lib/config/scalp-analysis-ai'
 import { explainSupabaseConnectivityError, testSupabaseConnectivity } from '@/lib/config/supabase-connectivity'
-import { getSupabaseServerEnvIssue } from '@/lib/config/supabase'
+import { getSupabaseServerEnvIssue, isDeployedRuntime } from '@/lib/config/supabase'
 import { getAuthReadinessStatus } from '@/lib/auth/users'
 import { getAppSettings, hasCompleteGoogleDriveSettings, hasOpenAiApiKey } from '@/lib/settings/repository'
+import { resolveScalpStorageProvider } from '@/lib/scalp-analysis/storage'
 import { getSupabaseIntegrationMode } from './integration-mode'
 
 export type IntegrationStatus = {
@@ -34,7 +35,7 @@ async function getSupabaseConnectionStatus() {
     }
     return {
       ready: false,
-      mode: getSupabaseIntegrationMode({ ready: false, envIssue }),
+      mode: getSupabaseIntegrationMode({ ready: false, envIssue, deployed: isDeployedRuntime() }),
       details: `Supabase connection is not ready: ${explained}`,
     }
   }
@@ -53,8 +54,7 @@ export async function getSystemStatus(): Promise<IntegrationStatus[]> {
   const supabase = await getSupabaseConnectionStatus()
   const auth = getAuthReadinessStatus()
   const aiProvider = settings.openAi.provider ?? normalizeScalpAnalysisAiProvider(process.env.SCALP_ANALYSIS_AI_PROVIDER)
-  const storageProvider =
-    settings.googleDrive.storageProvider ?? process.env.SCALP_ANALYSIS_STORAGE_PROVIDER?.trim() ?? 'google-drive'
+  const storageProvider = resolveScalpStorageProvider(settings.googleDrive.storageProvider)
   const demoStorageReady = storageProvider === 'demo'
   const officialGoogleDriveReady = hasCompleteGoogleDriveSettings(settings.googleDrive) || hasGoogleDriveEnv()
   const googleDriveReady = demoStorageReady || officialGoogleDriveReady

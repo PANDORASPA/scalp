@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { getIntegrationStatus, isIntegrationReady } from './integration'
+import { getIntegrationStatus, isIntegrationOperational, isIntegrationReady } from './integration'
 
 test('integration helpers find readiness by key without trusting array order', () => {
   const integrations = [
@@ -18,4 +18,15 @@ test('integration helpers fail closed for missing status or false readiness', ()
   assert.equal(getIntegrationStatus([], 'supabase'), null)
   assert.equal(isIntegrationReady([], 'supabase'), false)
   assert.equal(isIntegrationReady([{ key: 'supabase', ready: false }], 'supabase'), false)
+})
+
+test('integration helpers allow local mock mode for operational UI flows', () => {
+  assert.equal(
+    isIntegrationOperational([{ key: 'supabase', ready: false, mode: 'mock' }], 'supabase'),
+    true,
+  )
+  assert.equal(
+    isIntegrationOperational([{ key: 'supabase', ready: false, mode: 'unavailable' }], 'supabase'),
+    false,
+  )
 })

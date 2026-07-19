@@ -63,6 +63,7 @@ const tests = spawnSync(
     testPath('lib/scalp-analysis/service.test.js'),
     testPath('lib/scalp-analysis/storage-cleanup-plan.test.js'),
     testPath('lib/scalp-analysis/storage-cleanup.test.js'),
+    testPath('lib/scalp-analysis/storage/index.test.js'),
     testPath('lib/scalp-analysis/storage-consistency.test.js'),
     testPath('lib/settings/health.test.js'),
     testPath('lib/settings/integration-mode.test.js'),

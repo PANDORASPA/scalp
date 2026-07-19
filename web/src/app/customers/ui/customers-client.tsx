@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { fetchJson, isAbortError } from '@/lib/ui/fetch'
 import { formatDate } from '@/lib/ui/format'
-import { getIntegrationStatus, type SettingsStatusResponse } from '@/lib/ui/integration'
+import { isIntegrationOperational, type SettingsStatusResponse } from '@/lib/ui/integration'
 import { SCALP_ANALYSIS_STORAGE_CLEANUP_REQUEST_TIMEOUT_MS } from '@/lib/scalp-analysis/request-timeouts'
 
 type CustomerRow = {
@@ -228,7 +228,7 @@ export default function CustomersClient({
     void fetchJson<SettingsStatusResponse>('/api/settings/status', { signal: controller.signal })
       .then((status) => {
         if (cancelled) return
-        setSupabaseReady(getIntegrationStatus(status.integrations, 'supabase')?.ready ?? false)
+        setSupabaseReady(isIntegrationOperational(status.integrations, 'supabase'))
       })
       .catch((error) => {
         if (cancelled || isAbortError(error)) return

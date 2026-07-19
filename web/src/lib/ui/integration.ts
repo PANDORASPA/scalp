@@ -25,3 +25,8 @@ export function getIntegrationStatus(
 export function isIntegrationReady(integrations: IntegrationStatus[], key: string) {
   return getIntegrationStatus(integrations, key)?.ready === true
 }
+
+export function isIntegrationOperational(integrations: IntegrationStatus[], key: string) {
+  const status = getIntegrationStatus(integrations, key)
+  return status?.ready === true || status?.mode === 'mock'
+}

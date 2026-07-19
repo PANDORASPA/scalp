@@ -5,6 +5,7 @@
 The app supports two runtime modes:
 
 - Local mock mode: used automatically when `SUPABASE_URL` or `SUPABASE_SERVICE_ROLE_KEY` is missing during local development only.
+- In local mock mode, customer/session data uses the local fixture store and tracking images use Demo storage by default, so the full workflow can be exercised without Supabase or Google Drive credentials.
 - Supabase mode: enabled when all required server-only Supabase env vars are present.
 - Deployed runtime: never falls back to local mock files; missing or invalid Supabase env returns a clear readiness error.
 
