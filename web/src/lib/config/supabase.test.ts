@@ -91,4 +91,8 @@ test('explainSupabaseErrorMessage classifies connectivity failures', () => {
     explainSupabaseErrorMessage('getaddrinfo ENOTFOUND rpmnwlrfwrxyjbclbtsq.supabase.co'),
     /^supabase_connection_failed:/,
   )
+  assert.match(
+    explainSupabaseErrorMessage('Supabase workspace load timed out after 8000ms.'),
+    /^supabase_connection_failed:/,
+  )
 })

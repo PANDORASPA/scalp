@@ -15,6 +15,7 @@ import {
   toRepositoryError,
 } from '@/lib/supabase/repository'
 import type { Customer, ScalpAiPointAnalysis, ScalpAiShotAnalysis, ScalpPointSummary, ScalpSession } from '@/lib/scalp/types'
+import { withWorkspaceLoadTimeout } from '@/lib/ui/workspace-load'
 
 export const runtime = 'nodejs'
 
@@ -34,7 +35,7 @@ export async function POST() {
 
   if (shouldUseSupabaseDataSource()) {
     try {
-      const workspace = await getWorkspaceSnapshot()
+      const workspace = await withWorkspaceLoadTimeout(() => getWorkspaceSnapshot())
       if (workspace.customers.length > 0 || workspace.sessions.length > 0) {
         return NextResponse.json({
           created: false,

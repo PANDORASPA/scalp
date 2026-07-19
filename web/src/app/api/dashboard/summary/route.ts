@@ -5,6 +5,7 @@ import { shouldUseSupabaseDataSource } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
 import { buildCustomerWorkspaceRows } from '@/lib/customers/workspace'
 import { getWorkspaceSnapshot, toRepositoryError } from '@/lib/supabase/repository'
+import { withWorkspaceLoadTimeout } from '@/lib/ui/workspace-load'
 
 export const runtime = 'nodejs'
 
@@ -14,7 +15,7 @@ export async function GET() {
 
   if (shouldUseSupabaseDataSource()) {
     try {
-      const snapshot = await getWorkspaceSnapshot()
+      const snapshot = await withWorkspaceLoadTimeout(() => getWorkspaceSnapshot())
       const { summary } = buildCustomerWorkspaceRows({
         customers: snapshot.customers,
         sessions: snapshot.sessions,

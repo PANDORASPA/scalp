@@ -68,7 +68,9 @@ export function explainSupabaseErrorMessage(message: string) {
     normalized.includes('fetch failed') ||
     normalized.includes('getaddrinfo') ||
     normalized.includes('enotfound') ||
-    normalized.includes('ebusy')
+    normalized.includes('ebusy') ||
+    normalized.includes('timed out') ||
+    normalized.includes('timeout')
   ) {
     return `supabase_connection_failed: ${message}. Copy SUPABASE_URL directly from Supabase Project Settings > API > Project URL, update Vercel Production env, then redeploy.`
   }
