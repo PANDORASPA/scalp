@@ -52,6 +52,7 @@ const tests = spawnSync(
     testPath('lib/scalp-analysis/logic.test.js'),
     testPath('lib/scalp-analysis/navigation.test.js'),
     testPath('lib/scalp-analysis/history.test.js'),
+    testPath('lib/scalp-analysis/tracking-comparison.test.js'),
     testPath('lib/scalp-analysis/report.test.js'),
     testPath('app/scalp-analysis/ui/annotation-editor-logic.test.js'),
     testPath('lib/scalp-analysis/mock-repository.test.js'),

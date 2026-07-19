@@ -50,6 +50,8 @@
     "src/lib/scalp-analysis/navigation.test.ts",
     "src/lib/scalp-analysis/history.ts",
     "src/lib/scalp-analysis/history.test.ts",
+    "src/lib/scalp-analysis/tracking-comparison.ts",
+    "src/lib/scalp-analysis/tracking-comparison.test.ts",
     "src/lib/scalp-analysis/report.ts",
     "src/lib/scalp-analysis/report.test.ts",
     "src/lib/scalp-analysis/types.ts",

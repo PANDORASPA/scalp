@@ -11,6 +11,16 @@ import { CAPTURE_POINT_CODES } from '@/lib/scalp/constants'
 import { getCapturePointLabel } from '@/lib/scalp/display'
 import { computeComparison } from '@/lib/scalp/logic'
 import type { ScalpAiPointAnalysis, ScalpPointSummary, ScalpSession } from '@/lib/scalp/types'
+import {
+  SCALP_HISTORY_METRIC_LABELS,
+  SCALP_HISTORY_METRICS,
+  type ScalpAnalysisHistoryPoint,
+} from '@/lib/scalp-analysis/history'
+import {
+  buildTrackingComparisonRows,
+  getTrackingMetricDirection,
+  type TrackingComparisonRow,
+} from '@/lib/scalp-analysis/tracking-comparison'
 import { formatDate } from '@/lib/ui/format'
 
 type CustomerRow = {
@@ -141,6 +151,100 @@ function getAiConfidenceScore(values: Array<number | null | undefined>) {
   return Math.round((ready.reduce((sum, value) => sum + value, 0) / ready.length) * 100)
 }
 
+function formatTrackingMetricValue(value: number | null, metric: (typeof SCALP_HISTORY_METRICS)[number]) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '-'
+  return `${Math.round(value * 10) / 10}${metric === 'scalp_empty_ratio' ? '%' : ''}`
+}
+
+function TrackingComparisonCard({ row }: { row: TrackingComparisonRow }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="font-medium text-slate-900">{row.area_label}</div>
+        <span className={`rounded-full px-2 py-1 text-xs font-medium ${row.ready ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+          {row.ready ? '有 baseline 趨勢' : '等待第二次檢查'}
+        </span>
+      </div>
+      {row.ready ? (
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {SCALP_HISTORY_METRICS.map((metric) => {
+            const values = row.metrics[metric]
+            const direction = getTrackingMetricDirection(metric, values.delta)
+            return (
+              <div key={metric} className="rounded-md bg-slate-50 p-2 text-xs">
+                <div className="text-slate-500">{SCALP_HISTORY_METRIC_LABELS[metric]}</div>
+                <div className="mt-1 font-medium text-slate-800">
+                  {formatTrackingMetricValue(values.baseline, metric)} → {formatTrackingMetricValue(values.current, metric)}
+                </div>
+                <div className={
+                  direction === 'improved'
+                    ? 'text-emerald-700'
+                    : direction === 'declined'
+                      ? 'text-rose-700'
+                      : 'text-slate-500'
+                }>
+                  變化 {values.delta === null ? '-' : formatSignedNumber(values.delta, 1)}
+                  {metric === 'scalp_empty_ratio' && values.delta !== null ? '%' : ''}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="mt-3 text-sm text-slate-500">
+          已有一次完成紀錄，但未有第二次同部位完整資料，因此不顯示變化結論。
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TrackingComparisonPanel({
+  customerId,
+  history,
+  loading,
+}: {
+  customerId: string
+  history: ScalpAnalysisHistoryPoint[]
+  loading: boolean
+}) {
+  const rows = useMemo(() => buildTrackingComparisonRows(history), [history])
+  const latestSessionId = rows.find((row) => row.ready)?.current_session_id ?? rows[0]?.current_session_id
+
+  return (
+    <Card className="p-4">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <div className="text-sm font-semibold text-slate-900">放大圖 tracking baseline 比較</div>
+          <div className="mt-1 text-sm text-slate-600">
+            只使用每個部位已完成 3 張 confirmed 圖片的平均值，避免未完成資料被誤當成改善。
+          </div>
+        </div>
+        {latestSessionId ? (
+          <Link
+            className="text-sm font-medium text-blue-700 underline underline-offset-2"
+            href={`/scalp-analysis?customerId=${encodeURIComponent(customerId)}&sessionId=${encodeURIComponent(latestSessionId)}`}
+          >
+            開啟 tracking 工作台
+          </Link>
+        ) : null}
+      </div>
+
+      {loading ? (
+        <div className="mt-3 text-sm text-slate-500">正在載入放大圖歷史...</div>
+      ) : !rows.length ? (
+        <div className="mt-3 rounded-md border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-500">
+          尚未有完成 3 張 confirmed 圖片的 tracking 部位。
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {rows.map((row) => <TrackingComparisonCard key={row.area_key} row={row} />)}
+        </div>
+      )}
+    </Card>
+  )
+}
+
 async function fetchJSON<T>(url: string): Promise<T> {
   const res = await fetch(url)
   if (!res.ok) throw new Error('載入資料失敗')
@@ -160,6 +264,8 @@ export default function ComparisonsClient() {
 
   const [baselineState, setBaselineState] = useState<SessionState | null>(null)
   const [currentState, setCurrentState] = useState<SessionState | null>(null)
+  const [trackingHistory, setTrackingHistory] = useState<ScalpAnalysisHistoryPoint[]>([])
+  const [trackingHistoryLoading, setTrackingHistoryLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -210,6 +316,28 @@ export default function ComparisonsClient() {
       cancelled = true
     }
   }, [customerId, currentSessionId, presetCurrentSessionId])
+
+  useEffect(() => {
+    if (!customerId) {
+      setTrackingHistory([])
+      return
+    }
+    let cancelled = false
+    setTrackingHistoryLoading(true)
+    ;(async () => {
+      try {
+        const history = await fetchJSON<ScalpAnalysisHistoryPoint[]>(`/api/scalp-analysis/history?customerId=${encodeURIComponent(customerId)}`)
+        if (!cancelled) setTrackingHistory(history)
+      } catch {
+        if (!cancelled) setTrackingHistory([])
+      } finally {
+        if (!cancelled) setTrackingHistoryLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [customerId])
 
   useEffect(() => {
     if (!baselineSessionId || !currentSessionId) return
@@ -375,6 +503,14 @@ export default function ComparisonsClient() {
           </div>
         </div>
       </div>
+
+      {customerId ? (
+        <TrackingComparisonPanel
+          customerId={customerId}
+          history={trackingHistory}
+          loading={trackingHistoryLoading}
+        />
+      ) : null}
 
       {!customerId ? (
         <Card className="p-4">
