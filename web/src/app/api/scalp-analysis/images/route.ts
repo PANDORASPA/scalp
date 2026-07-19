@@ -5,6 +5,7 @@ import { isAreaKey } from '@/lib/scalp-analysis/logic'
 import { scalpAnalysisErrorStatus, uploadScalpImage, toScalpAnalysisError } from '@/lib/scalp-analysis/service'
 
 export const runtime = 'nodejs'
+export const maxDuration = 120
 
 const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])

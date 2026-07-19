@@ -45,6 +45,11 @@ import {
   type IntegrationStatus,
   type SettingsStatusResponse,
 } from '@/lib/ui/integration'
+import {
+  SCALP_ANALYSIS_IMAGE_REQUEST_TIMEOUT_MS,
+  SCALP_ANALYSIS_RECOVERY_REQUEST_TIMEOUT_MS,
+  SCALP_ANALYSIS_STORAGE_CLEANUP_REQUEST_TIMEOUT_MS,
+} from '@/lib/scalp-analysis/request-timeouts'
 
 import { AnnotationEditor } from './annotation-editor'
 
@@ -55,8 +60,6 @@ type CustomerRow = {
   session_count: number
   latest_check_date: string | null
 }
-
-const SCALP_RECOVERY_REQUEST_TIMEOUT_MS = 240_000
 
 function formatMetric(value: number | null, suffix = '') {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '-'
@@ -626,7 +629,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                     }>(
                       `/api/scalp-analysis/sessions/${encodeURIComponent(sessionId)}/retry`,
                       { method: 'POST' },
-                      SCALP_RECOVERY_REQUEST_TIMEOUT_MS,
+                      SCALP_ANALYSIS_RECOVERY_REQUEST_TIMEOUT_MS,
                     )
                     setRecoveryNotice(
                       `AI recovery finished: ${result.succeeded} succeeded, ${result.failed} failed, ${result.skipped} skipped.`,
@@ -797,7 +800,11 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                             setBusyKey(`delete-session:${session.id}`)
                             setError(null)
                             try {
-                              await fetchJSON(`/api/scalp-analysis/sessions/${session.id}`, { method: 'DELETE' })
+                              await fetchJSON(
+                                `/api/scalp-analysis/sessions/${session.id}`,
+                                { method: 'DELETE' },
+                                SCALP_ANALYSIS_STORAGE_CLEANUP_REQUEST_TIMEOUT_MS,
+                              )
                               if (editingSession?.id === session.id) setEditingSession(null)
                               await loadSessions(customerId)
                               if (sessionId === session.id) setSessionState(null)
@@ -1029,10 +1036,11 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                                     form.set('areaKey', area.area_key)
                                     form.set('imageIndex', String(imageIndex))
                                     form.set('file', file)
-                                    await fetchJSON<ScalpAnalysisImage>('/api/scalp-analysis/images', {
-                                      method: 'POST',
-                                      body: form,
-                                    })
+                                    await fetchJSON<ScalpAnalysisImage>(
+                                      '/api/scalp-analysis/images',
+                                      { method: 'POST', body: form },
+                                      SCALP_ANALYSIS_IMAGE_REQUEST_TIMEOUT_MS,
+                                    )
                                     setFiles((prev) => ({ ...prev, [fileKey]: null }))
                                     await refreshCurrentSession()
                                   } catch (e) {
@@ -1052,7 +1060,11 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                                     setBusyKey(`retry:${image.id}`)
                                     setError(null)
                                     try {
-                                      await fetchJSON(`/api/scalp-analysis/images/${image.id}`, { method: 'POST' })
+                                      await fetchJSON(
+                                        `/api/scalp-analysis/images/${image.id}`,
+                                        { method: 'POST' },
+                                        SCALP_ANALYSIS_IMAGE_REQUEST_TIMEOUT_MS,
+                                      )
                                       await refreshCurrentSession()
                                     } catch (e) {
                                       setError(e instanceof Error ? e.message : 'AI 重新分析失敗')

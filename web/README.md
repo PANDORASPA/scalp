@@ -245,6 +245,13 @@ allows four minutes for the batch request so a long OpenAI retry does not fail a
 report warning remains visible until all recovery work is complete; unconfirmed AI output is never included in official
 area averages.
 
+Individual image upload and retry requests have a 120-second server/client budget because one operation can include
+Google Drive upload, AI Vision, Supabase writes, and derived-data recomputation.
+
+Customer and legacy-session deletion use a 180-second budget and bounded Google Drive cleanup, so a customer with many
+historical images does not fail at the normal 30-second browser timeout. Storage permission failures remain visible and
+prevent the database record from being removed until cleanup succeeds.
+
 ### Manual checklist
 
 1. Create a new tracking session and verify it appears only in `/scalp-analysis` session list.

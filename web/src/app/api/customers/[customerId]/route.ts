@@ -18,6 +18,7 @@ import {
 import type { Customer } from '@/lib/scalp/types'
 
 export const runtime = 'nodejs'
+export const maxDuration = 180
 
 function isValidPhone(value: string | null) {
   if (!value) return true

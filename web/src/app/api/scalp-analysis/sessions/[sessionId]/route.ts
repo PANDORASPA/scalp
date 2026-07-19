@@ -12,6 +12,7 @@ import {
 } from '@/lib/scalp-analysis/service'
 
 export const runtime = 'nodejs'
+export const maxDuration = 120
 
 function isValidDate(value: string) {
   return !Number.isNaN(new Date(value).getTime())

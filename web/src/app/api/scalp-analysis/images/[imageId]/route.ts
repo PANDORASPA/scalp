@@ -4,6 +4,7 @@ import { requireAuthRole } from '@/lib/auth/session'
 import { removeScalpImage, retryScalpImageAnalysis, scalpAnalysisErrorStatus, toScalpAnalysisError } from '@/lib/scalp-analysis/service'
 
 export const runtime = 'nodejs'
+export const maxDuration = 120
 
 export async function POST(
   _req: Request,

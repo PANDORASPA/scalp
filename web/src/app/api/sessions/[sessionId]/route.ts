@@ -20,6 +20,7 @@ import {
 import type { ScalpSession } from '@/lib/scalp/types'
 
 export const runtime = 'nodejs'
+export const maxDuration = 180
 
 function isValidDate(value: string) {
   return !Number.isNaN(new Date(value).getTime())

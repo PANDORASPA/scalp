@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { CAPTURE_POINT_CODES } from '@/lib/scalp/constants'
 import { getCapturePointLabel } from '@/lib/scalp/display'
 import { buildScalpAnalysisHref } from '@/lib/scalp-analysis/navigation'
+import { SCALP_ANALYSIS_STORAGE_CLEANUP_REQUEST_TIMEOUT_MS } from '@/lib/scalp-analysis/request-timeouts'
 import type { ScalpAnalysisSessionState } from '@/lib/scalp-analysis/types'
 import type { ScalpPointSummary, ScalpSession } from '@/lib/scalp/types'
 import { getHumanErrorMessage } from '@/lib/ui/errors'
@@ -185,7 +186,11 @@ function CustomerEditorModal({
                 setSaving(true)
                 setError(null)
                 try {
-                  await fetchJson(`/api/customers/${customer.id}`, { method: 'DELETE' })
+                  await fetchJson(
+                    `/api/customers/${customer.id}`,
+                    { method: 'DELETE' },
+                    SCALP_ANALYSIS_STORAGE_CLEANUP_REQUEST_TIMEOUT_MS,
+                  )
                   onDeleted()
                 } catch (e) {
                   setError(e instanceof Error ? e.message : '刪除客人失敗')
@@ -307,7 +312,11 @@ function SessionEditorModal({
                   setSaving(true)
                   setError(null)
                   try {
-                    await fetchJson(`/api/sessions/${session.id}`, { method: 'DELETE' })
+                    await fetchJson(
+                      `/api/sessions/${session.id}`,
+                      { method: 'DELETE' },
+                      SCALP_ANALYSIS_STORAGE_CLEANUP_REQUEST_TIMEOUT_MS,
+                    )
                     onDeleted()
                   } catch (e) {
                     setError(e instanceof Error ? e.message : '刪除 session 失敗')
