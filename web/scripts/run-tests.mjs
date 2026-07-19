@@ -50,6 +50,7 @@ const tests = spawnSync(
     testPath('lib/scalp/pipeline.test.js'),
     testPath('lib/scalp/ownership.test.js'),
     testPath('lib/scalp-analysis/logic.test.js'),
+    testPath('lib/scalp-analysis/image-validation.test.js'),
     testPath('lib/scalp-analysis/navigation.test.js'),
     testPath('lib/scalp-analysis/history.test.js'),
     testPath('lib/scalp-analysis/tracking-comparison.test.js'),

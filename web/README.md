@@ -57,6 +57,7 @@ The SQL files live in the repository root at `../supabase/migrations` when this 
 6. `0006_add_tracking_image_score_columns.sql`
 7. `20260717195041_harden_scalp_data_access.sql`
 8. `20260719133000_enforce_customer_session_ownership.sql`
+9. `20260719150000_persist_capture_consistency.sql`
 
 `0003` creates the AI analysis tables and the `scalp-images` storage bucket.
 `0004` adds the scalp-analysis tracking columns, tracking workflow type, and `scalp_area_summaries`.
@@ -67,6 +68,8 @@ and restricts all application tables to the server-side service role. Existing i
 through the authenticated `/api/scalp-images/file` proxy.
 `20260719133000_enforce_customer_session_ownership.sql` enforces customer/session ownership for new image and area-summary writes while leaving existing
 historical rows available for review.
+`20260719150000_persist_capture_consistency.sql` persists the 0-100 capture consistency score and validates its range;
+low-consistency areas are excluded from official trend comparisons.
 
 ### Verification flow
 

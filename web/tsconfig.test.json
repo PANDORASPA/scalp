@@ -60,6 +60,8 @@
     "src/app/scalp-analysis/ui/annotation-editor-logic.test.ts",
     "src/lib/scalp-analysis/logic.ts",
     "src/lib/scalp-analysis/logic.test.ts",
+    "src/lib/scalp-analysis/image-validation.ts",
+    "src/lib/scalp-analysis/image-validation.test.ts",
     "src/lib/scalp-analysis/mock-repository.ts",
     "src/lib/scalp-analysis/mock-repository.test.ts",
     "src/lib/scalp-analysis/service.ts",

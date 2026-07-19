@@ -59,6 +59,9 @@ test('buildTrackingComparisonRows keeps low-consistency points out of official t
 
   assert.equal(rows[0]?.ready, false)
   assert.equal(rows[0]?.metrics.baby_hair_count.delta, null)
+  assert.equal(rows[0]?.blocked_by_consistency, true)
+  assert.equal(rows[0]?.baseline_consistency_score, 58)
+  assert.equal(rows[0]?.current_consistency_score, 92)
 })
 
 test('getTrackingMetricDirection treats scalp burden metrics as lower-is-better', () => {

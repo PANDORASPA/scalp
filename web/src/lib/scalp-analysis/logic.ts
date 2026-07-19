@@ -205,6 +205,13 @@ export function calculateCaptureConsistencyScore(images: ScalpAnalysisImage[]) {
   return Math.round((1 - spreads.reduce((sum, value) => sum + value, 0) / spreads.length) * 100)
 }
 
+export const CAPTURE_CONSISTENCY_REVIEW_THRESHOLD = 70
+
+export function isTrustworthyCaptureConsistencyScore(score: number | null | undefined) {
+  // Null keeps legacy summaries usable until their images are recalculated.
+  return typeof score !== 'number' || score >= CAPTURE_CONSISTENCY_REVIEW_THRESHOLD
+}
+
 function average(values: Array<number | null | undefined>) {
   const ready = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
   if (!ready.length) return null

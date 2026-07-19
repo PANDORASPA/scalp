@@ -2,6 +2,7 @@ import {
   SCALP_ANALYSIS_AREA_KEYS,
   type ScalpAnalysisAreaKey,
 } from './constants'
+import { isTrustworthyCaptureConsistencyScore } from './logic'
 import {
   SCALP_HISTORY_METRICS,
   type ScalpAnalysisHistoryPoint,
@@ -41,6 +42,9 @@ export type TrackingComparisonRow = {
   baseline_session_date: string | null
   current_session_id: string | null
   current_session_date: string | null
+  blocked_by_consistency: boolean
+  baseline_consistency_score: number | null
+  current_consistency_score: number | null
   metrics: Record<ScalpHistoryMetric, TrackingComparisonMetric>
 }
 
@@ -55,10 +59,7 @@ function getMetric(point: ScalpAnalysisHistoryPoint | undefined, metric: ScalpHi
 }
 
 function isTrustworthyHistoryPoint(point: ScalpAnalysisHistoryPoint | undefined) {
-  if (!point) return false
-  const score = point.capture_consistency_score
-  // Legacy summaries have no persisted score; keep them usable after migration.
-  return typeof score !== 'number' || score >= 70
+  return Boolean(point && isTrustworthyCaptureConsistencyScore(point.capture_consistency_score))
 }
 
 export function buildTrackingComparisonRows(history: ScalpAnalysisHistoryPoint[]): TrackingComparisonRow[] {
@@ -76,7 +77,9 @@ export function buildTrackingComparisonRows(history: ScalpAnalysisHistoryPoint[]
     const ordered = [...points].sort(compareHistoryPoints)
     const baseline = ordered[0]
     const current = ordered.at(-1)
-    const ready = ordered.length >= 2 && isTrustworthyHistoryPoint(baseline) && isTrustworthyHistoryPoint(current)
+    const blockedByConsistency =
+      ordered.length >= 2 && (!isTrustworthyHistoryPoint(baseline) || !isTrustworthyHistoryPoint(current))
+    const ready = ordered.length >= 2 && !blockedByConsistency
 
     const metrics = Object.fromEntries(
       SCALP_HISTORY_METRICS.map((metric) => {
@@ -103,6 +106,13 @@ export function buildTrackingComparisonRows(history: ScalpAnalysisHistoryPoint[]
       baseline_session_date: baseline.session_date,
       current_session_id: current?.session_id ?? null,
       current_session_date: current?.session_date ?? null,
+      blocked_by_consistency: blockedByConsistency,
+      baseline_consistency_score: typeof baseline.capture_consistency_score === 'number'
+        ? baseline.capture_consistency_score
+        : null,
+      current_consistency_score: typeof current?.capture_consistency_score === 'number'
+        ? current.capture_consistency_score
+        : null,
       metrics,
     }]
   })

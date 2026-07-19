@@ -1,5 +1,8 @@
 import { SCALP_ANALYSIS_AREA_LABELS, type ScalpAnalysisAreaKey } from './constants'
-import { calculateCaptureConsistencyScore } from './logic'
+import {
+  calculateCaptureConsistencyScore,
+  CAPTURE_CONSISTENCY_REVIEW_THRESHOLD,
+} from './logic'
 import type {
   ScalpAnalysisSessionState,
   ScalpAreaSummary,
@@ -147,7 +150,7 @@ export function buildScalpAnalysisReport(
       uploaded_images: area.uploaded_images,
       confirmed_images: area.confirmed_images,
       consistency_score: consistencyScore,
-      consistency_warning: consistencyScore !== null && consistencyScore < 70,
+      consistency_warning: consistencyScore !== null && consistencyScore < CAPTURE_CONSISTENCY_REVIEW_THRESHOLD,
       metrics: summaryMetrics(summary),
       compared_to_previous: summary?.compared_to_previous_json ?? null,
       compared_to_baseline: summary?.compared_to_baseline_json ?? null,

@@ -192,7 +192,9 @@ function TrackingComparisonCard({ row }: { row: TrackingComparisonRow }) {
         </div>
       ) : (
         <div className="mt-3 text-sm text-slate-500">
-          已有一次完成紀錄，但未有第二次同部位完整資料，因此不顯示變化結論。
+          {row.blocked_by_consistency
+            ? `三張圖 consistency 太低（今次 ${row.current_consistency_score ?? '-'}%，baseline ${row.baseline_consistency_score ?? '-'}%），請覆核標記或重拍後才會產生正式趨勢。`
+            : '已有一次完成檢查，但未有第二次同部位完整資料，因此不顯示趨勢。'}
         </div>
       )}
     </div>

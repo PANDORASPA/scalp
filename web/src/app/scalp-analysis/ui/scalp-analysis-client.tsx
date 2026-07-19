@@ -19,7 +19,11 @@ import {
   type ScalpAnalysisHistoryPoint,
   type ScalpHistoryMetric,
 } from '@/lib/scalp-analysis/history'
-import { calculateCaptureConsistencyScore } from '@/lib/scalp-analysis/logic'
+import {
+  calculateCaptureConsistencyScore,
+  CAPTURE_CONSISTENCY_REVIEW_THRESHOLD,
+  isTrustworthyCaptureConsistencyScore,
+} from '@/lib/scalp-analysis/logic'
 import { filterScalpAnalysisCustomers } from '@/lib/scalp-analysis/customer-picker'
 import { buildScalpAnalysisHref, pickTrackingSessionId } from '@/lib/scalp-analysis/navigation'
 import {
@@ -109,7 +113,7 @@ function SummaryPanel({ summary, consistencyScore }: { summary: ScalpAreaSummary
         <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 p-2 text-xs text-slate-600">
           <div className="font-medium text-slate-800">Capture consistency: {consistencyScore}%</div>
           <div className="mt-1">
-            {consistencyScore < 70
+            {consistencyScore < CAPTURE_CONSISTENCY_REVIEW_THRESHOLD
               ? '低於 70%，請覆核三張圖片或重拍；不要將細微變化直接當成改善。'
               : '三張圖片的統計差異在可接受範圍內。'}
           </div>
@@ -365,14 +369,23 @@ function TrendHistoryPanel({
               <tbody>
                 {points.map((point, index) => {
                   const value = getScalpHistoryMetricValue(point, metric)
-                  const previous = index > 0 ? getScalpHistoryMetricValue(points[index - 1], metric) : null
-                  const delta = typeof value === 'number' && typeof previous === 'number' ? value - previous : null
+                  const previousPoint = index > 0 ? points[index - 1] : null
+                  const previous = previousPoint ? getScalpHistoryMetricValue(previousPoint, metric) : null
+                  const canCompare =
+                    isTrustworthyCaptureConsistencyScore(point.capture_consistency_score) &&
+                    isTrustworthyCaptureConsistencyScore(previousPoint?.capture_consistency_score)
+                  const delta = canCompare && typeof value === 'number' && typeof previous === 'number'
+                    ? value - previous
+                    : null
                   return (
                     <tr key={`${point.session_id}:${point.area_key}`} className="border-b border-slate-100">
                       <td className="px-3 py-2">{formatDate(point.session_date)}</td>
                       <td className="px-3 py-2 font-medium">{formatHistoryValue(value, metric)}</td>
                       <td className="px-3 py-2 text-slate-600">
                         {delta === null ? '-' : `${delta > 0 ? '+' : ''}${Math.round(delta * 10) / 10}${metric === 'scalp_empty_ratio' ? '%' : ''}`}
+                        {point.capture_consistency_score !== null && point.capture_consistency_score !== undefined && point.capture_consistency_score < CAPTURE_CONSISTENCY_REVIEW_THRESHOLD ? (
+                          <div className="mt-1 text-xs text-amber-700">Consistency {point.capture_consistency_score}%: review</div>
+                        ) : null}
                       </td>
                     </tr>
                   )

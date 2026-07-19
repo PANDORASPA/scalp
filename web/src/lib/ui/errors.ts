@@ -16,6 +16,7 @@ export function getHumanErrorMessage(error: string) {
   if (error.includes('file_required')) return '請先選擇圖片。'
   if (error.includes('file_empty')) return '圖片檔案是空的，請重新選擇圖片。'
   if (error.includes('invalid_file_type')) return '只接受 JPG、PNG 或 WebP 圖片。'
+  if (error.includes('invalid_image_content')) return '圖片內容無法驗證，請使用原始 JPG、PNG 或 WebP 檔案再試。'
   if (error.includes('file_too_large')) return '圖片不可大於 8MB，請壓縮後再上傳。'
   if (error.includes('missing_required_fields')) return '圖片資料不完整，請重新選擇部位及圖片編號。'
   if (error.includes('invalid_multipart_form')) return '圖片表單格式不正確，請重新選擇圖片後再試。'

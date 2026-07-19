@@ -17,6 +17,7 @@ import {
   compareAreaSummaries,
   isAreaKey,
   isConfirmedScalpAnalysisImage,
+  isTrustworthyCaptureConsistencyScore,
   normalizeAnnotations,
 } from './logic'
 import {
@@ -40,6 +41,7 @@ import {
   updateTrackingSessionRecord,
 } from './repository'
 import { getScalpStorageAdapter } from './storage'
+import { isSupportedScalpImageBytes } from './image-validation'
 import {
   commitUploadedStorageRecord,
   deleteStorageBestEffort,
@@ -152,6 +154,9 @@ export async function uploadScalpImage(input: UploadInput) {
     imageIndex: input.imageIndex,
   })
   const bytes = Buffer.from(await input.file.arrayBuffer())
+  if (!isSupportedScalpImageBytes(bytes, input.file.type)) {
+    throw new Error('invalid_image_content: Image content does not match its declared image type.')
+  }
   const uploaded = await adapter.upload({
     objectKey,
     fileName: input.file.name || `shot-${input.imageIndex}.jpg`,
@@ -325,9 +330,9 @@ async function findReferenceSummary(params: {
 
 export async function compareWithPreviousSession(customerId: string, sessionId: string, areaKey: ScalpAnalysisAreaKey) {
   const current = await getTrackingAreaSummary(sessionId, areaKey)
-  if (!current) return null
+  if (!current || !isTrustworthyCaptureConsistencyScore(current.capture_consistency_score)) return null
   const reference = await findReferenceSummary({ customerId, sessionId, areaKey, mode: 'previous' })
-  if (!reference) return null
+  if (!reference || !isTrustworthyCaptureConsistencyScore(reference.summary.capture_consistency_score)) return null
   return compareAreaSummaries({
     current,
     reference: reference.summary,
@@ -338,9 +343,9 @@ export async function compareWithPreviousSession(customerId: string, sessionId: 
 
 export async function compareWithBaseline(customerId: string, sessionId: string, areaKey: ScalpAnalysisAreaKey) {
   const current = await getTrackingAreaSummary(sessionId, areaKey)
-  if (!current) return null
+  if (!current || !isTrustworthyCaptureConsistencyScore(current.capture_consistency_score)) return null
   const reference = await findReferenceSummary({ customerId, sessionId, areaKey, mode: 'baseline' })
-  if (!reference) return null
+  if (!reference || !isTrustworthyCaptureConsistencyScore(reference.summary.capture_consistency_score)) return null
   return compareAreaSummaries({
     current,
     reference: reference.summary,
@@ -495,6 +500,7 @@ export function toScalpAnalysisError(error: unknown) {
   ) return 'storage_cleanup_failed'
   if (lowered.includes('missing_image')) return message.split(':')[0]
   if (lowered.includes('invalid_area_key')) return 'invalid_area_key'
+  if (lowered.includes('invalid_image_content')) return 'invalid_image_content'
   if (lowered.includes('annotations_required')) return 'annotations_required'
   if (lowered.includes('ai_retry_not_allowed')) return 'ai_retry_not_allowed'
   if (lowered.includes('supabase_env_missing')) return 'supabase_env_missing'
@@ -504,6 +510,11 @@ export function toScalpAnalysisError(error: unknown) {
 export function scalpAnalysisErrorStatus(error: unknown) {
   const code = toScalpAnalysisError(error)
   if (code === 'customer_not_found' || code === 'session_not_found' || code === 'missing_image') return 404
-  if (code === 'invalid_area_key' || code === 'annotations_required' || code === 'ai_retry_not_allowed') return 400
+  if (
+    code === 'invalid_area_key' ||
+    code === 'invalid_image_content' ||
+    code === 'annotations_required' ||
+    code === 'ai_retry_not_allowed'
+  ) return 400
   return 500
 }
