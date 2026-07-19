@@ -21,6 +21,13 @@ import {
 } from '@/lib/scalp-analysis/history'
 import { calculateCaptureConsistencyScore } from '@/lib/scalp-analysis/logic'
 import { buildScalpAnalysisHref, pickTrackingSessionId } from '@/lib/scalp-analysis/navigation'
+import {
+  buildScalpAnalysisReport,
+  SCALP_REPORT_METRIC_KEYS,
+  SCALP_REPORT_METRIC_LABELS,
+  type ScalpAnalysisReport,
+  type ScalpReportMetricKey,
+} from '@/lib/scalp-analysis/report'
 import type { ScalpAnalysisAnnotations, ScalpAnalysisImage, ScalpAnalysisSessionState, ScalpAreaSummary } from '@/lib/scalp-analysis/types'
 import type { ScalpSession } from '@/lib/scalp/types'
 import { getHumanErrorMessage } from '@/lib/ui/errors'
@@ -128,6 +135,91 @@ function SummaryPanel({ summary, consistencyScore }: { summary: ScalpAreaSummary
       </Card>
       </div>
     </>
+  )
+}
+
+function reportMetricSuffix(metric: ScalpReportMetricKey) {
+  return metric === 'average_scalp_empty_ratio' ? '%' : ''
+}
+
+function ReportView({ report }: { report: ScalpAnalysisReport }) {
+  return (
+    <Card className="p-5 print:break-inside-avoid">
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="text-xs font-medium uppercase tracking-wide text-slate-500">客人報告</div>
+          <h2 className="mt-1 text-xl font-semibold text-slate-900">{report.customer_name} | 頭皮放大圖追蹤</h2>
+          <div className="mt-1 text-sm text-slate-600">檢查日期：{formatDate(report.session_date)}</div>
+        </div>
+        <div className={`rounded-full px-3 py-1 text-xs font-semibold ${report.session_complete ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+          {report.session_complete ? '6 個部位已完成' : `${report.completed_areas}/6 個部位已完成`}
+        </div>
+      </div>
+
+      {report.warnings.length > 0 ? (
+        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <div className="font-semibold">報告仍有未完成資料</div>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {report.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+          </ul>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+          六個固定部位均已由 3 張 confirmed 圖片取平均，可作今次正式報告。
+        </div>
+      )}
+
+      <div className="mt-4 space-y-4">
+        {report.areas.map((area) => (
+          <section key={area.area_key} className="rounded-lg border border-slate-200 p-4 print:break-inside-avoid">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h3 className="font-semibold text-slate-900">{area.label}</h3>
+                <div className="mt-1 text-xs text-slate-500">
+                  {area.confirmed_images}/3 張 confirmed
+                  {area.consistency_score === null ? '' : ` | capture consistency ${area.consistency_score}%`}
+                </div>
+              </div>
+              <span className={`rounded-full px-2 py-1 text-xs font-medium ${area.status === 'complete' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                {area.status === 'complete' ? '已納入統計' : '未納入統計'}
+              </span>
+            </div>
+
+            {area.status === 'complete' ? (
+              <>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {SCALP_REPORT_METRIC_KEYS.map((metric) => (
+                    <div key={metric} className="rounded-md bg-slate-50 p-2">
+                      <div className="text-xs text-slate-500">{SCALP_REPORT_METRIC_LABELS[metric]}</div>
+                      <div className="mt-1 text-sm font-semibold text-slate-900">
+                        {formatMetric(area.metrics[metric], reportMetricSuffix(metric))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {area.report_summary ? <div className="mt-3 text-sm text-slate-700">{area.report_summary}</div> : null}
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <div className="text-xs font-medium uppercase tracking-wide text-slate-500">今次 vs 上次</div>
+                    <div className="mt-2 space-y-1 text-sm text-slate-700">
+                      {area.compared_to_previous?.summary_lines?.length ? area.compared_to_previous.summary_lines.map((line) => <div key={line}>{line}</div>) : <div className="text-slate-500">沒有完整的上一個 session 可比較。</div>}
+                    </div>
+                  </div>
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <div className="text-xs font-medium uppercase tracking-wide text-slate-500">今次 vs baseline</div>
+                    <div className="mt-2 space-y-1 text-sm text-slate-700">
+                      {area.compared_to_baseline?.summary_lines?.length ? area.compared_to_baseline.summary_lines.map((line) => <div key={line}>{line}</div>) : <div className="text-slate-500">沒有完整 baseline 可比較。</div>}
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="mt-3 text-sm text-slate-500">完成 3 張圖片並確認標記後，才會加入平均值及前後比較。</div>
+            )}
+          </section>
+        ))}
+      </div>
+    </Card>
   )
 }
 
@@ -294,6 +386,10 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
   const [integrations, setIntegrations] = useState<IntegrationStatus[]>([])
   const [history, setHistory] = useState<ScalpAnalysisHistoryPoint[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const report = useMemo(
+    () => (sessionState ? buildScalpAnalysisReport(sessionState) : null),
+    [sessionState],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -693,16 +789,7 @@ export default function ScalpAnalysisClient({ role }: { role: 'admin' | 'staff' 
                 </div>
               </Card>
 
-              {sessionState.report_lines.length > 0 ? (
-                <Card className="p-5">
-                  <div className="text-sm font-semibold text-slate-900">報告預覽</div>
-                  <div className="mt-3 space-y-2 text-sm text-slate-700">
-                    {sessionState.report_lines.map((line) => (
-                      <div key={line}>{line}</div>
-                    ))}
-                  </div>
-                </Card>
-              ) : null}
+              {report ? <ReportView report={report} /> : null}
 
               {sessionState.areas.map((area) => (
                 <Card key={area.area_key} className="p-5">
