@@ -7,6 +7,7 @@ import { shouldUseSupabaseDataSource } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
 import {
   createSessionInSupabase,
+  getCustomerFromSupabase,
   listSessionsFromSupabase,
   toRepositoryError,
   touchCustomerInSupabase,
@@ -69,6 +70,10 @@ export async function POST(req: Request) {
 
   if (shouldUseSupabaseDataSource()) {
     try {
+      const customer = await getCustomerFromSupabase(customerId)
+      if (!customer) {
+        return NextResponse.json({ error: 'customer_not_found' }, { status: 404 })
+      }
       const created = await createSessionInSupabase({
         customer_id: customerId,
         check_date: checkDate,
@@ -83,7 +88,10 @@ export async function POST(req: Request) {
     }
   }
 
-  const created = await updateDb(async (db) => {
+  const created = await updateDb<ScalpSession | null>(async (db) => {
+    const customer = db.customers.find((c) => c.id === customerId)
+    if (!customer) return { db, result: null }
+
     const session: ScalpSession = {
       id: crypto.randomUUID(),
       customer_id: customerId,
@@ -94,12 +102,14 @@ export async function POST(req: Request) {
       updated_at: now,
     }
     db.sessions.push(session)
-
-    const customer = db.customers.find((c) => c.id === customerId)
-    if (customer) customer.updated_at = now
+    customer.updated_at = now
 
     return { db, result: session }
   })
+
+  if (!created) {
+    return NextResponse.json({ error: 'customer_not_found' }, { status: 404 })
+  }
 
   return NextResponse.json(created)
 }

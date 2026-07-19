@@ -13,6 +13,7 @@ import type {
   ScalpPointSummary,
   ScalpSession,
 } from '@/lib/scalp/types'
+import { belongsToSessionOwner } from '@/lib/scalp/ownership'
 
 import { getSupabaseAdminClient } from './client'
 import { getScalpImageUrl } from './storage'
@@ -506,6 +507,15 @@ export async function getSessionFromSupabase(sessionId: string) {
   return querySingle<ScalpSession>('scalp_sessions', 'id', sessionId)
 }
 
+export async function getSessionForCustomerFromSupabase(
+  sessionId: string,
+  customerId: string,
+  workflow: 'legacy_capture' | 'scalp_analysis_tracking' = 'legacy_capture',
+) {
+  const session = await getSessionFromSupabase(sessionId)
+  return belongsToSessionOwner(session, customerId, workflow) ? session : null
+}
+
 export async function updateSessionInSupabase(sessionId: string, patch: Partial<ScalpSession>) {
   const client = getSupabaseAdminClient()
   const { data, error } = await client
@@ -590,6 +600,9 @@ export async function upsertImageRecordInSupabase(input: {
   storageObjectKey?: string | null
   nowISO: string
 }) {
+  const session = await getSessionForCustomerFromSupabase(input.sessionId, input.customerId, 'legacy_capture')
+  if (!session) throw new Error('session_not_found: Session does not belong to customer.')
+
   const { byCode } = await getCapturePointMaps()
   const capturePointId = byCode.get(input.capturePointCode)
   if (!capturePointId) throw new Error(`Unknown capture point code: ${input.capturePointCode}`)

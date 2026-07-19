@@ -39,6 +39,8 @@
     "src/lib/scalp/ai.ts",
     "src/lib/scalp/ai.test.ts",
     "src/lib/scalp/logic.ts",
+    "src/lib/scalp/ownership.ts",
+    "src/lib/scalp/ownership.test.ts",
     "src/lib/scalp/pipeline.ts",
     "src/lib/scalp/pipeline.test.ts",
     "src/lib/scalp-analysis/constants.ts",

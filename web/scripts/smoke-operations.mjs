@@ -35,6 +35,22 @@ async function fetchJson(url, init = {}) {
   return { res, json }
 }
 
+async function expectJsonFailure(url, init, expectedStatus, expectedError) {
+  const res = await fetch(url, init)
+  const text = await res.text()
+  let json = null
+  try {
+    json = text ? JSON.parse(text) : null
+  } catch {
+    json = text
+  }
+  if (res.status !== expectedStatus || json?.error !== expectedError) {
+    fail(
+      `${init.method || 'GET'} ${url} expected ${expectedStatus}/${expectedError}, got ${res.status}/${JSON.stringify(json)}`,
+    )
+  }
+}
+
 async function login() {
   const loginResult = await fetchJson(`${baseUrl}/api/auth/login`, {
     method: 'POST',
@@ -94,6 +110,33 @@ async function main() {
     })
     sessionId = createdSession.json?.id
     if (!sessionId) fail('session creation did not return an id')
+
+    await expectJsonFailure(
+      `${baseUrl}/api/sessions`,
+      {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_id: '00000000-0000-0000-0000-000000000000',
+          check_date: new Date(Date.UTC(2026, 5, 20, 9, 0, 0)).toISOString(),
+        }),
+      },
+      404,
+      'customer_not_found',
+    )
+
+    const mismatchedImage = new FormData()
+    mismatchedImage.set('customer_id', '00000000-0000-0000-0000-000000000000')
+    mismatchedImage.set('session_id', sessionId)
+    mismatchedImage.set('capture_point_code', 'front')
+    mismatchedImage.set('shot_index', '1')
+    mismatchedImage.set('file', new Blob(['smoke'], { type: 'image/jpeg' }), 'smoke.jpg')
+    await expectJsonFailure(
+      `${baseUrl}/api/scalp-images`,
+      { method: 'POST', headers, body: mismatchedImage },
+      404,
+      'session_not_found',
+    )
 
     const session = await fetchJson(`${baseUrl}/api/sessions/${sessionId}`, { headers })
     if (session.json?.id !== sessionId) fail('created session could not be read back')

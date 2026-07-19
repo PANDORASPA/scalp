@@ -41,6 +41,7 @@ const tests = spawnSync(
     '.test-dist/lib/customers/workspace.test.js',
     '.test-dist/lib/scalp/ai.test.js',
     '.test-dist/lib/scalp/pipeline.test.js',
+    '.test-dist/lib/scalp/ownership.test.js',
     '.test-dist/lib/scalp-analysis/logic.test.js',
     '.test-dist/lib/scalp-analysis/navigation.test.js',
     '.test-dist/lib/scalp-analysis/history.test.js',

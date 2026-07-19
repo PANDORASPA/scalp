@@ -8,12 +8,14 @@ import { shouldUseSupabaseDataSource } from '@/lib/config/supabase'
 import { updateDb } from '@/lib/mockdb/store'
 import { buildHairCountShotAnalysis } from '@/lib/scalp/ai'
 import { isCapturePointCode } from '@/lib/scalp/logic'
+import { belongsToSessionOwner } from '@/lib/scalp/ownership'
 import { syncSessionPointDerivedData } from '@/lib/scalp/pipeline'
 import { runHairCountInference } from '@/lib/scalp/providers'
 import {
   deleteImageBySessionPointShotInSupabase,
   getImageBySessionPointShotInSupabase,
   getCustomerSnapshot,
+  getSessionForCustomerFromSupabase,
   replaceDerivedPointDataInSupabase,
   seedCapturePointsIfNeeded,
   toRepositoryError,
@@ -37,6 +39,9 @@ const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 type SaveImageResult =
   | {
       error: 'file_required'
+    }
+  | {
+      error: 'session_not_found'
     }
   | {
       image: ScalpImage
@@ -115,6 +120,10 @@ export async function POST(req: Request) {
 
   if (shouldUseSupabaseDataSource()) {
     try {
+      const session = await getSessionForCustomerFromSupabase(sessionId, customerId, 'legacy_capture')
+      if (!session) {
+        return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
+      }
       await seedCapturePointsIfNeeded()
       const existingFile = file instanceof File ? file : null
       if (!existingFile) {
@@ -221,8 +230,14 @@ export async function POST(req: Request) {
   }
 
   const result = await updateDb<SaveImageResult>(async (db) => {
+    const session = db.sessions.find((item) => item.id === sessionId)
+    if (!session || !belongsToSessionOwner(session, customerId, 'legacy_capture')) {
+      return { db, result: { error: 'session_not_found' as const } }
+    }
+
     const existingImageIndex = db.images.findIndex(
       (i) =>
+        i.customer_id === customerId &&
         i.session_id === sessionId &&
         i.capture_point_code === capturePointCode &&
         i.shot_index === shotIndex,
@@ -356,8 +371,7 @@ export async function POST(req: Request) {
         pointSummary.session_id === sessionId && pointSummary.capture_point_code === capturePointCode,
     )
 
-    const session = db.sessions.find((s) => s.id === sessionId)
-    if (session) session.updated_at = now
+    session.updated_at = now
     const customer = db.customers.find((c) => c.id === customerId)
     if (customer) customer.updated_at = now
 
@@ -372,7 +386,7 @@ export async function POST(req: Request) {
   })
 
   if ('error' in result) {
-    return NextResponse.json(result, { status: 400 })
+    return NextResponse.json(result, { status: result.error === 'session_not_found' ? 404 : 400 })
   }
 
   return NextResponse.json(result)

@@ -1,4 +1,5 @@
 export function getHumanErrorMessage(error: string) {
+  if (error.includes('session_not_found')) return 'Session not found for this customer. Re-select the customer and session.'
   if (error.includes('invalid_json')) return '送出的資料格式不正確，請重新嘗試。'
   if (error.includes('not_found')) return '找不到相關資料，可能已被刪除；請重新整理頁面。'
   if (error.includes('customer_id_required') || error.includes('customer_id_and_check_date_required')) {

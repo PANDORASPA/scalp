@@ -17,3 +17,10 @@ test('getHumanErrorMessage explains settings save connectivity failures', () => 
   assert.match(message, /Supabase/)
   assert.doesNotMatch(message, /save_google_drive_settings_failed/)
 })
+
+test('getHumanErrorMessage explains session ownership failures', () => {
+  const message = getHumanErrorMessage('session_not_found')
+
+  assert.match(message, /session/i)
+  assert.doesNotMatch(message, /session_not_found/)
+})
